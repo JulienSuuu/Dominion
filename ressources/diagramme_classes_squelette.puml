@@ -1,0 +1,134 @@
+@startuml
+skinparam nodesep 70
+skinparam ranksep 100
+skinparam linetype ortho
+
+class Game {
+    - currentTurnPlayer : Player
+
+    + Game(playerNames : String[], kingdomPiles : String[])
+    + run() : void
+    + isFinished() : boolean
+    + moveToNextPlayer() : void
+    + getAvailableSupplyCards() : List<Card>
+    + getCardFromSupply(cardName : String) : Card
+}
+
+note right of Game
+    Classe principale qui gère la partie.
+    La méthode run() est la méthode principale
+    qui déclenche la partie. Elle initialise
+    les joueurs et les fait jouer tour à tour.
+end note
+
+together {
+class Player as "Player"{
+    - name : String
+    - numberOfActions : int
+    - numberOfBuys : int
+    - money : int
+
+    + playTurn() : void
+    + cleanup() : void
+    + drawToHand() : Card
+    + getVictoryPoints() : int
+    + playCard(c : Card) : void
+    + playCard(name : String) : void
+    + getCardFromDeck() : Card
+    + moveToHand(c : Card) : void
+
+    + choose(...)
+}
+
+
+enum CardType {
+    TREASURE
+    ACTION
+    VICTORY
+    CURSE
+    REACTION
+    ATTACK
+    DURATION
+}
+}
+
+class SupplyPile {
+    - name : String
+    - cost : int
+
+    + getName() : String
+    + getCost() : int
+}
+
+abstract class Card {
+    - name : String
+    - cost : int
+
+    + getName() : String
+    + getCost() : int
+    + hasType(type : CardType) : boolean
+    + play(p : Player) : void
+    + moveTo(location : List<Card>) : void
+    + getVictoryValue() : int
+}
+
+package "cards.common" {
+    class Copper
+    class Silver
+    class Gold
+    class Estate
+    class Duchy
+    class Province
+    class Curse
+}
+
+package "cards.seaside" {
+    class Caravan
+    class GhostShip
+    class Island
+}
+
+note bottom
+    35 cartes Action de l'extension Seaside
+    (Ambassador, Astrolabe, Bazaar, Blockade,
+    Caravan, Corsair, Cutpurse, Embargo, etc.)
+end note
+
+' Héritage direct vers Card
+Copper -up-|> Card
+Silver -up-|> Card
+Gold -up-|> Card
+Estate -up-|> Card
+Duchy -up-|> Card
+Province -up-|> Card
+Curse -up-|> Card
+
+Caravan --|> Card
+GhostShip --|> Card
+Island --|> Card
+
+SupplyPile -right-|> ArrayList
+
+' Relations Game
+Game "1 game" -- "2..4 players" Player
+Game --> " *  supplyPiles" SupplyPile
+Game --> " -trashedCards * " Card
+
+' Relations Player
+Player --> "*" Card
+Player --> "*" Card
+Player --> "*" Card
+Player --> "*" Card
+Player --> "*" Card
+Player --> "*" Card
+Player --> "*" Card
+
+' Relations Card
+Card -right->"*" CardType
+' ========================
+' Séparation en 2 blocs (haut / bas)
+' ========================
+Game -[hidden]down-> Card
+Player -[hidden]down-> Card
+SupplyPile -[hidden]down-> Card
+@enduml

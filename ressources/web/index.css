@@ -1,0 +1,252 @@
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 10pt;
+  font-family: Monaco, Consolas, "Lucida Console", monospace;
+  background: #6f6f6f url(images/bg.jpg) no-repeat center center fixed;
+  background-blend-mode: screen;
+  background-size: cover;
+  --pt: 1vw;
+}
+@media (min-width: 700px) {
+  html {
+    --pt: 7px;
+  }
+}
+
+body {
+  margin: 2px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: center;
+}
+
+#main {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+@media (min-width: 1100px) {
+  #main {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+}
+
+#game {
+  flex-shrink: 0;
+  width: calc(100 * var(--pt));
+  padding: calc(1 * var(--pt));
+  background: url(images/parchment.jpg) repeat;
+  border: 1px solid black;
+  display: flex;
+  flex-direction: column;
+}
+
+#kingdom_supply, #common_supply, .in_play, .hand {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+#kingdom_supply, #common_supply {
+  justify-content: space-between;
+}
+
+#kingdom_supply {
+  --card-width: calc(19 * var(--pt));
+}
+
+#common_supply {
+  --card-width: calc(13.5 * var(--pt));
+}
+
+.in_play {
+  --card-width: calc(8 * var(--pt));
+  margin-top: 10px;
+}
+
+.hand {
+  --card-width: calc(12 * var(--pt));
+}
+
+.card {
+  width: var(--card-width);
+  height: calc(1.57 * var(--card-width));
+  position: relative;
+  margin-bottom: 10px;
+  background-size: cover;
+  border-radius: 6px;
+  box-shadow: 2px 2px 2px #333;
+  overflow: clip;
+}
+.card.half {
+  height: calc(0.84 * var(--card-width));
+}
+.card.phantom {
+  box-shadow: none;
+}
+.card .overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #00000088;
+}
+
+.card .cost, .card .number {
+  position: absolute;
+  background-size: 100%;
+  font-family: Baskerville, "Baskerville Old Face", "Hoefler Text", Garamond, "Times New Roman", serif;
+  font-weight: bold;
+  text-align: center;
+  font-size: 1.2rem;
+}
+.card .cost {
+  background-image: url(images/coin.png);
+  background-size: cover;
+  width: 28px;
+  height: 28px;
+  line-height: 28px;
+  bottom: 0;
+  left: 0;
+}
+.card .number {
+  bottom: 3px;
+  right: 3px;
+  background-image: url(images/number.jpg);
+  width: 24px;
+  height: 24px;
+  border: 1px solid;
+  line-height: 24px;
+}
+
+.player {
+  margin-top: 10px;
+}
+.player.active {
+  background-color: #EEE5;
+}
+.player .player_info {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 10px;
+}
+.player .card {
+  margin-right: 3px;
+}
+.player .card.duplicate {
+  margin-right: calc(-.8 * var(--card-width));
+}
+.player .name {
+  font-weight: bolder;
+}
+.player .instruction {
+  visibility: hidden;
+}
+.player.active .instruction {
+  visibility: visible;
+  background-color: #EEE8;
+}
+
+.instruction .buttons {
+  display: flex;
+  justify-content: left;
+  gap: 5px;
+  margin-top: 5px;
+}
+button {
+  display: inline-block;
+  padding: 2px 5px;
+  line-height: 1;
+  text-align: center;
+  border-radius: 3px;
+  border: solid 1px;
+  min-width: 60px;
+  text-decoration: none;
+  user-select: none;
+}
+button:hover {
+  cursor: pointer;
+}
+
+#side {
+  display: flex;
+  flex-grow: 1;
+  flex-direction: column;
+  gap: 5px;
+  width: 400px;
+}
+
+#message input {
+  width: 100%;
+}
+
+#log {
+  width: 100%;
+  height: 480px;
+  background: #fffc;
+  border: 1px solid black;
+  padding: 5px;
+  overflow-y: auto;
+}
+
+#log .card-name, #log .player-name {
+  font-weight: bolder;
+}
+
+#log .turn-title {
+  width: 100%;
+  text-align: center;
+  text-decoration: underline;
+  margin-top: 1em;
+}
+
+#zoom {
+  width: calc(30 * var(--pt));
+  height: calc(1.57 * 30 * var(--pt));
+  border-radius: 13px;
+  background-size: cover;
+  position: fixed;
+  bottom: 5px;
+  right: 5px;
+  pointer-events: none;
+}
+
+.tooltip {
+  position: relative;
+  cursor: help;
+  border-bottom: 1px dotted #666;
+}
+
+.tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  padding: 5px 10px;
+  background: #333;
+  color: #fff;
+  /* white-space: pre-line; */
+  border-radius: 4px;
+  font-size: 0.9rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s;
+  z-index: 1;
+  margin-bottom: 5px;
+  width: max-content;
+  max-width: 200px;
+}
+
+.tooltip:hover::after {
+  opacity: 1;
+}
+
+/*# sourceMappingURL=index.css.map */
