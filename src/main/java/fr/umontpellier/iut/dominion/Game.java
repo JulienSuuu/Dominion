@@ -272,7 +272,7 @@ public class Game {
                 .forEach(victim ->
                     Optional.ofNullable(victim.getCardFromSupply(nameCard)).ifPresent( card ->{
                             victim.gain(card, dest);
-                            victim.log(String.format("Gain %s : %s.", nameCard, card.getName()));
+                            victim.log(String.format("%s Gain %s : %s.",victim.getName(), nameCard, card.getName()));
                     })
                 );
     }
@@ -466,6 +466,7 @@ public class Game {
     public boolean replaceCardInSupply(Card card, Card revealed){
         if(!card.hasSameNameAs(revealed))return false;
         supplyPiles.stream().filter(s -> s.getName().equals(revealed.getName()) && revealed.hasSameNameAs(card)).findFirst().map(s -> s.add(card));
+        card.moveTo(new ArrayList<>());
         return true;
     }
 

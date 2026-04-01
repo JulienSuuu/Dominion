@@ -999,8 +999,7 @@ public class Player {
         numberOfActions = 0;
         money = 0;
 
-        discard.addAll(hand);
-        hand.clear();
+        getCardsInHand().forEach(c -> {c.moveTo(discard);});
 
         getCardsInPlay().stream().filter(c->
                         c.as(DurationComponent.class)

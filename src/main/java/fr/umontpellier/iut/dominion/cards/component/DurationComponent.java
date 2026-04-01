@@ -13,7 +13,7 @@ public class DurationComponent implements CardComponent {
      * Durée de l'effet ( 0 ou 1 )
      *
      */
-    private int duration;
+    private boolean duration;
     /**
      * Méthode qui lance l'effet au prochain de la carte
      */
@@ -30,7 +30,7 @@ public class DurationComponent implements CardComponent {
      * @param parent la carte parent
      */
     public DurationComponent(int duration, Consumer<Player> nextTurnEffect, Card parent) {
-        this.duration = duration;
+        this.duration = duration == 1;
         this.nextTurnEffect = nextTurnEffect;
         this.parent = parent;
     }
@@ -49,7 +49,7 @@ public class DurationComponent implements CardComponent {
      * Décremente la durée
      */
     public void decrement(){
-        duration--;
+        duration = false;
     }
 
     /**
@@ -57,7 +57,7 @@ public class DurationComponent implements CardComponent {
      * @return si le joueur doit défausser la carte
      */
     public boolean isFinished(){
-        return duration == 0;
+        return !duration;
     }
 
     public Card getParent(){
@@ -65,8 +65,8 @@ public class DurationComponent implements CardComponent {
     }
 
     public void setDuration(int duration){
-        this.duration = duration;
+        this.duration = true;
     }
-
+    public void activeDuration(){this.duration = true;}
 
 }

@@ -4,14 +4,12 @@ import java.util.*;
 
 import fr.umontpellier.iut.dominion.CardType;
 import fr.umontpellier.iut.dominion.Player;
-import fr.umontpellier.iut.dominion.cards.component.CardComponent;
-import fr.umontpellier.iut.dominion.cards.component.DurationComponent;
-import fr.umontpellier.iut.dominion.cards.component.TriggerComponent;
+import fr.umontpellier.iut.dominion.cards.component.*;
 
 /**
  * Représentation des cartes du jeu Dominion
  */
-public abstract class Card {
+public class Card {
     /**
      * Le nom de la carte
      */
@@ -126,7 +124,8 @@ public abstract class Card {
      * @param p joueur qui exécute l'effet de la carte
      */
     public void play(Player p) {
-        as(DurationComponent.class).ifPresent(c -> {c.setDuration(1);});
+        as(OnPlayComponent.class).ifPresent(o -> o.accept(p));
+        as(DurationComponent.class).ifPresent(DurationComponent::activeDuration);
     };
 
     /**
@@ -137,9 +136,7 @@ public abstract class Card {
      * Toutes les cartes qui ne sont pas de type Victoire ont une valeur de
      * 0 (la méthode devra donc être redéfinie pour les cartes Victoire)
      */
-    public int getVictoryValue() {
-        return 0;
-    }
+    public int getVictoryValue() {return as(ScoreComponent.class).map(ScoreComponent::getScore).orElse(0);}
 
     /**
      *

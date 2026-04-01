@@ -5,7 +5,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import fr.umontpellier.iut.dominion.SupplyPile;
-import fr.umontpellier.iut.dominion.cards.common.*;
 import fr.umontpellier.iut.dominion.cards.seaside.*;
 
 /**
@@ -45,21 +44,21 @@ public class FactorySupplyPile {
 
     private static final Map<String, PileConfig> PILE_CONFIGS = Map.ofEntries(
             // Cartes communes
-            Map.entry("Copper", PileConfig.copper(Copper::new)),
-            Map.entry("Silver", PileConfig.silver(Silver::new)),
-            Map.entry("Gold", PileConfig.gold(Gold::new)),
-            Map.entry("Estate", PileConfig.estate(Estate::new)),
-            Map.entry("Duchy", PileConfig.victory(Duchy::new)),
-            Map.entry("Province", PileConfig.victory(Province::new)),
-            Map.entry("Curse", PileConfig.curse(Curse::new)),
+            Map.entry("Copper", PileConfig.copper(() -> CommonFactory.createTreasure("Copper", 0, 1))),
+            Map.entry("Silver", PileConfig.silver(() -> CommonFactory.createTreasure("Silver", 3, 2))),
+            Map.entry("Gold", PileConfig.gold(() -> CommonFactory.createTreasure("Gold", 6, 3))),
+            Map.entry("Estate", PileConfig.estate(() -> CommonFactory.createVictoryCard("Estate", 2, 1))),
+            Map.entry("Duchy", PileConfig.victory(() -> CommonFactory.createVictoryCard("Duchy", 5, 3))),
+            Map.entry("Province", PileConfig.victory(() -> CommonFactory.createVictoryCard("Province", 8, 6))),
+            Map.entry("Curse", PileConfig.curse(() -> CommonFactory.createVictoryCard("Curse", 0, -1))),
             // Cartes Royaume (Seaside)
-            Map.entry("Ambassador", PileConfig.kingdom(Ambassador::new)),
-            Map.entry("Astrolabe", PileConfig.kingdom(Astrolabe::new)),
-            Map.entry("Bazaar", PileConfig.kingdom(Bazaar::new)),
-            Map.entry("Blockade", PileConfig.kingdom(Blockade::new)),
-            Map.entry("Caravan", PileConfig.kingdom(Caravan::new)),
-            Map.entry("Corsair", PileConfig.kingdom(Corsair::new)),
-            Map.entry("Cutpurse", PileConfig.kingdom(Cutpurse::new)),
+            Map.entry("Ambassador", PileConfig.kingdom(SeaSideFactory::Ambassador)),
+            Map.entry("Astrolabe", PileConfig.kingdom(SeaSideFactory::Astrolabe)),
+            Map.entry("Bazaar", PileConfig.kingdom(SeaSideFactory::Bazaar)),
+            Map.entry("Blockade", PileConfig.kingdom(SeaSideFactory::Blockade)),
+            Map.entry("Caravan", PileConfig.kingdom(SeaSideFactory::Caravan)),
+            Map.entry("Corsair", PileConfig.kingdom(SeaSideFactory::Corsair)),
+            Map.entry("Cutpurse", PileConfig.kingdom(SeaSideFactory::Cutpurse)),
             Map.entry("Embargo", PileConfig.kingdom(Embargo::new)),
             Map.entry("Explorer", PileConfig.kingdom(Explorer::new)),
             Map.entry("Fishing Village", PileConfig.kingdom(FishingVillage::new)),

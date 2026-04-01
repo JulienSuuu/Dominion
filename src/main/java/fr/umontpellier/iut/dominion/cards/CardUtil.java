@@ -28,14 +28,15 @@ public class CardUtil {
             p.incrementActions(action);
             bonuses.add(String.format("+%d Action%s", action, action > 1 ? "s" : ""));
         }
-        if (buy > 0) {
-            p.incrementBuyActions(buy);
-            bonuses.add(String.format("+%d Achat%s", buy, buy > 1 ? "s" : ""));
-        }
         if (money > 0) {
             p.incrementMoney(money);
             bonuses.add(String.format("+%d Pièce%s", money, money > 1 ? "s" : ""));
         }
+        if (buy > 0) {
+            p.incrementBuyActions(buy);
+            bonuses.add(String.format("+%d Achat%s", buy, buy > 1 ? "s" : ""));
+        }
+
 
         builder.append(String.join(", ", bonuses));
 
