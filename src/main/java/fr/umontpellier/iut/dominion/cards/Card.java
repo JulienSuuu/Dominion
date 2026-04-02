@@ -140,15 +140,12 @@ public class Card {
 
     /**
      *
-     * @param componentClass le composent à chercher dans {@link Card#components}
-     * @return un Optional<
-     * @param <C>
+     * @param clazz le composent à chercher dans {@link Card#components}
+     * @return un Optional
+     * @param <C> le type de la classe à renvoyé
      */
-    public <C extends CardComponent> Optional<C> as(Class<C> componentClass) {
-        return components.values().stream()
-                .filter(componentClass::isInstance)
-                .map(componentClass::cast)
-                .findFirst();
+    public <C extends CardComponent> Optional<C> as(Class<C> clazz) {
+        return Optional.ofNullable(components.get(clazz)).map(clazz::cast);
     }
 
     public <T extends CardComponent> boolean hasComponent(Class<T> type) {

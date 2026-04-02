@@ -463,6 +463,10 @@ public class Game {
 
     }
 
+    public int getToken(String name){
+        return supplyPiles.stream().filter(s -> s.getName().equals(name)).findFirst().map(SupplyPile::getCursed).orElse(0);
+    }
+
     public boolean replaceCardInSupply(Card card, Card revealed){
         if(!card.hasSameNameAs(revealed))return false;
         supplyPiles.stream().filter(s -> s.getName().equals(revealed.getName()) && revealed.hasSameNameAs(card)).findFirst().map(s -> s.add(card));

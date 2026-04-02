@@ -1,9 +1,13 @@
 package fr.umontpellier.iut.dominion.cards;
 
+import fr.umontpellier.iut.dominion.Destination;
 import fr.umontpellier.iut.dominion.Player;
+import fr.umontpellier.iut.dominion.cards.component.DurationComponent;
+import fr.umontpellier.iut.dominion.cards.component.OnPlayComponent;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Predicate;
 
 public class CardUtil {
     /**
@@ -41,5 +45,63 @@ public class CardUtil {
         builder.append(String.join(", ", bonuses));
 
         p.log(builder.toString());
+    }
+
+    public static Card gainFromSupply(Player p,String message, Predicate<Card> filter, Destination dest, boolean silent) {
+        Card supplyCard = p.chooseCardFromSupply(message, filter, false);
+        return gainIfPresent(p, supplyCard, dest, silent);
+    }
+
+    public static Card gainFromSupply(Player p, String name, Destination dest, boolean silent) {
+        Card supplyCard = p.getCardFromSupply(name);
+        return gainIfPresent(p, supplyCard, dest, silent);
+    }
+
+    public static List<Card> getTopCards(Player p, int count) {
+        if (p.getCardsInDraw().size() < count) p.shuffle();
+        List<Card> draw = p.getCardsInDraw();
+        List<Card> result = new ArrayList<>();
+        int actualCount = Math.min(draw.size(), count);
+
+        for (int i = 0; i < actualCount; i++) {
+            result.add(draw.get(draw.size() - 1 - i));
+        }
+        return result;
+    }
+
+    public static List<Card> getBottomCards(Player p, int count) {
+        if (p.getCardsInDraw().size() < count) p.shuffle();
+        List<Card> draw = p.getCardsInDraw();
+        List<Card> result = new ArrayList<>();
+        int actualCount = Math.min(draw.size(), count);
+
+        for (int i = 0; i < actualCount; i++) {
+            result.add(draw.get(i));
+        }
+        return result;
+    }
+
+    public static Card gainIfPresent(Player p, Card target, Destination dest, boolean silent) {
+        if (target != null) {
+            if (silent) p.gainSilent(target, dest, true);
+            else p.gain(target, dest);
+        }
+        return target;
+    }
+
+
+    public static void addSimpleComponent(Card c, int cardsNow, int actsNow, int buysNow, int coinsNow,
+                                          int cardsNext, int actsNext, int buysNext, int coinsNext) {
+        addSimpleAction(c, cardsNow, actsNow, buysNow, coinsNow);
+        addSimpleDuration(c, cardsNext, actsNext, buysNext, coinsNext);
+    }
+
+    public static void addSimpleAction(Card c, int cardsNow, int actsNow, int buysNow, int coinsNow ){
+        c.addComponent(OnPlayComponent.class, p -> CardUtil.TriggerEffect(p, coinsNow, actsNow, cardsNow, buysNow, "Effect", c));
+
+    }
+
+    public static void addSimpleDuration(Card c, int cardsNext, int actsNext, int buysNext, int coinsNext) {
+        c.addComponent(new DurationComponent(0, p -> CardUtil.TriggerEffect(p, coinsNext, actsNext, cardsNext, buysNext, "Duration", c), c));
     }
 }

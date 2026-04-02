@@ -1,16 +1,20 @@
 package fr.umontpellier.iut.dominion.cards.component;
 
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ExtraTurnComponent implements CardComponent {
-    private boolean used = false;
+    private AtomicBoolean used;
 
+    public ExtraTurnComponent(AtomicBoolean used) {
+        this.used = used;
+    }
     public Optional<ExtraTurnComponent> canUseExtraTurn() {
-        return used? Optional.empty(): Optional.of(this);
+        return used.get()? Optional.empty(): Optional.of(this);
     }
 
     public void consume() {
-        used = true;
+        used.set(true);
     }
 
 }

@@ -3,6 +3,7 @@ package fr.umontpellier.iut.dominion.cards.component;
 import fr.umontpellier.iut.dominion.Player;
 import fr.umontpellier.iut.dominion.cards.Card;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
@@ -13,6 +14,7 @@ public class DurationComponent implements CardComponent {
      * Durée de l'effet ( 0 ou 1 )
      *
      */
+    private AtomicBoolean trigger = new AtomicBoolean(false);
     private boolean duration;
     /**
      * Méthode qui lance l'effet au prochain de la carte
@@ -30,9 +32,14 @@ public class DurationComponent implements CardComponent {
      * @param parent la carte parent
      */
     public DurationComponent(int duration, Consumer<Player> nextTurnEffect, Card parent) {
-        this.duration = duration == 1;
+        this.duration = duration>0;
         this.nextTurnEffect = nextTurnEffect;
         this.parent = parent;
+    }
+
+    public DurationComponent setTrigger(AtomicBoolean trigger) {
+        this.trigger = trigger;
+        return this;
     }
 
     /**
@@ -56,17 +63,15 @@ public class DurationComponent implements CardComponent {
      *
      * @return si le joueur doit défausser la carte
      */
-    public boolean isFinished(){
-        return !duration;
-    }
+    public boolean isFinished(){return !duration;}
 
     public Card getParent(){
         return parent;
     }
 
-    public void setDuration(int duration){
-        this.duration = true;
+    public void activeDuration(){
+        if(trigger.get())return;
+        duration = true;
     }
-    public void activeDuration(){this.duration = true;}
 
 }

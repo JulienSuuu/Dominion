@@ -4,16 +4,15 @@ package fr.umontpellier.iut.dominion;
 import java.util.*;
 import java.util.List;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import fr.umontpellier.iut.dominion.cards.Card;
+import fr.umontpellier.iut.dominion.cards.seaside.SeaSideFactory;
 import fr.umontpellier.iut.dominion.cards.component.DurationComponent;
 import fr.umontpellier.iut.dominion.cards.component.ExtraTurnComponent;
 import fr.umontpellier.iut.dominion.cards.component.TriggerComponent;
 import fr.umontpellier.iut.dominion.cards.component.TriggerEffect;
-import fr.umontpellier.iut.dominion.cards.seaside.*;
 import fr.umontpellier.iut.dominion.gui.Utils;
 
 /**
@@ -44,13 +43,13 @@ public class Player {
 
     /**
      * Bonus ou malus sur le nombre de cartes à piocher
-     * {@link fr.umontpellier.iut.dominion.cards.seaside.Outpost}
+     * {@link SeaSideFactory#Outpost()}
      */
     private int drawBonusNextTurn;
 
 
     /**
-     * Jeton pièces du joueur {@link fr.umontpellier.iut.dominion.cards.seaside.PirateShip}
+     * Jeton pièces du joueur {@link SeaSideFactory#PirateShip}
      */
     private int coins;
 
@@ -324,7 +323,7 @@ public class Player {
 
     /**
      * Incrémente, ou décrémente le nombre de cartes à piocher au prochain tour ({@link Player#drawBonusNextTurn})
-     * @param value - nombre de cartes à piocher au prochain tour ({@link fr.umontpellier.iut.dominion.cards.seaside.Outpost}
+     * @param value - nombre de cartes à piocher au prochain tour ({@link SeaSideFactory#Outpost()}
      */
     public void updateDrawBonusValue(int value){
         if(drawBonusNextTurn == -2)return;
@@ -333,7 +332,7 @@ public class Player {
 
     /**
      * Incremente le nombre de jeton pièce du joueur ({@link Player#coins})
-     * @param value nombre de Jeton à ajouter ({@link fr.umontpellier.iut.dominion.cards.seaside.PirateShip})
+     * @param value nombre de Jeton à ajouter ({@link SeaSideFactory#PirateShip})
      */
     public void incrementCoin(int value){
         coins+=value;
@@ -930,9 +929,7 @@ public class Player {
                 money -= play.getCost();
                 log(name + " a acheté " + play.getName());
                 gain(play, Destination.DISCARD);
-                if(getGame().hasToken(play.getName())){
-                    gain(getCardFromSupply("Curse"),Destination.DISCARD);
-                }
+                onCursePile(play);
                 if (numberOfBuys == 0) {
                     break;
                 }
@@ -940,6 +937,13 @@ public class Player {
         }
     }
 
+    public void onCursePile(Card c){
+        if(getGame().hasToken(c.getName())){
+            for (int i = 0; i <  getGame().getToken(c.getName()); i++ ){
+            gain(getCardFromSupply("Curse"),Destination.DISCARD);
+            }
+        }
+    }
     /**
      * Remplis la liste des choix à proposer au joueur pendant son tour
      *
@@ -1083,7 +1087,6 @@ public class Player {
      *           
      * @see Player#getCardsInPlay() 
      * @see Card#hasComponent(Class)
-     * @see fr.umontpellier.iut.dominion.cards.seaside.Lighthouse
      */
     public<T extends TriggerComponent.Immunity> boolean immunity(Class<T> type){
         return getCardsInPlay().stream().anyMatch(card -> card.hasComponent(type));
@@ -1100,7 +1103,7 @@ public class Player {
      * <li> {@code map()} si L'Optional existe {@code Non Vide}, la map déclenche {@link ExtraTurnComponent#consume()} puis renvoie true}</li>
      * <li> {@code orElse()} retourne false si l'Optional est vide</li>
      *
-     * @return si le joueur peut faire un tour en plus {@link Outpost}
+     * @return si le joueur peut faire un tour en plus {@link SeaSideFactory#Outpost()}
      *
      * @see Card#as(Class)
      */

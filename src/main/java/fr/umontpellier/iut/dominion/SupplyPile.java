@@ -28,8 +28,12 @@ public class SupplyPile extends ArrayList<Card> {
     }
 
     public void setCursed(int cursed) {
-        Cursed = cursed;
+        Cursed += cursed;
     }
+    public int getCursed() {
+        return Cursed;
+    }
+
     public boolean isCursed() {
         return Cursed > 0;
     }
