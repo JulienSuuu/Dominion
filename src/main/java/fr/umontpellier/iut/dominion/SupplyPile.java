@@ -22,7 +22,9 @@ public class SupplyPile extends ArrayList<Card> {
     public String getName() {
         return name;
     }
-
+    public void setCard(Card card) {
+        card.moveTo(this);
+    }
     public int getCost() {
         return cost;
     }

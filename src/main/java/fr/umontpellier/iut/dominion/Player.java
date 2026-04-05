@@ -40,6 +40,9 @@ public class Player {
      * Nombre de pièces disponibles pour acheter des cartes
      */
     private int money;
+    private int potion;
+    private int debt;
+    private int coffre;
 
     /**
      * Bonus ou malus sur le nombre de cartes à piocher
@@ -178,6 +181,12 @@ public class Player {
 
     public Game getGame() {
         return game;
+    }
+
+    public int getDebt() {return debt;}
+
+    public int getPotion() {
+        return potion;
     }
 
     /**
@@ -325,6 +334,13 @@ public class Player {
      * Incrémente, ou décrémente le nombre de cartes à piocher au prochain tour ({@link Player#drawBonusNextTurn})
      * @param value - nombre de cartes à piocher au prochain tour ({@link SeaSideFactory#Outpost()}
      */
+
+    public void incrementDebt(int value){debt += value;}
+    public void incrementPotion(int value){potion += value;}
+    public void incrementCoffre(int value){coffre += value;}
+
+
+
     public void updateDrawBonusValue(int value){
         if(drawBonusNextTurn == -2)return;
         drawBonusNextTurn += value;
@@ -457,6 +473,15 @@ public class Player {
         }
     }
 
+    public Card discard(){
+        Card c = chooseCardFromHand("Défausse autant de carte que tu veux cartes ", true );
+        if(c != null){
+           moveTo(c, Destination.DISCARD);
+           return c;}
+
+        return null;
+    }
+
     /**
      * Le joueur pioche un nombre de cartes désignée
      * @param number nombre de carte à piocher
@@ -533,6 +558,7 @@ public class Player {
      * @see Player#gainTo(Destination, Card)
      */
     public void gain(Card card, Destination dest){
+        if(card == null)return;
         CardGainedCurrentTurn.add(card);
         gainTo(dest, card);
         triggerEvent(TriggerComponent.OnPlayerGain.class, card);
@@ -616,6 +642,9 @@ public class Player {
         joiner.add(String.format("\"name\": \"%s\"", name));
         joiner.add(String.format("\"actions\": %d", numberOfActions));
         joiner.add(String.format("\"money\": %d", money));
+        joiner.add(String.format("\"debt\": %d", debt));
+        joiner.add(String.format("\"potion\": %d", potion));
+        joiner.add(String.format("\"coffre\": %d", coffre));
         joiner.add(String.format("\"buys\": %d", numberOfBuys));
         joiner.add(String.format("\"draw\": %s", Utils.toJSON(draw)));
         joiner.add(String.format("\"discard\": %s", Utils.toJSON(discard)));
@@ -673,7 +702,7 @@ public class Player {
     public String choose(String instruction, List<String> choices, List<Button> buttons, boolean canPass) {
         // Ajout des options correspondant aux boutons
         for (Button b : buttons) {
-            choices.add("BUTTON:" + b.value());
+            choices.add("BUTTON:" + (b.value() == null ? "" :  b.value()));
         }
         // Si aucun choix disponible, le joueur est autorisé à passer
         if (choices.isEmpty()) {
@@ -893,18 +922,29 @@ public class Player {
         while (true) {
             List<String> choices = new ArrayList<>();
             computeChoices(choices, canPlayAction, canPlayTreasure);
-
+            List<Button> buttons = computeButtons();
             String instruction = computeInstruction(canPlayAction, canPlayTreasure);
 
-            String playCard = choose(instruction, choices, new ArrayList<>(), true);
+            String playCard = choose(instruction, choices, buttons, true);
 
             if (playCard.isEmpty()) break;
+
+
+            if(playCard.startsWith("BUTTON:")) {
+                String choice =  playCard.split(":")[1];
+                if(choice.equals("REMBOURSER")) {
+                    repayDebt();
+                    continue;
+                }
+
+            }
 
             if (playCard.startsWith("HAND:")) {
                 Card play = hand.stream()
                         .filter(c -> c.hasName(playCard.split(":")[1]))
                         .findFirst()
                         .orElse(null);
+                
                 if (play == null) continue;
 
                 if (play.hasType(CardType.ACTION)) {
@@ -923,18 +963,47 @@ public class Player {
             }
             if (playCard.startsWith("SUPPLY:")) {
                 Card play = getCardFromSupply(playCard.split(":")[1]);
+                if(play == null) continue;
                 numberOfBuys--;
                 canPlayAction = false;
                 canPlayTreasure = false;
-                money -= play.getCost();
-                log(name + " a acheté " + play.getName());
-                gain(play, Destination.DISCARD);
-                onCursePile(play);
+                buyCard(play);
                 if (numberOfBuys == 0) {
                     break;
                 }
             }
         }
+    }
+
+    public void repayDebt(){
+        int toRepay = Math.min(money, debt);
+        debt -= toRepay;
+        money -= toRepay;
+    }
+
+    public void useCoffer(){
+        if(coffre > 0){
+            coffre--;
+            money++;
+        }
+    }
+
+    public boolean canBuy(Card c) {
+        boolean enoughMoney = money >= c.getCost();
+        boolean enoughPotion = potion >= c.getPotion();
+        boolean isNotDebted = debt == 0;
+        return enoughMoney && enoughPotion && isNotDebted;
+    }
+
+    public void buyCard(Card c) {
+        money -= c.getCost();
+        potion -= c.getPotion();
+        debt += c.getDebt();
+
+        log(name + " a acheté " + c.getName());
+        gain(c, Destination.DISCARD);
+
+        onCursePile(c);
     }
 
     public void onCursePile(Card c){
@@ -961,9 +1030,20 @@ public class Player {
             }
         }
         for(Card c : game.getAvailableSupplyCards()){
-            if(money<c.getCost()) continue;
+            if(!canBuy(c)) continue;
             choices.add("SUPPLY:" + c.getName());
         }
+    }
+
+    private List<Button> computeButtons() {
+        List<Button> buttons = new ArrayList<>();
+        if(debt > 0){
+            buttons.add(new Button("Rembourser la dette", "REMBOURSER"));
+        }
+        if(money > 0){
+            buttons.add(new Button("Coffre (" + coffre + ")", "COFFRE"));
+        }
+        return buttons;
     }
 
     /**
@@ -1002,6 +1082,7 @@ public class Player {
         numberOfBuys = 0;
         numberOfActions = 0;
         money = 0;
+        potion = 0;
 
         getCardsInHand().forEach(c -> {c.moveTo(discard);});
 
@@ -1038,7 +1119,7 @@ public class Player {
         getCardsInPlay()
                 .forEach(c -> c.as(DurationComponent.class).ifPresent(d ->{
                     d.execute(this);
-                    d.decrement();
+                    d.consume();
                 }));
     }
 

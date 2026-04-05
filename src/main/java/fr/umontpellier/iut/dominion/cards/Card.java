@@ -18,7 +18,7 @@ public class Card {
     /**
      * Le coût de la carte à l'achat
      */
-    private final int cost;
+    private final Price cost;
 
     private final Set<CardType> types;
 
@@ -33,7 +33,7 @@ public class Card {
      * @param cost  le coût de la carte
      * @param types les types de la carte
      */
-    public Card(String name, int cost, CardType ...types) {
+    public Card(String name, Price cost, CardType ...types) {
         this.name = name;
         this.cost = cost;
         this.types = new HashSet<>();
@@ -55,8 +55,10 @@ public class Card {
      * Getters et setters
      */
     public int getCost() {
-        return cost;
+        return cost.price();
     }
+    public int getPotion() {return cost.potion();}
+    public int getDebt() {return cost.debt();}
 
     public String getName() {
         return name;

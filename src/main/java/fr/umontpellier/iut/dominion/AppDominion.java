@@ -1,11 +1,9 @@
 package fr.umontpellier.iut.dominion;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Scanner;
+import java.util.*;
 
+import fr.umontpellier.iut.dominion.cards.RegistryName;
 import jakarta.websocket.DeploymentException;
 import jakarta.websocket.Session;
 
@@ -21,43 +19,7 @@ public class AppDominion {
 
     public static void main(String[] args) {
         // Liste de toutes les cartes disponibles
-        ArrayList<String> allKingdomCards = new ArrayList<>(Arrays.asList(
-                "Ambassador",
-                "Astrolabe",
-                "Bazaar",
-                "Blockade",
-                "Caravan",
-                "Corsair",
-                "Cutpurse",
-                "Embargo",
-                "Explorer",
-                "Fishing Village",
-                "Ghost Ship",
-                "Haven",
-                "Island",
-                "Lighthouse",
-                "Lookout",
-                "Merchant Ship",
-                "Monkey",
-                "Native Village",
-                "Navigator",
-                "Outpost",
-                "Pearl Diver",
-                "Pirate",
-                "Pirate Ship",
-                "Sailor",
-                "Salvager",
-                "Sea Chart",
-                "Sea Hag",
-                "Sea Witch",
-                "Smugglers",
-                "Tactician",
-                "Tide Pools",
-                "Treasure Map",
-                "Treasury",
-                "Warehouse",
-                "Wharf"
-        ));
+        List<String> allKingdomCards = RegistryName.getExtension("Seaside");
         Collections.shuffle(allKingdomCards);
 
         // Noms des joueurs
@@ -70,7 +32,7 @@ public class AppDominion {
         // String[] kingdomCards = new String[]{"Ambassador", "Blockade", "Pirate", "Sailor"};
 
         // Option 3. Choix aléatoire de 10 cartes parmi la liste complète allKingdomCards définie précédemment
-        String[] kingdomCards = allKingdomCards.toArray(new String[35]);
+        String[] kingdomCards = allKingdomCards.toArray(new String[0]);
 
         // Lancement de la partie
         game = new GameGUI(playerNames, kingdomCards);

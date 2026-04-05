@@ -290,7 +290,7 @@ public class Game {
                 });
     }
 
-    public List<Card> processTreasureToTrash(Player p, Card c, int numberOfCard){
+    public List<Card> processTreasureToTrash(Player p, Card c, int numberOfCard, String nameCard){
         return players.stream()
                 .filter(victim -> victim != p && !isImmune(c, victim))
                 .map(victim -> {
@@ -301,11 +301,14 @@ public class Game {
                     p.log(String.format("Attack %s: %s dévoile %s",
                             c.getName().toUpperCase(), victim.getName(), revealed));
 
-                    List<Card> treasure = revealed.stream().filter(card -> card.hasType(CardType.TREASURE)).toList();
+                    List<Card> treasure = revealed.stream().filter(card -> card.hasType(CardType.TREASURE) && !card.hasName(nameCard)).toList();
 
                     Card choosen = null;
                     if(!treasure.isEmpty()){
-                        choosen = p.chooseCardFromButtons("Choisis un trésor à mettre dans la défausse commune", treasure, false );
+                        choosen = switch (nameCard){
+                            case "" -> chooseACard(p, treasure);
+                            default -> chooseACard(victim, treasure);
+                        };
                         victim.getGame().moveToTrash(choosen);
                     }
 
@@ -317,6 +320,11 @@ public class Game {
                 }).flatMap(Optional::stream).toList();
     }
 
+    public Card chooseACard(Player p, List<Card> treasure){
+        return p.chooseCardFromButtons("Choisis un trésor à mettre dans la défausse commune", treasure, false );
+
+    }
+
     public void processDiscard(Player p, Card c){
         players.stream().filter(victim -> victim != p && !isImmune(c, victim))
                 .forEach(victim ->
@@ -325,7 +333,7 @@ public class Game {
                 );
     }
 
-    public void discardOrShowHand(Player actor, String name, Card played){
+    public void moveOrShowHand(Player actor, String name, Card played, Destination destination){
         players.stream().filter(victim -> victim != actor && !isImmune(played, victim))
                 .forEach(victim ->
                     victim.getCardsInHand()
@@ -333,11 +341,25 @@ public class Game {
                             .filter(card -> card.hasName(name))
                             .findFirst()
                             .ifPresentOrElse(card -> {
-                                victim.moveTo(card, Destination.DISCARD);
-                                victim.log(String.format("TRIGGER %s : %s défausse %s", played.getName().toUpperCase(), victim.getName(), card.getName().toUpperCase() ));
+                                victim.moveTo(card, destination);
+                                victim.log(String.format("TRIGGER %s : %s déplace %s", played.getName().toUpperCase(), victim.getName(), card.getName().toUpperCase() ));
                                 }, () -> victim.log(String.format(" Main de %s : %s",victim.getName(), victim.getCardsInHand().toString()))
                             )
                 );
+    }
+
+    public void moveOrShowHand(Player actor,CardType type, Card played, Destination destination){
+        players.stream().filter(victim -> victim != actor && !isImmune(played,victim))
+                .forEach(victim ->{
+                        List<Card> cards = victim.getCardsInHand().stream().filter(card -> card.hasType(type)).toList();
+                        if(!cards.isEmpty()){
+                            Card c = victim.chooseCardFromButtons("Choisie une carte victoire à défausser", cards, false);
+                            victim.moveTo(c, destination);
+
+                        }else{
+                            actor.log(String.format(" Main de %s : %s",victim.getName(), victim.getCardsInHand().toString()));
+                        }
+                });
     }
 
 
@@ -348,12 +370,11 @@ public class Game {
     }
 
     public Player onTheRight(Player actor){
-        for(Player p : players){
-            if(p==actor) continue;
-            if(onTheRight(actor, p)) return p;
-        }
-        return null;
+        var index = getPlayerIndex(actor);
+        return index == -1 ? null : players.get((players.size() + index - 1) % players.size());
     }
+
+
 
     /**
      * Boucle d'exécution d'une partie.
@@ -469,8 +490,7 @@ public class Game {
 
     public boolean replaceCardInSupply(Card card, Card revealed){
         if(!card.hasSameNameAs(revealed))return false;
-        supplyPiles.stream().filter(s -> s.getName().equals(revealed.getName()) && revealed.hasSameNameAs(card)).findFirst().map(s -> s.add(card));
-        card.moveTo(new ArrayList<>());
+        supplyPiles.stream().filter(s -> s.getName().equals(revealed.getName()) && revealed.hasSameNameAs(card)).findFirst().ifPresent(s -> s.setCard(card));
         return true;
     }
 

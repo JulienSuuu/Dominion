@@ -249,4 +249,52 @@ button:hover {
   opacity: 1;
 }
 
+.coins {
+  color: #FFD700; text-shadow: 1px 1px 2px #000;
+  backdrop-filter: blur(10px);
+}
+
+.potions {
+  color: #00AFFF;
+  border: 1px solid #00AFFF;
+  background: rgba(0, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.coffers {
+  color: #CD7F32;
+  background: rgba(205, 127, 50, 0.1);
+  border: 1px dotted #CD7F32;
+  backdrop-filter: blur(10px);
+}
+
+.debt-active {
+  color: #ff4444;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
+.stats-container {
+  display: flex;
+  align-items: center;
+  gap: 25px;
+  font-size: 0.9em;
+}
+
+.stat-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mechanics, .deck {
+  border-left: 1px solid #ccc;
+  padding-left: 15px;
+}
+
 /*# sourceMappingURL=index.css.map */

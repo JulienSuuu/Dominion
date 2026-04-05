@@ -22,7 +22,6 @@ function Main() {
     useEffect(() => {
         socket.onmessage = (event) => {
             const data = JSON.parse(event.data);
-            // console.log(data);
             setState({
                 supply: data.game.supply,
                 players: data.game.players,
@@ -116,8 +115,27 @@ function Player({ data, is_active, is_turn_player, instruction, choices, buttons
         <div class=${classes}>
             <div class="player_info">
                 <div class="name">${data.name}</div>
-                <div class="data">
-                    Coins: ${data.money} Actions: ${data.actions} Buys: ${data.buys} <span class=${data.draw.length > 0 ? "tooltip" : ""} data-tooltip=${data.draw.join(", ")}>Draw: ${data.draw.length}</span> <span class=${data.discard.length > 0 ? "tooltip" : ""} data-tooltip=${data.discard.join(", ")}>Discard: ${data.discard.length}</span>
+                <div class="data stats-container">
+                    <div class="stat-group resources">
+                        <span class="coins">🟡 ${data.money}</span>
+                        <span class="${data.debt > 0 ? 'debt-active' : ''}"> ⬡ ${data.debt}</span>
+                        <span class="potions">⚗️ ${data.potion}</span>
+                        <span class="coffers">💰 ${data.coffre}</span>
+                    </div>
+
+                    <div class="stat-group mechanics">
+                        <span>Actions: ${data.actions}</span>
+                        <span>Buys: ${data.buys}</span>
+                    </div>
+
+                        <div class="stat-group deck">
+                    <span class=${data.draw.length > 0 ? "tooltip" : ""} data-tooltip=${data.draw.join(", ")}>
+                    Draw: ${data.draw.length}
+                    </span>
+                        <span class=${data.discard.length > 0 ? "tooltip" : ""} data-tooltip=${data.discard.join(", ")}>
+            Discard: ${data.discard.length}
+        </span>
+                    </div>
                 </div>
             </div>
             <div class="instruction">

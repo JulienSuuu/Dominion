@@ -15,26 +15,18 @@ public class DurationComponent implements CardComponent {
      *
      */
     private AtomicBoolean trigger = new AtomicBoolean(false);
-    private boolean duration;
+    private boolean duration = false;
     /**
      * Méthode qui lance l'effet au prochain de la carte
      */
     private final Consumer<Player> nextTurnEffect;
-    /**
-     * Carte qui contient ce composant
-     */
-    private final Card parent;
 
     /**
      *
-     * @param duration durée
      * @param nextTurnEffect effet du prochain tour
-     * @param parent la carte parent
      */
-    public DurationComponent(int duration, Consumer<Player> nextTurnEffect, Card parent) {
-        this.duration = duration>0;
+    public DurationComponent(Consumer<Player> nextTurnEffect) {
         this.nextTurnEffect = nextTurnEffect;
-        this.parent = parent;
     }
 
     public DurationComponent setTrigger(AtomicBoolean trigger) {
@@ -55,7 +47,7 @@ public class DurationComponent implements CardComponent {
     /**
      * Décremente la durée
      */
-    public void decrement(){
+    public void consume(){
         duration = false;
     }
 
@@ -64,10 +56,6 @@ public class DurationComponent implements CardComponent {
      * @return si le joueur doit défausser la carte
      */
     public boolean isFinished(){return !duration;}
-
-    public Card getParent(){
-        return parent;
-    }
 
     public void activeDuration(){
         if(trigger.get())return;

@@ -770,7 +770,7 @@ public class CardsProfTest extends BaseTestClass {
                 "HAND:Gold", // +3 pièces
                 "HAND:Gold", // +3 pièces
                 "SUPPLY:Merchant Ship", // achète Merchant Ship (-5 pièces)
-                "BUTTON:n" // choisit de ne pas jouer Merchant Ship
+                "" // choisit de ne pas jouer Merchant Ship
         );
         assertPlayerState(p1, 1, 1, 0);
         endTurn();

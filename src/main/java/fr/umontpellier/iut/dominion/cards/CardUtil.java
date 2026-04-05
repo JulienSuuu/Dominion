@@ -7,7 +7,11 @@ import fr.umontpellier.iut.dominion.cards.component.OnPlayComponent;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 public class CardUtil {
     /**
@@ -89,19 +93,41 @@ public class CardUtil {
         return target;
     }
 
-
-    public static void addSimpleComponent(Card c, int cardsNow, int actsNow, int buysNow, int coinsNow,
-                                          int cardsNext, int actsNext, int buysNext, int coinsNext) {
-        addSimpleAction(c, cardsNow, actsNow, buysNow, coinsNow);
-        addSimpleDuration(c, cardsNext, actsNext, buysNext, coinsNext);
+    public static Card moveIfPresent(Player p, Card target, Destination dest) {
+        if (target != null) {
+             p.moveTo(target, dest);
+        }
+        return target;
     }
 
-    public static void addSimpleAction(Card c, int cardsNow, int actsNow, int buysNow, int coinsNow ){
+
+    public static void registerSimpleComponent(Card c, int cardsNow, int actsNow, int buysNow, int coinsNow,
+                                               int cardsNext, int actsNext, int buysNext, int coinsNext) {
+        registerSimpleAction(c, cardsNow, actsNow, buysNow, coinsNow);
+        registerSimpleDuration(c, cardsNext, actsNext, buysNext, coinsNext);
+    }
+
+    public static void registerSimpleAction(Card c, int cardsNow, int actsNow, int buysNow, int coinsNow ){
         c.addComponent(OnPlayComponent.class, p -> CardUtil.TriggerEffect(p, coinsNow, actsNow, cardsNow, buysNow, "Effect", c));
 
     }
 
-    public static void addSimpleDuration(Card c, int cardsNext, int actsNext, int buysNext, int coinsNext) {
-        c.addComponent(new DurationComponent(0, p -> CardUtil.TriggerEffect(p, coinsNext, actsNext, cardsNext, buysNext, "Duration", c), c));
+    public static void registerSimpleDuration(Card c, int cardsNext, int actsNext, int buysNext, int coinsNext) {
+        c.addComponent(new DurationComponent(p -> CardUtil.TriggerEffect(p, coinsNext, actsNext, cardsNext, buysNext, "Duration", c)));
+    }
+
+    public static <T>   void executeIfSelected(Supplier<T> selector, Consumer<T> action ) {
+        Optional.ofNullable(selector.get()).ifPresent(action);
+    }
+
+    public static <T> void executeOrOtherWise(Supplier<T> selector, Predicate<T> filter, Consumer<T> action, Runnable other ) {
+        Optional.ofNullable(selector.get()).filter(filter).ifPresentOrElse(action, other);
+    }
+
+    public static void moveTo(Player p, AtomicReference<Card> onMove, Destination dest) {
+        if(onMove.get() != null) {
+            p.moveTo(onMove.get(), dest);
+            onMove.set(null);
+        }
     }
 }
