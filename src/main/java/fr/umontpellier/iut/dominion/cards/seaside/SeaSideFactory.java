@@ -28,13 +28,13 @@ public class SeaSideFactory {
                         p.log(p.getName() + " a dévoilé " + revealed.getName());
 
                         Runnable replaceLogic = () -> {
-                            for (int i = 0; i < 2; i++) {
-                                CardUtil.executeIfSelected(
+                            AtomicBoolean pass =  new AtomicBoolean(true);
+                            for (int i = 0; i < 2 && pass.get(); i++) {
+                                CardUtil.executeOrOtherWise(
                                         () -> p.chooseCardFromHand("Remettre en réserve (max 2)", revealed::hasSameNameAs, true),
-                                        toReturn -> {
-                                            p.getGame().replaceCardInSupply(toReturn, revealed);
-                                            p.getCardsInHand().remove(toReturn);
-                                        }
+                                        revealed::hasSameNameAs,
+                                        toReturn -> p.getGame().replaceCardInSupply(toReturn, revealed),
+                                        () -> pass.set(false)
                                 );
                             }
                         };
