@@ -130,4 +130,11 @@ public class CardUtil {
             onMove.set(null);
         }
     }
+
+    public static void execute( Runnable... actions) {
+        for (Runnable action : actions) {
+            action.run();
+        }
+    }
+
 }

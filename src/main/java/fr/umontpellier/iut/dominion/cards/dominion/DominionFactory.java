@@ -7,20 +7,25 @@ import fr.umontpellier.iut.dominion.cards.CardUtil;
 import fr.umontpellier.iut.dominion.cards.RegistryPrice;
 import fr.umontpellier.iut.dominion.cards.component.OnPlayComponent;
 
+import java.util.Optional;
+
 public class DominionFactory {
     public static Card Artisan(){
         Card artisan = new Card("Artisan", RegistryPrice.DominionPrice(6), CardType.ACTION);
         artisan.addComponent(OnPlayComponent.class, player -> {
-            Card Choice = CardUtil.gainFromSupply(player, "Choisi une carte coûtant au maximum 5", c -> c.getCost()<6, Destination.HAND, false);
-            if(Choice != null){
-                player.log(String.format("Action %s : %s gagne %s", artisan.getName().toUpperCase(), player.getName(), Choice.getName().toUpperCase()));
-            }
 
-            Card discard = player.chooseCardFromHand("Défausse une carte", false);
-            if(discard != null){
-                player.log(String.format("Action %s : %s remet en pioche %s", artisan.getName().toUpperCase(), player.getName(), discard.getName().toUpperCase()));
-                player.moveTo(discard, Destination.DRAW);
-            }
+            CardUtil.executeIfSelected(
+                    () -> CardUtil.gainFromSupply(player, "Choisi une carte coûtant au maximum 5", c -> c.getCost()<6, Destination.HAND, false),
+                    card -> player.log(String.format("Action %s : %s gagne %s", artisan.getName().toUpperCase(), player.getName(), card.getName().toUpperCase()))
+            );
+
+            CardUtil.executeIfSelected(
+                    () ->  player.chooseCardFromHand("Défausse une carte", false),
+                    card -> {
+                        player.log(String.format("Action %s : %s remet en pioche %s", artisan.getName().toUpperCase(), player.getName(), card.getName().toUpperCase()));
+                        player.moveTo(card, Destination.DRAW);
+                    }
+            );
         });
 
         return artisan;
@@ -28,24 +33,39 @@ public class DominionFactory {
 
     public static Card Bandit(){
         Card bandit = new Card("Bandit", RegistryPrice.DominionPrice(5), CardType.ACTION, CardType.ATTACK);
-        bandit.addComponent(OnPlayComponent.class, player -> {
-            Card c = CardUtil.gainFromSupply(player, "Gold", Destination.DISCARD, false);
-            if(c != null){
-                player.log(String.format("Action %s : %s gagne %s", bandit.getName().toUpperCase(), player.getName(), c.getName().toUpperCase()));
-            }
-            player.getGame().processTreasureToTrash(player, bandit, 2, "Copper");
-        });
+
+        bandit.addComponent(OnPlayComponent.class, player ->
+            CardUtil.execute(
+                    () -> CardUtil.executeIfSelected(
+                            () -> CardUtil.gainFromSupply(player, "Gold", Destination.DISCARD, false),
+                            card ->player.log(String.format("Action %s : %s gagne %s", bandit.getName().toUpperCase(), player.getName(), card.getName().toUpperCase()))
+                    ),
+
+                    () -> player.getGame().processAttackWithReveal(player,
+                            bandit,
+                            2,
+                            card -> card.hasName("Copper"),
+                            (attacker, victim, options) -> attacker.getGame().chooseACard(victim, options))
+            ));
         return bandit;
     }
 
     public static Card Bureaucrat(){
         Card br = new Card("Bureaucrat", RegistryPrice.DominionPrice(4), CardType.ACTION, CardType.ATTACK);
         br.addComponent(OnPlayComponent.class, player -> {
-            Card c = CardUtil.gainFromSupply(player, "Silver", Destination.DRAW, false);
-            if(c != null){
-                player.log(String.format("Action %s : %s gagne %s", br.getName().toUpperCase(), player.getName(), c.getName().toUpperCase()));
-            }
-            player.getGame().moveOrShowHand(player, CardType.VICTORY ,br, Destination.DRAW);
+            CardUtil.execute(
+                    () -> CardUtil.executeIfSelected(
+                            () -> CardUtil.gainFromSupply(player, "Silver", Destination.DRAW, false),
+                            card -> player.log(String.format("Action %s : %s gagne %s", br.getName().toUpperCase(), player.getName(), card.getName().toUpperCase()))
+                    ),
+                    () -> player.getGame().checkHandOrShow(
+                            player,
+                            br,
+                            card -> card.hasType(CardType.VICTORY),
+                            (vi, cards) -> Optional.ofNullable(vi.chooseCardFromButtons("Choisie une carte victoire à défausser", cards, false)),
+                            Destination.DRAW
+                    )
+            );
         });
         return br;
     }
@@ -68,4 +88,6 @@ public class DominionFactory {
         });
         return cellar;
     }
+
+
 }

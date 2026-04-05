@@ -36,6 +36,25 @@ public class CardsProfTest extends BaseTestClass {
     }
 
     @Test
+    void test_embargo_buy_cursed_pile() {
+        setup2pGame("Embargo");
+        Card embargo = getCardFromSupply("Embargo");
+        Card gold = getCardFromSupply("Gold");
+
+        embargo.moveTo(p1.hand);
+        playTurn("HAND:Embargo","BUTTON:y", "SUPPLY:Silver", "");
+        endTurn();
+
+        gold.moveTo(p2.hand);
+        playTurn("HAND:Gold", "SUPPLY:Silver");
+        assertPlayerState(p2, 0, 1, 0);
+        endTurn();
+
+        boolean hasCurse = p2.discard.stream().anyMatch(c -> c.getName().equals("Curse"));
+        assertTrue(hasCurse, "Le joueur 2 aurait dû recevoir une malédiction en achetant sur une pile sous Embargo");
+    }
+
+    @Test
     void test_bazaar() {
         setup2pGame("Bazaar");
         Card c = getCardFromSupply("Bazaar");

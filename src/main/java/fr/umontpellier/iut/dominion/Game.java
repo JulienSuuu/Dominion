@@ -1,10 +1,15 @@
 package fr.umontpellier.iut.dominion;
 
 import java.util.*;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import fr.umontpellier.iut.dominion.cards.Card;
+import fr.umontpellier.iut.dominion.cards.CardUtil;
 import fr.umontpellier.iut.dominion.cards.FactorySupplyPile;
+import fr.umontpellier.iut.dominion.cards.component.CardSelector;
 import fr.umontpellier.iut.dominion.cards.component.TriggerComponent;
 import fr.umontpellier.iut.dominion.cards.component.TriggerEffect;
 import fr.umontpellier.iut.dominion.gui.Utils;
@@ -268,98 +273,95 @@ public class Game {
     }
 
     public void processGain(Player p, Card c, Destination dest, String nameCard){
-        players.stream().filter(victim -> victim != p && !isImmune(c, victim))
-                .forEach(victim ->
-                    Optional.ofNullable(victim.getCardFromSupply(nameCard)).ifPresent( card ->{
-                            victim.gain(card, dest);
-                            victim.log(String.format("%s Gain %s : %s.",victim.getName(), nameCard, card.getName()));
-                    })
-                );
+        processAttack(
+                p, c, victim -> Optional.ofNullable(victim.getCardFromSupply(nameCard)).ifPresent( card ->{
+                    victim.gain(card, dest);
+                    victim.log(String.format("%s Gain %s : %s.",victim.getName(), nameCard, card.getName()));
+                })
+        );
     }
 
     public void processMoveTo( Player p, Card c, Destination dest){
-        players.stream().filter(victim -> victim != p && !isImmune(c, victim) && victim.getCardsInHand().size()>= 4)
-                .forEach( victim -> {
-                    while(victim.getCardsInHand().size() > 3){
-                        Optional.ofNullable(victim.chooseCardFromHand("Mets sur la pioche tant que tu as plus de 3 cartes en main", false))
-                                .ifPresent( card -> {
-                                    victim.moveTo(card, dest);
-                                    p.log(String.format("Attack %s : %s met en pioche %s", c.getName().toUpperCase(), victim.getName(), card.getName().toUpperCase()));
-                                    });
-                    }
-                });
+
+        Consumer<Player> logic = victim -> {
+            while(victim.getCardsInHand().size() > 3){
+                CardUtil.executeIfSelected(
+                        () -> victim.chooseCardFromHand("Mets sur la pioche tant que tu as plus de 3 cartes en main", false),
+                        card -> {
+                            victim.moveTo(card, dest);
+                            p.log(String.format("Attack %s : %s met en pioche %s", c.getName().toUpperCase(), victim.getName(), card.getName().toUpperCase()));
+                        }
+                );
+            }
+        };
+
+        processAttack(p, c, logic);
     }
 
-    public List<Card> processTreasureToTrash(Player p, Card c, int numberOfCard, String nameCard){
+    public List<Card> processAttackWithReveal(Player attacker, Card attackCard, int count, Predicate<Card> filter, CardSelector selector) {
         return players.stream()
-                .filter(victim -> victim != p && !isImmune(c, victim))
+                .filter(v -> v != attacker && !isImmune(attackCard, v))
                 .map(victim -> {
+                    List<Card> revealed = CardUtil.getTopCards(victim, count);
+                    attacker.log(String.format("Attack %s: %s dévoile %s",
+                            attackCard.getName().toUpperCase(), victim.getName(), revealed));
 
-                    if(victim.getCardsInHand().size()<numberOfCard) victim.shuffle();
+                    List<Card> targets = revealed.stream().filter(filter).toList();
 
-                    List<Card> revealed = victim.getCardsInDraw().reversed().stream().limit(numberOfCard).toList();
-                    p.log(String.format("Attack %s: %s dévoile %s",
-                            c.getName().toUpperCase(), victim.getName(), revealed));
-
-                    List<Card> treasure = revealed.stream().filter(card -> card.hasType(CardType.TREASURE) && !card.hasName(nameCard)).toList();
-
-                    Card choosen = null;
-                    if(!treasure.isEmpty()){
-                        choosen = switch (nameCard){
-                            case "" -> chooseACard(p, treasure);
-                            default -> chooseACard(victim, treasure);
-                        };
-                        victim.getGame().moveToTrash(choosen);
+                    Card chosen = null;
+                    if (!targets.isEmpty()) {
+                        chosen = selector.select(attacker, victim, targets);
+                        victim.getGame().moveToTrash(chosen);
                     }
 
-                    Card finalChoosen = choosen;
-                    revealed.stream().filter(card -> card != finalChoosen).forEach(card -> victim.moveTo(card, Destination.DISCARD));
+                    Card finalChosen = chosen;
+                    revealed.stream()
+                            .filter(card -> card != finalChosen)
+                            .forEach(card -> victim.moveTo(card, Destination.DISCARD));
 
-                    return Optional.ofNullable(finalChoosen);
-
-                }).flatMap(Optional::stream).toList();
+                    return Optional.ofNullable(finalChosen);
+                })
+                .flatMap(Optional::stream)
+                .toList();
     }
+
 
     public Card chooseACard(Player p, List<Card> treasure){
-        return p.chooseCardFromButtons("Choisis un trésor à mettre dans la défausse commune", treasure, false );
+        return p.chooseCardFromButtons("Choisis un carte à mettre dans la défausse commune", treasure, false );
 
     }
 
     public void processDiscard(Player p, Card c){
-        players.stream().filter(victim -> victim != p && !isImmune(c, victim))
-                .forEach(victim ->
-                        Optional.ofNullable(victim.getCardFromDeck())
-                                .ifPresent(card -> victim.moveTo(card, Destination.DISCARD))
-                );
+        processAttack(
+                p,
+                c,
+                player -> Optional.ofNullable(player.getCardFromDeck())
+                        .ifPresent(card -> player.moveTo(card, Destination.DISCARD))
+        );
     }
 
-    public void moveOrShowHand(Player actor, String name, Card played, Destination destination){
-        players.stream().filter(victim -> victim != actor && !isImmune(played, victim))
-                .forEach(victim ->
-                    victim.getCardsInHand()
-                            .stream()
-                            .filter(card -> card.hasName(name))
-                            .findFirst()
-                            .ifPresentOrElse(card -> {
-                                victim.moveTo(card, destination);
-                                victim.log(String.format("TRIGGER %s : %s déplace %s", played.getName().toUpperCase(), victim.getName(), card.getName().toUpperCase() ));
-                                }, () -> victim.log(String.format(" Main de %s : %s",victim.getName(), victim.getCardsInHand().toString()))
-                            )
-                );
+    public void checkHandOrShow(Player attacker ,Card attackCard, Predicate<Card> targetFilter, BiFunction<Player, List<Card>, Optional<Card>> decisionLogic, Destination destination) {
+        processAttack(attacker, attackCard, victim -> {
+            List<Card> validCards = victim.getCardsInHand().stream()
+                    .filter(targetFilter).toList();
+
+            decisionLogic.apply(victim, validCards).ifPresentOrElse(
+                    chosen -> {
+                        victim.moveTo(chosen, destination);
+                        attacker.log(String.format("Attack %s : %s déplace %s",
+                                attackCard.getName().toUpperCase(), victim.getName(), chosen.getName().toUpperCase()));
+                    },
+                    () -> attacker.log(String.format("Main de %s : %s",
+                            victim.getName(), victim.getCardsInHand()))
+            );
+        });
     }
 
-    public void moveOrShowHand(Player actor,CardType type, Card played, Destination destination){
-        players.stream().filter(victim -> victim != actor && !isImmune(played,victim))
-                .forEach(victim ->{
-                        List<Card> cards = victim.getCardsInHand().stream().filter(card -> card.hasType(type)).toList();
-                        if(!cards.isEmpty()){
-                            Card c = victim.chooseCardFromButtons("Choisie une carte victoire à défausser", cards, false);
-                            victim.moveTo(c, destination);
 
-                        }else{
-                            actor.log(String.format(" Main de %s : %s",victim.getName(), victim.getCardsInHand().toString()));
-                        }
-                });
+    public void processAttack(Player attacker, Card attackCard, Consumer<Player> attackLogic) {
+        this.players.stream()
+                .filter(victim -> victim != attacker && !isImmune(attackCard, victim))
+                .forEach(attackLogic);
     }
 
 

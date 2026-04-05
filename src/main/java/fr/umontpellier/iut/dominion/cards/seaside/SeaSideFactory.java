@@ -121,7 +121,14 @@ public class SeaSideFactory {
         Card c = new Card("Cutpurse", RegistryPrice.SeasidePrice(4), CardType.ACTION, CardType.ATTACK);
         c.addComponent(OnPlayComponent.class, p -> {
             CardUtil.TriggerEffect(p, 2,0,0,0,"Effect", c);
-            p.getGame().moveOrShowHand(p, "Copper", c, Destination.DISCARD);
+
+           p.getGame().checkHandOrShow(
+                   p,
+                   c,
+                   card -> card.hasName("Copper"),
+                   (player, cards) -> cards.stream().findFirst(),
+                   Destination.DISCARD
+           );
 
         });
         return c;
@@ -532,7 +539,14 @@ public class SeaSideFactory {
             };
 
             Runnable attack = ()-> {
-                List<Card> treasureRemoved = p.getGame().processTreasureToTrash(p, current, 2, "");
+                List<Card> treasureRemoved = p.getGame().processAttackWithReveal(
+                        p,
+                        current,
+                        2,
+                        card -> card.hasType(CardType.TREASURE),
+                        (attacker, victim, options) -> attacker.getGame().chooseACard(attacker, options)
+                );
+
                 if(treasureRemoved.isEmpty()) return;
                 p.incrementCoin(1);
             };

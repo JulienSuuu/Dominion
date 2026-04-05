@@ -702,7 +702,7 @@ public class Player {
     public String choose(String instruction, List<String> choices, List<Button> buttons, boolean canPass) {
         // Ajout des options correspondant aux boutons
         for (Button b : buttons) {
-            choices.add("BUTTON:" + (b.value() == null ? "" :  b.value()));
+            choices.add("BUTTON:" + b.value());
         }
         // Si aucun choix disponible, le joueur est autorisé à passer
         if (choices.isEmpty()) {
@@ -936,7 +936,10 @@ public class Player {
                     repayDebt();
                     continue;
                 }
-
+                if(choice.equals("COFFRE")) {
+                    useCoffre();
+                    continue;
+                }
             }
 
             if (playCard.startsWith("HAND:")) {
@@ -961,6 +964,7 @@ public class Player {
                     canPlayAction = false;
                 }
             }
+
             if (playCard.startsWith("SUPPLY:")) {
                 Card play = getCardFromSupply(playCard.split(":")[1]);
                 if(play == null) continue;
@@ -981,7 +985,7 @@ public class Player {
         money -= toRepay;
     }
 
-    public void useCoffer(){
+    public void useCoffre(){
         if(coffre > 0){
             coffre--;
             money++;
