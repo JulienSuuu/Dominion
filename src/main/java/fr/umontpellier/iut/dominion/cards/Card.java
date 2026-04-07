@@ -1,6 +1,7 @@
 package fr.umontpellier.iut.dominion.cards;
 
 import java.util.*;
+import java.util.function.Consumer;
 
 import fr.umontpellier.iut.dominion.CardType;
 import fr.umontpellier.iut.dominion.Player;
@@ -25,6 +26,7 @@ public class Card {
     private List<Card> location;
 
     private final Map<Class<? extends CardComponent>, CardComponent> components;
+    private final Map<String,Object > properties;
 
     /**
      * Constructeur simple
@@ -38,6 +40,7 @@ public class Card {
         this.cost = cost;
         this.types = new HashSet<>();
         this.components = new HashMap<>();
+        this.properties = new HashMap<>();
         Collections.addAll(this.types, types);
     }
 
@@ -48,6 +51,43 @@ public class Card {
 
     public Card addComponent(CardComponent component){
         this.components.put(component.getClass(), component);
+        return this;
+    }
+
+    public void set(String property, Object value){
+        this.properties.put(property, value);
+    }
+
+    public <T> T get(String property, Class<T> type){
+        return type.cast(this.properties.get(property));
+    }
+
+    @SuppressWarnings("unchecked")
+    public <K, V> Map<K, V> getMap(String key) {
+        Object val = properties.get(key);
+        if (val instanceof Map) {
+            return (Map<K, V>) val;
+        }
+        return null;
+    }
+
+    public boolean getFlag(String key) {
+        Object val = properties.get(key);
+        if (val instanceof Boolean) {
+            return (Boolean) val;
+        }
+        return false;
+    }
+
+
+
+
+    public void clear(){
+        this.properties.clear();
+    }
+
+    public Card setup(Consumer<CardConfigurator> settings) {
+        settings.accept(new CardConfigurator(this));
         return this;
     }
 
@@ -126,8 +166,8 @@ public class Card {
      * @param p joueur qui exécute l'effet de la carte
      */
     public void play(Player p) {
-        as(OnPlayComponent.class).ifPresent(o -> o.accept(p));
-        as(DurationComponent.class).ifPresent(DurationComponent::activeDuration);
+        as(OnPlayComponent.class).ifPresent(o -> o.accept(p, this));
+        as(DurationComponent.class).ifPresent(d -> d.activeDuration(this));
     };
 
     /**
@@ -138,7 +178,7 @@ public class Card {
      * Toutes les cartes qui ne sont pas de type Victoire ont une valeur de
      * 0 (la méthode devra donc être redéfinie pour les cartes Victoire)
      */
-    public int getVictoryValue() {return as(ScoreComponent.class).map(ScoreComponent::getScore).orElse(0);}
+    public int getVictoryValue(Player player) {return as(ScoreComponent.class).map(s -> s.giveScore(player)).orElse(0);}
 
     /**
      *

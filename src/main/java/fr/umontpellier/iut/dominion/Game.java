@@ -223,13 +223,16 @@ public class Game {
 
         if(provincesIsEmpty) return true;
 
-        long nbQueueEmpty = supplyPiles
-                .stream().
-                filter(ArrayList::isEmpty)
-                .limit(3)
-                .count();
+        long nbQueueEmpty = getNbQueueEmpty();
 
         return nbQueueEmpty >= 3;
+    }
+
+    public long getNbQueueEmpty() {
+        return supplyPiles
+                .stream().
+                filter(ArrayList::isEmpty)
+                .count();
     }
 
     /**
@@ -281,15 +284,16 @@ public class Game {
         );
     }
 
-    public void processMoveTo( Player p, Card c, Destination dest){
+    public void processMoveTo( Player p, Card c, Destination dest, int number, boolean discard){
 
         Consumer<Player> logic = victim -> {
-            while(victim.getCardsInHand().size() > 3){
+            while(victim.getCardsInHand().size() > number){
                 CardUtil.executeIfSelected(
-                        () -> victim.chooseCardFromHand("Mets sur la pioche tant que tu as plus de 3 cartes en main", false),
+                        () -> victim.chooseCardFromHand("Défausse encore " + (victim.getCardsInHand().size() - number) + " carte(s)", false),
                         card -> {
-                            victim.moveTo(card, dest);
-                            p.log(String.format("Attack %s : %s met en pioche %s", c.getName().toUpperCase(), victim.getName(), card.getName().toUpperCase()));
+                            if(discard) victim.discard(card);
+                            else victim.moveTo(card, dest);
+                            p.log(String.format("Attack %s : %s met en %s %s", c.getName().toUpperCase(), victim.getName(), dest.name().toLowerCase(), card.getName().toUpperCase()));
                         }
                 );
             }
@@ -347,7 +351,7 @@ public class Game {
 
             decisionLogic.apply(victim, validCards).ifPresentOrElse(
                     chosen -> {
-                        victim.moveTo(chosen, destination);
+                        victim.discard(chosen);
                         attacker.log(String.format("Attack %s : %s déplace %s",
                                 attackCard.getName().toUpperCase(), victim.getName(), chosen.getName().toUpperCase()));
                     },
@@ -362,6 +366,13 @@ public class Game {
         this.players.stream()
                 .filter(victim -> victim != attacker && !isImmune(attackCard, victim))
                 .forEach(attackLogic);
+    }
+
+    public void processBenefit(Player attacker, Consumer<Player> benefitLogic) {
+        this.players.stream()
+                .filter(victim -> victim != attacker)
+                .forEach(benefitLogic);
+
     }
 
 

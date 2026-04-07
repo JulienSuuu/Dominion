@@ -1,6 +1,7 @@
 package fr.umontpellier.iut.dominion.cards;
 
 import fr.umontpellier.iut.dominion.CardType;
+import fr.umontpellier.iut.dominion.Player;
 import fr.umontpellier.iut.dominion.cards.component.OnPlayComponent;
 import fr.umontpellier.iut.dominion.cards.component.ScoreComponent;
 
@@ -8,15 +9,15 @@ public class CommonFactory {
 
     public static Card createTreasure(String name, int cost, int value){
         Card c =  new Card(name, RegistryPrice.SeasidePrice(cost), CardType.TREASURE);
-        c.addComponent(OnPlayComponent.class, p ->{
-            CardUtil.TriggerEffect(p, value, 0, 0, 0, "Effect", c);
+        c.addComponent(OnPlayComponent.class, (player, card) ->{
+            CardUtil.TriggerEffect(player, value, 0, 0, 0, "Effect", c);
         });
         return c;
     }
 
     public static Card createVictoryCard(String name, int cost, int value){
         Card c =  new Card(name, RegistryPrice.SeasidePrice(cost), CardType.VICTORY);
-        c.addComponent(new ScoreComponent(value));
+        c.addComponent(ScoreComponent.class, player -> value);
         return c;
     }
 }

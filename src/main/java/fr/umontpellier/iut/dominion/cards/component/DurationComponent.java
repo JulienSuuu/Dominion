@@ -4,7 +4,9 @@ import fr.umontpellier.iut.dominion.Player;
 import fr.umontpellier.iut.dominion.cards.Card;
 
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * Composant des cartes Durations
@@ -14,22 +16,22 @@ public class DurationComponent implements CardComponent {
      * Durée de l'effet ( 0 ou 1 )
      *
      */
-    private AtomicBoolean trigger = new AtomicBoolean(false);
+    private Predicate<Card> trigger = c -> false;
     private boolean duration = false;
     /**
      * Méthode qui lance l'effet au prochain de la carte
      */
-    private final Consumer<Player> nextTurnEffect;
+    private final BiConsumer<Player, Card> nextTurnEffect;
 
     /**
      *
      * @param nextTurnEffect effet du prochain tour
      */
-    public DurationComponent(Consumer<Player> nextTurnEffect) {
+    public DurationComponent(BiConsumer<Player, Card> nextTurnEffect) {
         this.nextTurnEffect = nextTurnEffect;
     }
 
-    public DurationComponent setTrigger(AtomicBoolean trigger) {
+    public DurationComponent setTrigger(Predicate<Card> trigger) {
         this.trigger = trigger;
         return this;
     }
@@ -38,9 +40,9 @@ public class DurationComponent implements CardComponent {
      * Lance l'effet du composant
      * @param p le joueur ( le lanceur ou le receveur )
      */
-    public void execute(Player p){
+    public void execute(Player p, Card c) {
         if(nextTurnEffect != null){
-            nextTurnEffect.accept(p);
+            nextTurnEffect.accept(p, c);
         }
     }
 
@@ -57,8 +59,8 @@ public class DurationComponent implements CardComponent {
      */
     public boolean isFinished(){return !duration;}
 
-    public void activeDuration(){
-        if(trigger.get())return;
+    public void activeDuration(Card c){
+        if(trigger.test(c))return;
         duration = true;
     }
 

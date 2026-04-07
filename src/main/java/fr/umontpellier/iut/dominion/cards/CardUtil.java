@@ -100,22 +100,6 @@ public class CardUtil {
         return target;
     }
 
-
-    public static void registerSimpleComponent(Card c, int cardsNow, int actsNow, int buysNow, int coinsNow,
-                                               int cardsNext, int actsNext, int buysNext, int coinsNext) {
-        registerSimpleAction(c, cardsNow, actsNow, buysNow, coinsNow);
-        registerSimpleDuration(c, cardsNext, actsNext, buysNext, coinsNext);
-    }
-
-    public static void registerSimpleAction(Card c, int cardsNow, int actsNow, int buysNow, int coinsNow ){
-        c.addComponent(OnPlayComponent.class, p -> CardUtil.TriggerEffect(p, coinsNow, actsNow, cardsNow, buysNow, "Effect", c));
-
-    }
-
-    public static void registerSimpleDuration(Card c, int cardsNext, int actsNext, int buysNext, int coinsNext) {
-        c.addComponent(new DurationComponent(p -> CardUtil.TriggerEffect(p, coinsNext, actsNext, cardsNext, buysNext, "Duration", c)));
-    }
-
     public static <T>   void executeIfSelected(Supplier<T> selector, Consumer<T> action ) {
         Optional.ofNullable(selector.get()).ifPresent(action);
     }
@@ -124,16 +108,36 @@ public class CardUtil {
         Optional.ofNullable(selector.get()).filter(filter).ifPresentOrElse(action, other);
     }
 
-    public static void moveTo(Player p, AtomicReference<Card> onMove, Destination dest) {
-        if(onMove.get() != null) {
-            p.moveTo(onMove.get(), dest);
-            onMove.set(null);
+    public static void moveTo(Player p, Supplier<Card> getter, Consumer<Card> setter, Destination dest) {
+        Card card = getter.get();
+        if (card != null) {
+            p.moveTo(card, dest);
+            setter.accept(null);
         }
     }
 
     public static void execute( Runnable... actions) {
         for (Runnable action : actions) {
             action.run();
+        }
+    }
+
+    public static void executeAmbassador(Player p, Card self){
+        CardUtil.executeIfSelected(
+                () -> p.chooseCardFromHand("Dévoile une carte", false),
+                revealed -> {
+                    p.log(p.getName() + " dévoile " + revealed.getName());
+                    handleReplacements(p, revealed, 2);
+                    p.getGame().processGain(p, self, Destination.DISCARD, revealed.getName());
+                }
+        );
+    }
+
+    private static void handleReplacements(Player p, Card revealed, int max){
+        for (int i = 0; i < max; i++) {
+            Card toReturn = p.chooseCardFromHand("Remettre en réserve (max 2)", revealed::hasSameNameAs, true);
+            if (toReturn == null) break;
+            p.getGame().replaceCardInSupply(toReturn, revealed);
         }
     }
 

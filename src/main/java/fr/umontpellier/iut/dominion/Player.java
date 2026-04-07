@@ -306,7 +306,7 @@ public class Player {
      * {@code getVictoryValue()}) des cartes
      */
     public int getVictoryPoints() {
-        return getCardsInHand().stream().mapToInt(Card::getVictoryValue).sum();
+        return getCardsInHand().stream().mapToInt(card -> card.getVictoryValue(this)).sum();
     }
 
     /**
@@ -368,7 +368,11 @@ public class Player {
     public void moveToHand(Card c) {
         c.moveTo(hand);
     }
-
+    public void discard(Card c){
+        if(c==null) return;
+        c.as(TriggerComponent.onCardDiscard.class).ifPresent(t -> t.accept(this, c));
+        gainSilent(c, Destination.DISCARD, false);
+    }
 
     /**
      * Méthode Générique
@@ -463,20 +467,27 @@ public class Player {
      *
      * @param number nombre de carte de la main à défausser
      */
-    public void discardFromHand(int number){
-        if(hand.isEmpty())return;
-        number = Math.min(number, hand.size());
-        for(int i = 0; i < number; i++){
-            Card c = chooseCardFromHand("Défausse " + (number-i) + " cartes", false );
-            if(c != null)
-                moveTo(c, Destination.DISCARD);
+    public void discardFromHand(int number) {
+        if (hand.isEmpty()) return;
+
+        int target = Math.min(number, hand.size());
+        int discardedCount = 0;
+
+        while (discardedCount < target) {
+            Card c = chooseCardFromHand("Défausse encore " + (target - discardedCount) + " carte(s)", false);
+            if (c != null) {
+                discard(c);
+                discardedCount++;
+            } else {
+                break;
+            }
         }
     }
 
     public Card discard(){
-        Card c = chooseCardFromHand("Défausse autant de carte que tu veux cartes ", true );
+        Card c = chooseCardFromHand("Défausse une carte ", true );
         if(c != null){
-           moveTo(c, Destination.DISCARD);
+            discard(c);
            return c;}
 
         return null;
@@ -1044,7 +1055,7 @@ public class Player {
         if(debt > 0){
             buttons.add(new Button("Rembourser la dette", "REMBOURSER"));
         }
-        if(money > 0){
+        if(coffre > 0){
             buttons.add(new Button("Coffre (" + coffre + ")", "COFFRE"));
         }
         return buttons;
@@ -1122,7 +1133,7 @@ public class Player {
     private void triggerDurationCard() {
         getCardsInPlay()
                 .forEach(c -> c.as(DurationComponent.class).ifPresent(d ->{
-                    d.execute(this);
+                    d.execute(this, c);
                     d.consume();
                 }));
     }
@@ -1173,8 +1184,13 @@ public class Player {
      * @see Player#getCardsInPlay() 
      * @see Card#hasComponent(Class)
      */
-    public<T extends TriggerComponent.Immunity> boolean immunity(Class<T> type){
-        return getCardsInPlay().stream().anyMatch(card -> card.hasComponent(type));
+    public <T extends TriggerComponent.Immunity> boolean immunity(Class<T> type) {
+        boolean inPlay = getCardsInPlay().stream()
+                .anyMatch(card -> card.hasComponent(type));
+
+        if (inPlay) return true;
+
+        return getCardsInHand().stream().anyMatch(card -> card.hasComponent(type) && card.as(type).map(i -> i.revealed(this, card)).orElse(false));
     }
 
     /**

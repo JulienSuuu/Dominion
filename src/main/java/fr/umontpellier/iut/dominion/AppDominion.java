@@ -19,7 +19,7 @@ public class AppDominion {
 
     public static void main(String[] args) {
         // Liste de toutes les cartes disponibles
-        List<String> allKingdomCards = RegistryName.getExtension("Seaside");
+        List<String> allKingdomCards = RegistryName.getExtension("Dominion");
         Collections.shuffle(allKingdomCards);
 
         // Noms des joueurs
@@ -28,8 +28,8 @@ public class AppDominion {
         // Option 1. Aucune carte royaume (uniquement les cartes communes)
         //String[] kingdomCards = new String[]{"Astrolabe", "Bazaar", "Blockade"};
 
-        // Option 2. Liste explicite de cartes royaume à utiliser (le nombre de cartes peut être quelconque)
-        // String[] kingdomCards = new String[]{"Ambassador", "Blockade", "Pirate", "Sailor"};
+        //Option 2. Liste explicite de cartes royaume à utiliser (le nombre de cartes peut être quelconque)
+         //String[] kingdomCards = new String[]{"Artisan","Bandit","Bureaucrat","Cellar"};
 
         // Option 3. Choix aléatoire de 10 cartes parmi la liste complète allKingdomCards définie précédemment
         String[] kingdomCards = allKingdomCards.toArray(new String[0]);

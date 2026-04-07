@@ -1,11 +1,7 @@
 package fr.umontpellier.iut.dominion.cards.component;
 
-public class ScoreComponent implements CardComponent {
-    int score;
-    public ScoreComponent(int score) {
-        this.score = score;
-    }
-    public int getScore() {
-        return score;
-    }
+import fr.umontpellier.iut.dominion.Player;
+
+public interface ScoreComponent extends CardComponent {
+    int giveScore(Player player);
 }

@@ -11,127 +11,95 @@ import fr.umontpellier.iut.dominion.cards.component.*;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.IntStream;
 
 public class SeaSideFactory {
 
     public static Card Ambassador() {
-        Card c = new Card("Ambassador", RegistryPrice.SeasidePrice(3), CardType.ACTION, CardType.ATTACK);
-
-        c.addComponent(OnPlayComponent.class, p -> {
-
-            CardUtil.executeIfSelected(
-                    () -> p.chooseCardFromHand("Dévoile une carte de ta main", false),
-                    revealed -> {
-                        p.log(p.getName() + " a dévoilé " + revealed.getName());
-
-                        Runnable replaceLogic = () -> {
-                            AtomicBoolean pass =  new AtomicBoolean(true);
-                            for (int i = 0; i < 2 && pass.get(); i++) {
-                                CardUtil.executeOrOtherWise(
-                                        () -> p.chooseCardFromHand("Remettre en réserve (max 2)", revealed::hasSameNameAs, true),
-                                        revealed::hasSameNameAs,
-                                        toReturn -> p.getGame().replaceCardInSupply(toReturn, revealed),
-                                        () -> pass.set(false)
-                                );
-                            }
-                        };
-
-                        replaceLogic.run();
-
-                        p.getGame().processGain(p, c, Destination.DISCARD, revealed.getName());
-                    }
-            );
-        });
-
-        return c;
+        return new Card("Ambassador", RegistryPrice.SeasidePrice(3), CardType.ACTION, CardType.ATTACK).setup(
+                config -> config.onPlay(CardUtil::executeAmbassador));
     }
     public static Card Astrolabe(){
-        Card c = new Card("Astrolabe", RegistryPrice.SeasidePrice(3), CardType.TREASURE, CardType.DURATION);
-        CardUtil.registerSimpleComponent(c, 0, 0, 1, 1, 0, 0, 1, 1);
-        return c;
+        return new Card("Astrolabe", RegistryPrice.SeasidePrice(3), CardType.TREASURE, CardType.DURATION).
+                setup(config -> config.registerSimpleComponent(0,0,1,1,0,0,1,1));
     }
 
     public static Card Bazaar(){
-        Card c = new Card("Bazaar", RegistryPrice.SeasidePrice(5), CardType.ACTION);
-        CardUtil.registerSimpleAction(c, 1, 2, 0, 1);
-        return c;
+        return new Card("Bazaar", RegistryPrice.SeasidePrice(5), CardType.ACTION)
+                .setup(config -> config.registerSimpleAction(1,2,0,1));
     }
 
     public static Card Blockade(){
-        Card c = new Card("Blockade", RegistryPrice.SeasidePrice(4), CardType.ACTION, CardType.DURATION, CardType.ATTACK);
-        final AtomicReference<Card> blocked = new AtomicReference<>();
-
-        c.addComponent(OnPlayComponent.class, p ->
-            CardUtil.executeIfSelected(
-                    () -> p.chooseCardFromSupply("Choississez une carte qui coûte au maximum 4 de pièces", card -> card.getCost()<=4, false ),
-                    card -> {
-                        blocked.set(CardUtil.gainIfPresent(p, card, Destination.ASIDE, true));
-                        p.log(String.format("%s bloquée", card.getName().toUpperCase()));
-
-                    }
-
-            ));
-
-        c.addComponent(new DurationComponent(player -> CardUtil.moveTo(player, blocked, Destination.HAND)));
-
-        c.addComponent(TriggerComponent.OnPlayerGain.class, (owner, victim, c1) -> {
-            if(blocked.get() != null && c1.hasSameNameAs(blocked.get()) && victim!= owner){
-                victim.gain(victim.getCardFromSupply("Curse"), Destination.DISCARD);
-                owner.log(String.format("TRIGGER %s : %s gagne une malédiction ", c.getName().toUpperCase(), victim.getName()));
-            }
-        });
-
-        return c;
+        return new Card("Blockade", RegistryPrice.SeasidePrice(4), CardType.ACTION, CardType.DURATION, CardType.ATTACK)
+                .setup(config -> config
+                        .onPlay((p, self) ->
+                                CardUtil.executeIfSelected(
+                                () -> p.chooseCardFromSupply("Choississez une carte qui coûte au maximum 4 de pièces", buy -> buy.getCost()<=4, false ),
+                                blocked -> {
+                                    self.set("Blocked", CardUtil.gainIfPresent(p, blocked, Destination.ASIDE, true));
+                                    p.log(String.format("%s bloquée", blocked.getName().toUpperCase()));
+                                }
+                        ))
+                        .onDuration((player, self )-> CardUtil.moveTo(player, () -> self.get("Blocked", Card.class), c -> self.set("Blocked", c), Destination.HAND))
+                        .onGain((owner, victim, c) -> {
+                            if(config.get().get("Blocked", Card.class) != null && c.hasSameNameAs(config.get().get("Blocked", Card.class)) && victim!= owner){
+                                victim.gain(victim.getCardFromSupply("Curse"), Destination.DISCARD);
+                                owner.log(String.format("TRIGGER %s : %s gagne une malédiction ", c.getName().toUpperCase(), victim.getName()));
+                            }
+                        }
+                        ));
     }
 
     public static Card Caravan(){
-        Card c = new Card("Caravan", RegistryPrice.SeasidePrice(4), CardType.ACTION, CardType.DURATION);
-        CardUtil.registerSimpleComponent(c, 1, 1, 0, 0, 1, 0, 0, 0);
-        return c;
+        return new Card("Caravan", RegistryPrice.SeasidePrice(4), CardType.ACTION, CardType.DURATION)
+                .setup(config -> config.registerSimpleComponent(1,1,0,0,1,0,0,0));
     }
 
-    public static Card Corsair(){
-        Card c = new Card("Corsair", RegistryPrice.SeasidePrice(5), CardType.ACTION, CardType.DURATION, CardType.ATTACK);
+    public static Card Corsair() {
+        return new Card("Corsair", RegistryPrice.SeasidePrice(5), CardType.ACTION, CardType.DURATION, CardType.ATTACK).setup(
+                config -> config
+                        .registerSimpleComponent(0,0,0,2,1,0,0,0)
+                        .onCardPlayed((owner, actor, playedCard) -> {
+                            if (owner == actor) return;
 
-        final Map<Player, Integer> lastAttackTour = new HashMap<>();
+                            if (playedCard.hasName("Silver") || playedCard.hasName("Gold")) {
+                                int currentTurn = owner.getGame().getTurnNumber();
 
-        CardUtil.registerSimpleComponent(c, 0, 0, 0, 2, 1, 0, 0, 0);
+                                Map<Player, Integer> history = config.get().getMap("attackHistory");
+                                if (history == null) {
+                                    history = new HashMap<>();
+                                    config.get().set("attackHistory", history);
+                                }
 
-        c.addComponent(TriggerComponent.OnCardPlayed.class, (owner, actor, card) -> {
-            if (owner == actor) return;
+                                if (history.getOrDefault(actor, -1) != currentTurn) {
+                                    if (owner.getGame().isImmune(config.get(), actor)) return;
 
-            if (card.hasName("Silver") || card.hasName("Gold")) {
-                int currentTurn = owner.getGame().getTurnNumber();
+                                    actor.getGame().moveToTrash(playedCard);
+                                    history.put(actor, currentTurn);
 
-                if (lastAttackTour.getOrDefault(actor, -1) != currentTurn) {
-                    if(owner.getGame().isImmune(c, actor))return;
-                    actor.getGame().moveToTrash(card);
-                    lastAttackTour.put(actor, currentTurn);
-                    owner.log(String.format("TRIGGER %s : %s écarte %s ", c.getName().toUpperCase(), actor.getName(), card.getName().toUpperCase()));
-                }
-            }
-        });
-        return c;
+                                    owner.log(String.format("TRIGGER %s : %s écarte %s ",
+                                            config.get().getName().toUpperCase(), actor.getName(), playedCard.getName().toUpperCase()));
+                                }
+                            }
+                        })
+                );
     }
 
     public static Card Cutpurse(){
-        Card c = new Card("Cutpurse", RegistryPrice.SeasidePrice(4), CardType.ACTION, CardType.ATTACK);
-        c.addComponent(OnPlayComponent.class, p -> {
-            CardUtil.TriggerEffect(p, 2,0,0,0,"Effect", c);
-
-           p.getGame().checkHandOrShow(
-                   p,
-                   c,
-                   card -> card.hasName("Copper"),
-                   (player, cards) -> cards.stream().findFirst(),
-                   Destination.DISCARD
-           );
-
-        });
-        return c;
+        return new Card("Cutpurse", RegistryPrice.SeasidePrice(4), CardType.ACTION, CardType.ATTACK)
+                .setup(config -> config
+                        .onPlay((player, card) -> {
+                            CardUtil.TriggerEffect(player, 2,0,0,0,"Effect", card);
+                            player.getGame().checkHandOrShow(
+                                    player,
+                                    card,
+                                    check -> check.hasName("Copper"),
+                                    (p, cards) -> cards.stream().findFirst(),
+                                    Destination.DISCARD
+                            );
+                        })
+                );
     }
 
     /**
@@ -143,30 +111,29 @@ public class SeaSideFactory {
      * pile, il reçoit une Malédiction (Curse).)
      */
     public static Card Embargo(){
-        Card c = new Card("Embargo", RegistryPrice.SeasidePrice(2), CardType.ACTION);
-        c.addComponent(OnPlayComponent.class, p -> {
+        return new Card("Embargo", RegistryPrice.SeasidePrice(2), CardType.ACTION).setup(
+                config -> config.onPlay(
+                        (p, self) -> {
+                            Runnable logic = () -> CardUtil.executeIfSelected(
+                                    () -> p.chooseCardFromSupply("Choisissez une pile de la réserve à maudir", Objects::nonNull, false),
+                                    card ->{
+                                        p.getGame().moveToTrash(self);
+                                        p.getGame().setToken(card.getName());
+                                        p.log(String.format("Curse %s : %s a été maudit", self.getName().toUpperCase(), card.getName().toUpperCase()));
+                                    }
+                            );
 
-            Runnable logic = () -> CardUtil.executeIfSelected(
-                    () -> p.chooseCardFromSupply("Choisissez une pile de la réserve à maudir", Objects::nonNull, false),
-                    card ->{
-                        p.getGame().moveToTrash(c);
-                        p.getGame().setToken(card.getName());
-                        p.log(String.format("Curse %s : %s a été maudit", c.getName().toUpperCase(), card.getName().toUpperCase()));
-                    }
-            );
+                            CardUtil.TriggerEffect(p, 2,0,0,0,"Effect", self);
 
-            CardUtil.TriggerEffect(p, 2,0,0,0,"Effect", c);
-
-            CardUtil.executeOrOtherWise(
-                    () -> p.chooseStringFromButtons("Veux tu écarter cette carte pour poser une malédiction sur une des pile de la réserve", List.of(
-                            new Button("Oui", "y"), new Button("Non", "n")
-                    ), false),
-                    "y"::equals,
-                    choice -> logic.run(),
-                    () -> {}
-            );
-        });
-        return c;
+                            CardUtil.executeOrOtherWise(
+                                    () -> p.chooseStringFromButtons("Veux tu écarter cette carte pour poser une malédiction sur une des pile de la réserve", List.of(
+                                            new Button("Oui", "y"), new Button("Non", "n")
+                                    ), false),
+                                    "y"::equals,
+                                    choice -> logic.run(),
+                                    () -> {}
+                            );
+                        }));
     }
 
     /**
@@ -176,33 +143,31 @@ public class SeaSideFactory {
      * un Or (Gold) en main. Sinon, recevez un Argent (Silver) en main.
      */
     public static Card Explorer(){
-        Card c = new Card("Explorer", RegistryPrice.SeasidePrice(5), CardType.ACTION);
+        return new Card("Explorer", RegistryPrice.SeasidePrice(5), CardType.ACTION)
+                .setup(config ->config.
+                        onPlay((p, self) -> {
+                            Consumer<String> gainTreasure = treasure -> {
+                                CardUtil.gainFromSupply(p, treasure, Destination.HAND, false);
+                                p.log(p.getName() + " gagne un " + treasure.toUpperCase() + " en main.");
+                            };
 
-        c.addComponent(OnPlayComponent.class, p -> {
+                            Optional<Card> province = p.getCardsInHand().stream()
+                                    .filter(card -> card.hasName("Province"))
+                                    .findFirst();
 
-            Consumer<String> gainTreasure = treasure -> {
-                CardUtil.gainFromSupply(p, treasure, Destination.HAND, false);
-                p.log(p.getName() + " gagne un " + treasure.toUpperCase() + " en main.");
-            };
+                            province.ifPresentOrElse(
+                                    prov -> CardUtil.executeOrOtherWise(
+                                            () -> p.chooseStringFromButtons("Dévoiler Province ?", List.of(new Button("Oui", "y"), new Button("Non", "n")), false),
+                                            "y"::equals,
+                                            choice ->{
+                                                p.log("Dévoile Province");
+                                                gainTreasure.accept("Gold");
+                                                },
+                                            () -> gainTreasure.accept("Silver")
 
-            Optional<Card> province = p.getCardsInHand().stream()
-                    .filter(card -> card.hasName("Province"))
-                    .findFirst();
-
-                province.ifPresentOrElse(
-                        prov -> CardUtil.executeOrOtherWise(
-                        () -> p.chooseStringFromButtons("Dévoiler Province ?",
-                                List.of(new Button("Oui", "y"), new Button("Non", "n")), false),
-                        "y"::equals,
-                        choice ->{ p.log("Dévoile Province");
-                            gainTreasure.accept("Gold");
-                        },
-                        () -> gainTreasure.accept("Silver")
-
-                ), () -> gainTreasure.accept("Silver"));
-
-        });
-        return c;
+                                            ), () -> gainTreasure.accept("Silver"));
+                                })
+                );
     }
 
     /**
@@ -213,9 +178,8 @@ public class SeaSideFactory {
      * Au début de votre prochain tour, +1 Action et +1 Pièce.
      */
     public static Card FishingVillage(){
-        Card c = new Card("Fishing Village", RegistryPrice.SeasidePrice(3), CardType.ACTION, CardType.DURATION);
-        CardUtil.registerSimpleComponent(c, 0, 2, 0, 1, 0, 1, 0, 1);
-        return c;
+        return new Card("Fishing Village", RegistryPrice.SeasidePrice(3), CardType.ACTION, CardType.DURATION)
+                .setup(config -> config.registerSimpleComponent(0,2,0,1,0,1,0,1));
     }
 
     /**
@@ -226,12 +190,12 @@ public class SeaSideFactory {
      * de leur main sur leur pioche jusqu'à avoir 3 cartes en main.
      */
     public static Card GhostShip(){
-        Card c = new Card("Ghost Ship", RegistryPrice.SeasidePrice(5), CardType.ACTION, CardType.ATTACK);
-        c.addComponent(OnPlayComponent.class, p -> {
-            CardUtil.TriggerEffect(p, 0,0,2,0,"Effect", c);
-            p.getGame().processMoveTo(p, c,  Destination.DRAW);
-        });
-        return c;
+        return new Card("Ghost Ship", RegistryPrice.SeasidePrice(5), CardType.ACTION, CardType.ATTACK).setup(
+                config -> config.onPlay((p, c) -> {
+                    CardUtil.TriggerEffect(p, 0,0,2,0,"Effect", c);
+                    p.getGame().processMoveTo(p, c,  Destination.DRAW, 3, false);
+                })
+        );
     }
 
     /**
@@ -243,27 +207,24 @@ public class SeaSideFactory {
      * Au début de votre prochain tour, prenez-la en main.
      */
     public static Card Haven(){
-        Card c = new Card("Haven", RegistryPrice.SeasidePrice(2), CardType.ACTION, CardType.DURATION);
-        AtomicReference<Card> reference = new AtomicReference<>();
-
-        c.addComponent(OnPlayComponent.class, p -> {
-            CardUtil.TriggerEffect(p,0,1,1,0,"Duration", c);
-
-            CardUtil.executeIfSelected(
-                    () -> p.chooseCardFromHand("Choissisez une carte de votre main", false ),
-                    card -> {
-                        reference.set(CardUtil.moveIfPresent(p, card, Destination.ASIDE));
-                        p.log(String.format("Action %s : %s cache %s", c.getName().toUpperCase(), p.getName(), card.getName().toUpperCase()));
-                    }
-            );
-        });
-
-        c.addComponent(new DurationComponent(player -> {
-            player.log(String.format("Duration %s : %s récupère %s qui été cachée", c.getName().toUpperCase(), player.getName(), reference.get().getName().toUpperCase()));
-            CardUtil.moveTo(player, reference,  Destination.HAND);}
-        ));
-
-        return c;
+        return new Card("Haven", RegistryPrice.SeasidePrice(2), CardType.ACTION, CardType.DURATION).setup(
+                config -> config
+                        .onPlay((p, self ) ->{
+                            CardUtil.TriggerEffect(p,0,1,1,0,"Duration", self);
+                            CardUtil.executeIfSelected(
+                                    () -> p.chooseCardFromHand("Choissisez une carte de votre main", false ),
+                                    card -> {
+                                        self.set("Hidden",CardUtil.moveIfPresent(p, card, Destination.ASIDE));
+                                        p.log(String.format("Action %s : %s cache %s", self.getName().toUpperCase(), p.getName(), card.getName().toUpperCase()));
+                                    }
+                            );
+                        })
+                        .onDuration(
+                                (player, self) -> {
+                                    player.log(String.format("Duration %s : %s récupère %s qui été cachée", self.getName().toUpperCase(), player.getName(), self.get("Hidden", Card.class).getName().toUpperCase()));
+                                    CardUtil.moveTo(player, () -> self.get("Hidden", Card.class), c -> self.set("Hidden", c), Destination.HAND);
+                                }
+                        ));
     }
 
     /**
@@ -274,20 +235,19 @@ public class SeaSideFactory {
      * Mat).
      */
     public static Card Island(){
-        Card c = new Card("Island", RegistryPrice.SeasidePrice(4), CardType.ACTION, CardType.VICTORY);
-        c.addComponent(OnPlayComponent.class, p -> {
-            p.moveTo(c, Destination.ISLAND);
-            CardUtil.executeIfSelected(
-                    () -> p.chooseCardFromHand("Choississez une carte de votre main à placer sur l'île", false),
-                    card -> {
-                        p.moveTo(card, Destination.ISLAND);
-                        p.log(String.format("Action %s : %s place %s ", c.getName().toUpperCase(), p.getName(), card.getName().toUpperCase())  );
-
-                    }
-            );
-        });
-        c.addComponent(new ScoreComponent(2));
-        return c;
+        return new Card("Island", RegistryPrice.SeasidePrice(4), CardType.ACTION, CardType.VICTORY).setup(
+                config -> config
+                        .onPlay((p, self) -> {
+                            p.moveTo(self, Destination.ISLAND);
+                            CardUtil.executeIfSelected(
+                                () -> p.chooseCardFromHand("Choississez une carte de votre main à placer sur l'île", false),
+                                card -> {
+                                    p.moveTo(card, Destination.ISLAND);
+                                    p.log(String.format("Action %s : %s place %s ", self.getName().toUpperCase(), p.getName(), card.getName().toUpperCase()));
+                                }
+                            );
+                        })
+                        .score(player -> 2));
     }
 
     /**
@@ -299,11 +259,12 @@ public class SeaSideFactory {
      * pas.
      */
     public static Card LightHouse(){
-        Card c = new Card("Lighthouse", RegistryPrice.SeasidePrice(2), CardType.ACTION, CardType.DURATION);
-        CardUtil.registerSimpleComponent(c, 0, 1, 0, 1, 0, 0, 0, 1);
-        c.addComponent(TriggerComponent.Immunity.class,new TriggerComponent.Immunity() {} );
-
-        return c;
+        return new Card("Lighthouse", RegistryPrice.SeasidePrice(2), CardType.ACTION, CardType.DURATION)
+                .setup(
+                config -> config
+                        .registerSimpleComponent(0,1,0,1,0,0,0,1)
+                        .immunity()
+                );
     }
 
     /**
@@ -314,38 +275,33 @@ public class SeaSideFactory {
      * Défaussez-en une. Placez la carte restante sur le haut de votre pioche.
      */
     public static Card Lookout(){
-        Card c = new Card("Lookout", RegistryPrice.SeasidePrice(3), CardType.ACTION);
-        c.addComponent(OnPlayComponent.class, p -> {
-            CardUtil.TriggerEffect(p,0,1,0,0,"Effect", c);
+        return new Card("Lookout", RegistryPrice.SeasidePrice(3), CardType.ACTION).setup(
+                config -> config
+                        .onPlay( (p, self) ->{
 
+                            CardUtil.TriggerEffect(p,0,1,0,0,"Effect", self);
 
+                            List<Card> view = CardUtil.getTopCards(p, 3);
+                            CardUtil.executeIfSelected(
+                                    () -> p.chooseCardFromButtons("Choississez une carte à écarter", view, false),
+                                    card -> {
+                                        p.getGame().moveToTrash(card);
+                                        view.remove(card);
+                                    });
 
+                            CardUtil.executeIfSelected(
+                                    () -> p.chooseCardFromButtons("Choississez une carte à défaussez", view, false),
+                                    card -> {
+                                        p.moveTo(card, Destination.DISCARD);
+                                        p.log(String.format("Action %s : %s défausse %s", self.getName().toUpperCase(), p.getName(), card.getName().toUpperCase()));
+                                        view.remove(card);
+                                    });
 
-
-
-
-            List<Card> view = CardUtil.getTopCards(p, 3);
-            CardUtil.executeIfSelected(
-                    () -> p.chooseCardFromButtons("Choississez une carte à écarter", view, false),
-                    card -> {
-                        p.getGame().moveToTrash(card);
-                        view.remove(card);
-                    }
-            );
-            CardUtil.executeIfSelected(
-                    () -> p.chooseCardFromButtons("Choississez une carte à défaussez", view, false),
-                    card -> {
-                        p.moveTo(card, Destination.DISCARD);
-                        p.log(String.format("Action %s : %s défausse %s", c.getName().toUpperCase(), p.getName(), card.getName().toUpperCase()));
-                        view.remove(card);
-                    }
-            );
-
-            if(!view.isEmpty()){
-                p.moveTo(view.getFirst(), Destination.DRAW);
-            }
-        });
-        return c;
+                                    if(!view.isEmpty()){
+                                        p.moveTo(view.getFirst(), Destination.DRAW);
+                                    }
+                        })
+        );
     }
     /**
      * Carte Navire marchand (Merchant Ship)
@@ -353,9 +309,8 @@ public class SeaSideFactory {
      * Maintenant et au début de votre prochain tour, +2 Pièces.
      */
     public static Card MerchantShip(){
-        Card c = new Card("Merchant Ship", RegistryPrice.SeasidePrice(5), CardType.ACTION, CardType.DURATION);
-        CardUtil.registerSimpleComponent(c, 0, 0, 0, 2, 0, 0, 0, 2);
-        return c;
+        return new Card("Merchant Ship", RegistryPrice.SeasidePrice(5), CardType.ACTION, CardType.DURATION).setup(
+                config -> config.registerSimpleComponent(0,0,0,2,0,0,0,2));
     }
     /**
      * Carte Singe (Monkey)
@@ -365,15 +320,14 @@ public class SeaSideFactory {
      * Au début de votre prochain tour, +1 Carte.
      */
     public static Card Monkey(){
-        Card c = new Card("Monkey", RegistryPrice.SeasidePrice(3), CardType.ACTION, CardType.DURATION);
-        CardUtil.registerSimpleDuration(c, 1, 0, 0, 0);
-
-        c.addComponent(TriggerComponent.OnPlayerGain.class, (owner, victim, c1) -> {
-            if(owner.getGame().onTheRight(owner, victim)){
-                owner.draw(1);
-            }
-        });
-        return c;
+        return new Card("Monkey", RegistryPrice.SeasidePrice(3), CardType.ACTION, CardType.DURATION).setup(
+                config -> config
+                        .registerSimpleDuration(1,0,0,0)
+                        .onGain((owner, victim, c) -> {
+                            if(owner.getGame().onTheRight(owner, victim)){
+                                owner.draw(1);
+                            }
+                        }));
     }
     /**
      * Carte Village indigène (Native Village)
@@ -384,21 +338,18 @@ public class SeaSideFactory {
      * ou prenez en main toutes les cartes du plateau.
      */
     public static Card NativeVillage(){
-        Card c = new Card("Native Village", RegistryPrice.SeasidePrice(2), CardType.ACTION);
-        c.addComponent(OnPlayComponent.class, p -> {
-            CardUtil.TriggerEffect(p, 0,2,0,0,"Effect", c);
-            List<Button> buttons = new ArrayList<>();
-            buttons.add(new Button("add", "add"));
-            buttons.add(new Button("take", "take"));
-
-            CardUtil.executeOrOtherWise(
-                    () -> p.chooseStringFromButtons("Choississez entre poser une carte sur votre village ou de récupérer toutes vos cartes", buttons, false),
-                    "add"::equals,
-                    isPresent -> p.drawTo(Destination.NATIVE),
-                    () -> p.getCardsOnNativeVillageMat().forEach( card -> p.moveTo(card, Destination.HAND))
-            );
-        });
-        return c;
+        return new Card("Native Village", RegistryPrice.SeasidePrice(2), CardType.ACTION).setup(
+                config -> config
+                        .onPlay((p, self)-> {
+                            CardUtil.TriggerEffect(p, 0,2,0,0,"Effect", self);
+                            CardUtil.executeOrOtherWise(
+                                    () -> p.chooseStringFromButtons("Choississez entre poser une carte sur votre village ou de récupérer toutes vos cartes", List.of(new Button("add", "add"), new Button("take", "take")), false),
+                                    "add"::equals,
+                                    isPresent -> p.drawTo(Destination.NATIVE),
+                                    () -> p.getCardsOnNativeVillageMat().forEach( card -> p.moveTo(card, Destination.HAND))
+                            );
+                        })
+        );
     }
     /**
      * Carte Navigateur (Navigator)
@@ -409,31 +360,31 @@ public class SeaSideFactory {
      * votre choix.
      */
     public static Card Navigator(){
-        Card c = new Card("Navigator", RegistryPrice.SeasidePrice(4), CardType.ACTION);
-        c.addComponent(OnPlayComponent.class, p -> {
-            CardUtil.TriggerEffect(p, 2,0,0,0,"Effect", c);
-            List<Card> view = CardUtil.getTopCards(p, 5);
+        return new Card("Navigator", RegistryPrice.SeasidePrice(4), CardType.ACTION).setup(
+                config -> config
+                        .onPlay((p, self) ->{
+                            CardUtil.TriggerEffect(p,2,0,0,0, "Effect", self);
+                            List<Card> view = CardUtil.getTopCards(p, 5);
 
-            Runnable chooseOrder = () -> {
-                while(!view.isEmpty()){
-                    CardUtil.executeIfSelected(
-                            () -> p.chooseCardFromButtons("Remet les cartes dans l'ordre que tu veux", view, false),
-                            card -> {
-                                view.remove(card);
-                                p.moveTo(card, Destination.DRAW);
-                            }
-                    );
-                }
-            };
+                            Runnable chooseOrder = () -> {
+                                while(!view.isEmpty()){
+                                    CardUtil.executeIfSelected(
+                                            () -> p.chooseCardFromButtons("Remet les cartes dans l'ordre que tu veux", view, false),
+                                            card -> {
+                                                view.remove(card);
+                                                p.moveTo(card, Destination.DRAW);
+                                            })
+                                    ;}
+                            };
 
-            CardUtil.executeOrOtherWise(
-                    () ->p.chooseStringFromButtons("Défausse tout ou replace les cartes dans l'ordre que tu veux", List.of(new Button("discard", "y"), new Button("replace", "n")), false),
-                    "y"::equals,
-                    isPresent -> view.forEach(card -> p.moveTo(card, Destination.DISCARD)),
-                    chooseOrder
-            );
-        });
-        return c;
+                            CardUtil.executeOrOtherWise(
+                                    () ->p.chooseStringFromButtons("Défausse tout ou replace les cartes dans l'ordre que tu veux", List.of(new Button("discard", "y"), new Button("replace", "n")), false),
+                                    "y"::equals,
+                                    isPresent -> view.forEach(card -> p.moveTo(card, Destination.DISCARD)),
+                                    chooseOrder
+                            );
+                        })
+        );
     }
 
     /**
@@ -441,16 +392,16 @@ public class SeaSideFactory {
      * Au prochain tour, pioche seulement 3 cartes puis joue un tour supplémentaire
      */
     public static Card Outpost(){
-        Card c = new Card("Outpost", RegistryPrice.SeasidePrice(5), CardType.ACTION, CardType.DURATION);
         AtomicBoolean b = new AtomicBoolean(false);
-        c.addComponent(OnPlayComponent.class, p -> {
-            p.updateDrawBonusValue(-2);
-            b.set(false);
-        });
-        c.addComponent(new ExtraTurnComponent(b));
-        c.addComponent(new DurationComponent(p -> {}));
-
-        return c;
+        return new Card("Outpost", RegistryPrice.SeasidePrice(5), CardType.ACTION, CardType.DURATION).setup(
+                config -> config
+                        .onPlay((player, self) ->{
+                                    player.updateDrawBonusValue(-2);
+                                    b.set(false);
+                        })
+                        .onExtraTurn(b)
+                        .onDuration((player, card) -> {})
+        );
     }
 
     /**
@@ -461,26 +412,24 @@ public class SeaSideFactory {
      * Consultez la carte du bas de votre pioche. Vous pouvez la placer sur le haut.
      */
     public static Card PearlDiver(){
-        Card c = new Card("Pearl Diver", RegistryPrice.SeasidePrice(2), CardType.ACTION);
-        c.addComponent(OnPlayComponent.class, p -> {
-            CardUtil.TriggerEffect(p, 0, 1, 1, 0, "Effect", c);
+        return new Card("Pearl Diver", RegistryPrice.SeasidePrice(2), CardType.ACTION).setup(
+                config -> config
+                        .onPlay((p, self) -> {
+                            CardUtil.TriggerEffect(p, 0, 1, 1, 0, "Effect", self);
+                            Card card = CardUtil.getBottomCards(p, 1).getFirst();
+                            if(card!=null){
+                                List<Button> buttons = new ArrayList<>();
+                                buttons.add(new Button("onTop", "y"));
+                                buttons.add(new Button("onBottom", "n"));
 
-            Card card = CardUtil.getBottomCards(p, 1).getFirst();
-            if(card != null) {
-                List<Button> buttons = new ArrayList<>();
-                buttons.add(new Button("onTop", "y"));
-                buttons.add(new Button("onBottom", "n"));
-
-                CardUtil.executeOrOtherWise(
-                        () ->p.chooseStringFromButtons("Choix: Placez votre carte au dessus de votre pioche : " + c.getName() , buttons, true),
-                        "y"::equals,
-                        isPresent -> p.moveTo(card, Destination.DRAW),
-                        () -> {}
-                );
-            }
-        });
-
-        return c;
+                                CardUtil.executeOrOtherWise(
+                                        () ->p.chooseStringFromButtons("Choix: Placez votre carte au dessus de votre pioche : " + self.getName() , buttons, true),
+                                        "y"::equals,
+                                        isPresent -> p.moveTo(card, Destination.DRAW),
+                                        () -> {}
+                                );}
+                        })
+        );
     }
 
     /**
@@ -492,32 +441,28 @@ public class SeaSideFactory {
      * main.
      */
     public static Card Pirate(){
-        Card pirate = new Card("Pirate", RegistryPrice.SeasidePrice(5), CardType.ACTION, CardType.DURATION, CardType.REACTION);
-
-        pirate.addComponent(new DurationComponent(p -> {
-            Card c = CardUtil.gainFromSupply(
-                    p, "Choississez un trésor (maximum 6 pièces) ",
-                    card -> card.hasType(CardType.TREASURE)&& card.getCost() <= 6,
-                    Destination.HAND,
-                    false );
-
-            if( c!= null ) p.log(String.format("Action %s : %s récupère %s coutant %d pièces", pirate.getName().toUpperCase(), p.getName(), c.getName().toUpperCase(), c.getCost()));
-        }));
-
-        pirate.addComponent(TriggerComponent.OnPlayerGain.class, (owner, victim, c) -> {
-            if(c.hasType(CardType.TREASURE) && owner.getCardsInHand().contains(pirate)) {
-
-                CardUtil.executeIfSelected(
-                        () ->  owner.chooseCardFromHand("Veux tu jouer ton pirate ?", card -> card.hasSameNameAs(pirate), true),
-                        card -> {
-                            owner.playCard(pirate);
-                            owner.log(String.format("Reaction %s", pirate.getName().toUpperCase()));
+        return new Card("Pirate", RegistryPrice.SeasidePrice(5), CardType.ACTION, CardType.DURATION, CardType.REACTION)
+                .setup(config -> config
+                    .onDuration((p, self) -> CardUtil.executeIfSelected(
+                            () -> CardUtil.gainFromSupply(
+                                    p,
+                                    "Choississez un trésor (maximum 6 pièces) ",
+                                    card -> card.hasType(CardType.TREASURE)&& card.getCost() <= 6,
+                                    Destination.HAND,
+                                    false ),
+                            card ->  p.log(String.format("Action %s : %s récupère %s coutant %d pièces", self.getName().toUpperCase(), p.getName(), card.getName().toUpperCase(), card.getCost()))
+                            ))
+                    .onGain((owner, victim, c) -> {
+                        if(c.hasType(CardType.TREASURE) && owner.getCardsInHand().contains(config.get())) {
+                            CardUtil.executeIfSelected(
+                                    () ->  owner.chooseCardFromHand("Veux tu jouer ton pirate ?", card -> card.hasSameNameAs(config.get()), true),
+                                    card -> {
+                                        owner.playCard(config.get());
+                                        owner.log(String.format("Reaction %s", config.get().getName().toUpperCase()));
+                                    });
                         }
+                    })
                 );
-            }
-        });
-
-        return pirate;
     }
     /**
      * Carte Bateau pirate (Pirate Ship)
@@ -529,36 +474,35 @@ public class SeaSideFactory {
      * plateau Bateau pirate.
      */
     public static Card PirateShip(){
-        Card current = new Card("Pirate Ship", RegistryPrice.SeasidePrice(4), CardType.ACTION, CardType.ATTACK);
-        current.addComponent(OnPlayComponent.class, p -> {
+        return new Card("Pirate Ship", RegistryPrice.SeasidePrice(4), CardType.ACTION, CardType.ATTACK)
+                .setup(config -> config
+                        .onPlay((p, current) -> {
+                            Runnable money = () -> {
+                                int numberOfCoin = p.getCoins();
+                                p.incrementMoney(numberOfCoin);
+                                p.log(String.format("Action %s : %s récupère %d pièce sur son bateau", current.getName().toUpperCase(), p.getName(), numberOfCoin));
+                            };
 
-            Runnable money = () -> {
-                int numberOfCoin = p.getCoins();
-                p.incrementMoney(numberOfCoin);
-                p.log(String.format("Action %s : %s récupère %d pièce sur son bateau", current.getName().toUpperCase(), p.getName(), numberOfCoin));
-            };
+                            Runnable attack = ()-> {
+                                List<Card> treasureRemoved = p.getGame().processAttackWithReveal(
+                                        p,
+                                        current,
+                                        2,
+                                        card -> card.hasType(CardType.TREASURE),
+                                        (attacker, victim, options) -> attacker.getGame().chooseACard(attacker, options)
+                                );
+                                if(treasureRemoved.isEmpty()) return;
+                                p.incrementCoin(1);
+                            };
 
-            Runnable attack = ()-> {
-                List<Card> treasureRemoved = p.getGame().processAttackWithReveal(
-                        p,
-                        current,
-                        2,
-                        card -> card.hasType(CardType.TREASURE),
-                        (attacker, victim, options) -> attacker.getGame().chooseACard(attacker, options)
+                            CardUtil.executeOrOtherWise(
+                                    () -> p.chooseStringFromButtons("Choisissez : Récupèrer de l'argent du Bateau ou attaquer ?", List.of(new Button("Money", "m"), new Button("Attack", "a")), false),
+                                    "m"::equals,
+                                    choice -> money.run(),
+                                    attack
+                            );}
+                        )
                 );
-
-                if(treasureRemoved.isEmpty()) return;
-                p.incrementCoin(1);
-            };
-
-            CardUtil.executeOrOtherWise(
-                    () -> p.chooseStringFromButtons("Choisissez : Récupèrer de l'argent du Bateau ou attaquer ?", List.of(new Button("Money", "m"), new Button("Attack", "a")), false),
-                    "m"::equals,
-                    choice -> money.run(),
-                    attack
-            );
-        });
-        return current;
     }
 
     /**
@@ -571,42 +515,36 @@ public class SeaSideFactory {
      * de votre main.
      */
     public static Card Sailor(){
-        Card current = new Card("Sailor", RegistryPrice.SeasidePrice(4), CardType.ACTION, CardType.DURATION);
-        AtomicBoolean alreadyUsed = new AtomicBoolean(false);
-
-        current.addComponent(OnPlayComponent.class, p -> {
-            CardUtil.TriggerEffect(p, 0, 1, 0, 0, "Effect", current);
-            alreadyUsed.set(false);
-        });
-
-        current.addComponent(new DurationComponent(player -> {
-                    CardUtil.TriggerEffect(player, 2, 0, 0, 0, "Effect", current);
-
-                    CardUtil.executeIfSelected(
-                            () -> player.chooseCardFromHand("Choisie une carte à écarter", true),
-                            card -> player.getGame().moveToTrash(card)
-                    );}
-        ));
-
-        current.addComponent(TriggerComponent.OnPlayerGain.class, (owner, victim, c) -> {
-            if(c.hasType(CardType.DURATION) && owner == victim && !alreadyUsed.get()){
-                List<Button> buttons = new ArrayList<>();
-                buttons.add(new Button("play", "y"));
-                buttons.add(new Button("skip", "n"));
-
-                CardUtil.executeOrOtherWise(
-                        () ->owner.chooseStringFromButtons("Veux-tu jouer ta carte " + c.getName(), buttons, true),
-                        "y"::equals,
-                        choice -> {
-                            owner.playCard(c);
-                            alreadyUsed.set(true);
-                            },
-                        () -> {}
+        return new Card("Sailor", RegistryPrice.SeasidePrice(4), CardType.ACTION, CardType.DURATION)
+                .setup(config -> config
+                        .onPlay((player, self) -> {
+                            CardUtil.TriggerEffect(player, 0, 1, 0, 0, "Effect", self);
+                            self.set("used", false);
+                        })
+                        .onDuration((p, self) ->{
+                            CardUtil.TriggerEffect(p, 2, 0, 0, 0, "Effect", self);
+                            CardUtil.executeIfSelected(
+                                    () -> p.chooseCardFromHand("Choisie une carte à écarter", true),
+                                    card -> p.getGame().moveToTrash(card)
+                            );
+                        })
+                        .onGain((owner, victim, c) -> {
+                            if(c.hasType(CardType.DURATION) && owner == victim && !config.get().get("used",  Boolean.class)){
+                                List<Button> buttons = new ArrayList<>();
+                                buttons.add(new Button("play", "y"));
+                                buttons.add(new Button("skip", "n"));
+                                CardUtil.executeOrOtherWise(
+                                        () ->owner.chooseStringFromButtons("Veux-tu jouer ta carte " + c.getName(), buttons, true),
+                                        "y"::equals,
+                                        choice -> {
+                                            owner.playCard(c);
+                                            config.get().set("used", true);
+                                        },
+                                        () -> {}
+                                );
+                            }
+                        })
                 );
-            }
-        });
-
-        return current;
     }
 
     /**
@@ -616,18 +554,18 @@ public class SeaSideFactory {
      * Écartez une carte de votre main. +1 Pièce par Pièce de son coût.
      */
     public static Card Salvager(){
-        Card current = new Card("Salvager", RegistryPrice.SeasidePrice(4), CardType.ACTION);
-        current.addComponent(OnPlayComponent.class, p -> {
-            CardUtil.TriggerEffect(p, 0,0,0,1, "Effect", current);
-            CardUtil.executeIfSelected(
-                    () -> p.chooseCardFromHand("Choisis une carte à écarter", false),
-                    card -> {
-                        p.getGame().moveToTrash(card);
-                        p.incrementMoney(card.getCost());
-                    }
-            );
-        });
-        return current;
+        return new Card("Salvager", RegistryPrice.SeasidePrice(4), CardType.ACTION)
+                .setup(config -> config
+                        .onPlay((p, self) -> {
+                            CardUtil.TriggerEffect(p, 0,0,0,1, "Effect", self);
+                            CardUtil.executeIfSelected(
+                                    () -> p.chooseCardFromHand("Choisis une carte à écarter", false),
+                                    card -> {
+                                        p.getGame().moveToTrash(card);
+                                        p.incrementMoney(card.getCost());
+                                    });
+                        })
+                );
     }
 
     /**
@@ -639,16 +577,17 @@ public class SeaSideFactory {
      * en jeu, prenez-la en main.
      */
     public static Card SeaChart(){
-        Card current = new Card("Sea Chart", RegistryPrice.SeasidePrice(3), CardType.ACTION);
-        current.addComponent(OnPlayComponent.class, p -> {
-            CardUtil.TriggerEffect(p, 0,1,1,0, "Effect", current);
-            Card c = p.getCardFromDeck();
-            if(c != null){
-                boolean hasCopy = p.getCardsInPlay().stream().anyMatch(card -> card.hasSameNameAs(c));
-                if(hasCopy) p.moveTo(c, Destination.HAND);
-            }
-        });
-        return current;
+        return new Card("Sea Chart", RegistryPrice.SeasidePrice(3), CardType.ACTION)
+                .setup( config -> config
+                        .onPlay((p, self) -> {
+                            CardUtil.TriggerEffect(p, 0,1,1,0, "Effect", self);
+                            Card c = p.getCardFromDeck();
+                            if(c != null){
+                                boolean hasCopy = p.getCardsInPlay().stream().anyMatch(card -> card.hasSameNameAs(c));
+                                if(hasCopy) p.moveTo(c, Destination.HAND);
+                            }
+                        })
+                );
     }
 
     /**
@@ -658,12 +597,13 @@ public class SeaSideFactory {
      * reçoivent une Malédiction (Curse) sur leur pioche.
      */
     public static Card SeaHag(){
-        Card current = new Card("Sea Hag", RegistryPrice.SeasidePrice(4), CardType.ACTION, CardType.ATTACK);
-        current.addComponent(OnPlayComponent.class, p -> {
-            p.getGame().processDiscard(p, current);
-            p.getGame().processGain(p, current, Destination.DRAW, "Curse");
-        });
-        return current;
+        return new Card("Sea Hag", RegistryPrice.SeasidePrice(4), CardType.ACTION, CardType.ATTACK)
+                .setup(config -> config
+                        .onPlay((p, self) -> {
+                            p.getGame().processDiscard(p, self);
+                            p.getGame().processGain(p, self, Destination.DRAW, "Curse");
+                        })
+                );
     }
 
     /**
@@ -674,19 +614,17 @@ public class SeaSideFactory {
      * Au début de votre prochain tour, +2 Cartes, puis défaussez 2 cartes.
      */
     public static Card SeaWitch(){
-        Card current = new Card("Sea Witch", RegistryPrice.SeasidePrice(5), CardType.ACTION, CardType.DURATION, CardType.ATTACK);
-
-        current.addComponent(OnPlayComponent.class, p -> {
-            CardUtil.TriggerEffect(p, 0,0,2,0, "Effect", current);
-            p.getGame().processGain(p, current, Destination.DISCARD, "Curse");
-        });
-
-        current.addComponent(new DurationComponent(p -> {
-            CardUtil.TriggerEffect(p, 0,0,2,0, "Duration", current);
-            p.discardFromHand(2);
-        }));
-
-        return current;
+        return new Card("Sea Witch", RegistryPrice.SeasidePrice(5), CardType.ACTION, CardType.DURATION, CardType.ATTACK)
+                .setup(config -> config
+                        .onPlay((p, self) -> {
+                            CardUtil.TriggerEffect(p, 0,0,2,0, "Effect", self);
+                            p.getGame().processGain(p, self, Destination.DISCARD, "Curse");
+                        })
+                        .onDuration((p, self) -> {
+                            CardUtil.TriggerEffect(p, 0,0,2,0, "Duration", self);
+                            p.discardFromHand(2);
+                        })
+                );
     }
 
     /**
@@ -696,49 +634,52 @@ public class SeaSideFactory {
      * à votre droite a reçues à son dernier tour.
      */
     public static Card Smugglers(){
-        Card smugglers = new Card("Smugglers", RegistryPrice.SeasidePrice(3), CardType.ACTION);
+        return new Card("Smugglers", RegistryPrice.SeasidePrice(3), CardType.ACTION)
+                .setup(config -> config
+                        .onPlay((p, self) ->{
+                            Player right = p.getGame().onTheRight(p);
+                            if(right == null) return;
+                            List<String> choices = new ArrayList<>();
+                            List<Button> buttons = new ArrayList<>();
 
-        smugglers.addComponent(OnPlayComponent.class, p -> {
-            Player right = p.getGame().onTheRight(p);
-            if(right == null) return;
-            List<String> choices = new ArrayList<>();
-            List<Button> buttons = new ArrayList<>();
+                            for(Card c : right.getCardGainedLastTurn()) {
+                                if (c.getCost() > 6) continue;
+                                choices.add("SUPPLY:" + c.getName());
+                                buttons.add(new Button(c.getName(), c.getName()));
+                            }
 
-            for(Card c : right.getCardGainedLastTurn()) {
-                if (c.getCost() > 6) continue;
-                choices.add("SUPPLY:" + c.getName());
-                buttons.add(new Button(c.getName(), c.getName()));
-            }
-
-            String choice = p.choose("Choississez une carte de la liste du joueur de votre droite (prix max 6) " + right.getCardGainedLastTurn(), choices, buttons, false);
-            if(choice.isEmpty()) return;
-            Card c = p.getCardFromSupply(choice.split(":")[1]);
-            if(c!= null){
-                p.gain(c, Destination.DISCARD);
-                p.log(String.format("Action %s : %s est copié", smugglers.getName().toUpperCase(), c.getName().toUpperCase()));
-            }
-        });
-
-        return smugglers;
+                            String choice = p.choose("Choississez une carte de la liste du joueur de votre droite (prix max 6) " + right.getCardGainedLastTurn(), choices, buttons, false);
+                            if(choice.isEmpty()) return;
+                            Card c = p.getCardFromSupply(choice.split(":")[1]);
+                            if(c!= null){
+                                p.gain(c, Destination.DISCARD);
+                                p.log(String.format("Action %s : %s est copié", self.getName().toUpperCase(), c.getName().toUpperCase()));
+                            }
+                        })
+                );
     }
 
-    public static Card Tactician(){
-        Card tactician = new Card("Tactician", RegistryPrice.SeasidePrice(5), CardType.ACTION, CardType.DURATION);
-        final AtomicBoolean trigger = new AtomicBoolean(false);
-        tactician.addComponent(OnPlayComponent.class, p -> {
-            if(p.getCardsInHand().isEmpty()){
-                trigger.set(true);
-                return;
-            }
-            p.getCardsInHand().forEach(card -> p.moveTo(card, Destination.DISCARD));
-            p.log(String.format("Action %s : %s défausse toutes ses cartes", tactician.getName().toUpperCase(), p.getName()));
-        });
+    public static Card Tactician() {
+        return new Card("Tactician", RegistryPrice.SeasidePrice(5), CardType.ACTION, CardType.DURATION)
+                .setup(config -> config
+                        .onPlay((p, self) -> {
 
-        tactician.addComponent(new DurationComponent(p ->{
-            CardUtil.TriggerEffect(p, 0,1,5,1,"Duration", tactician);
-            trigger.set(false);
-        }).setTrigger(trigger));
-        return tactician;
+                            if (p.getCardsInHand().isEmpty()) {
+                                p.log(p.getName() + " joue un Tactician mais n'a rien à défausser.");
+                                self.set("activated", false);
+                                return;
+                            }
+                            p.getCardsInHand().forEach(p::discard);
+
+                            p.log(String.format("TACTICIAN : %s défausse sa main pour activer le bonus du tour prochain", p.getName()));
+
+                            self.set("activated", true);
+                        })
+                        .onDurationWithTrigger((player, self) -> {
+                            CardUtil.TriggerEffect(player, 0, 1, 5, 1, "Duration", self);
+                            self.set("activated", false);
+                        }, self -> self.getFlag("activated"))
+                );
     }
 
     /**
@@ -749,12 +690,11 @@ public class SeaSideFactory {
      * Au début de votre prochain tour, défaussez 2 cartes.
      */
     public static Card TidePools(){
-        Card tidePools = new Card("Tide Pools", RegistryPrice.SeasidePrice(4), CardType.ACTION, CardType.DURATION);
-        CardUtil.registerSimpleAction(tidePools, 3, 1, 0, 0);
-        tidePools.addComponent(new DurationComponent(
-                player -> player.discardFromHand(2)
-        ));
-        return tidePools;
+        return new Card("Tide Pools", RegistryPrice.SeasidePrice(4), CardType.ACTION, CardType.DURATION)
+                .setup(config -> config
+                        .registerSimpleAction(3, 1, 0, 0)
+                        .onDuration((p, self) -> p.discardFromHand(2))
+                );
     }
 
     /**
@@ -764,21 +704,22 @@ public class SeaSideFactory {
      * deux Cartes aux trésors, recevez 4 Ors (Gold) sur votre pioche.
      */
     public static Card TreasureMap(){
-        Card tr = new Card("Treasure Map", RegistryPrice.SeasidePrice(4), CardType.ACTION);
-        tr.addComponent(OnPlayComponent.class, p -> {
-            p.getGame().moveToTrash(tr);
+        return new Card("Treasure Map", RegistryPrice.SeasidePrice(4), CardType.ACTION)
+                .setup(config -> config
+                        .onPlay((p, self) -> {
+                            p.getGame().moveToTrash(self);
 
-            Card other = p.getCardsInHand().stream().filter(tr::hasSameNameAs).findFirst().orElse(null);
-            if (other != null) {
-                p.getGame().moveToTrash(other);
+                            Card other = p.getCardsInHand().stream().filter(self::hasSameNameAs).findFirst().orElse(null);
+                            if (other != null) {
+                                p.getGame().moveToTrash(other);
 
-                IntStream.range(0,4)
-                        .mapToObj(c -> p.getCardFromSupply("Gold"))
-                        .filter(Objects::nonNull)
-                        .forEach(gold -> p.gain(gold, Destination.DRAW));
-            }
-        });
-        return tr;
+                                IntStream.range(0,4)
+                                        .mapToObj(c -> p.getCardFromSupply("Gold"))
+                                        .filter(Objects::nonNull)
+                                        .forEach(gold -> p.gain(gold, Destination.DRAW));
+                            }
+                        })
+                );
     }
 
     /**
@@ -791,38 +732,42 @@ public class SeaSideFactory {
      * durant celle-ci, vous pouvez placer cette carte sur votre pioche.
      */
     public static Card Treasury(){
-        Card tr = new Card("Treasury", RegistryPrice.SeasidePrice(5), CardType.ACTION);
-        CardUtil.registerSimpleAction(tr, 1, 1, 0, 1);
-        tr.addComponent(TriggerComponent.onEndBuy.class, (owner, victim, c) -> {
-            if (!owner.getCardsInPlay().contains(tr)) return;
+        return new Card("Treasury", RegistryPrice.SeasidePrice(5), CardType.ACTION)
+                .setup(config -> config
+                        .registerSimpleAction(1,1,0,1)
+                        .onEndBuy((owner, victim, c) -> {
+                            if (!owner.getCardsInPlay().contains(config.get())) return;
 
-            boolean victory = owner.getCardGainedCurrentTurn()
-                    .stream()
-                    .anyMatch(card -> card.hasType(CardType.VICTORY));
+                            boolean victory = owner.getCardGainedCurrentTurn()
+                                    .stream()
+                                    .anyMatch(card -> card.hasType(CardType.VICTORY));
 
-            if(!victory){
-                List<Button> buttons = new ArrayList<>();
-                buttons.add(new Button("deck" , "y"));
-                buttons.add(new Button("discard" , "n"));
+                            if(!victory){
+                                List<Button> buttons = new ArrayList<>();
+                                buttons.add(new Button("deck" , "y"));
+                                buttons.add(new Button("discard" , "n"));
 
-                CardUtil.executeOrOtherWise(
-                        () -> owner.chooseStringFromButtons("Voulez vous remettre la trésorerie sur la pioche ? ", buttons, true),
-                        "y"::equals,
-                        choice -> owner.moveTo(tr, Destination.DRAW),
-                        () -> {}
+                                CardUtil.executeOrOtherWise(
+                                        () -> owner.chooseStringFromButtons("Voulez vous remettre la trésorerie sur la pioche ? ", buttons, true),
+                                        "y"::equals,
+                                        choice -> owner.moveTo(config.get(), Destination.DRAW),
+                                        () -> {}
+                                );
+                            }
+                        })
                 );
-            }
-        });
-        return tr;
     }
 
     public static Card Warehouse(){
-        Card wr = new Card("Warehouse", RegistryPrice.SeasidePrice(3), CardType.ACTION);
-        wr.addComponent(OnPlayComponent.class, p -> {
-            CardUtil.TriggerEffect(p,0,1,3,0,"Effect", wr);
-            p.discardFromHand(3);
-        });
-        return wr;
+        return new Card("Warehouse", RegistryPrice.SeasidePrice(3), CardType.ACTION)
+                .setup( config -> config
+                        .onPlay(
+                                (p, self) -> {
+                                    CardUtil.TriggerEffect(p,0,1,3,0,"Effect", self);
+                                    p.discardFromHand(3);
+                                }
+                        )
+        );
     }
 
     /**
@@ -831,10 +776,17 @@ public class SeaSideFactory {
      * Maintenant et au début de votre prochain tour : +2 Cartes et +1 Achat.
      */
     public static Card Wharf(){
-        Card wr = new Card("Wharf", RegistryPrice.SeasidePrice(5), CardType.ACTION, CardType.DURATION);
-        CardUtil.registerSimpleComponent(wr,2,0,1,0,2,0,1,0 );
-        return wr;
+        return new Card("Wharf", RegistryPrice.SeasidePrice(5), CardType.ACTION, CardType.DURATION)
+                .setup(config -> config.registerSimpleComponent(2,0,1,0,2,0,1,0));
     }
+
+
+
+
+
+
+
+
 
 
 }

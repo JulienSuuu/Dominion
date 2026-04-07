@@ -69,7 +69,7 @@ public class RegistryName {
                     "Vassal",
                     "Village",
                     "Witch",
-                    "WorkShop",
+                    "Workshop",
                     "Adventurer",
                     "Chancellor",
                     "Feast",
