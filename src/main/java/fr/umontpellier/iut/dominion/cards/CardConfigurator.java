@@ -6,6 +6,7 @@ import fr.umontpellier.iut.dominion.cards.component.*;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
+import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 
 public class CardConfigurator {
@@ -65,6 +66,10 @@ public class CardConfigurator {
         return this;
     }
 
+    public CardConfigurator onCondition(BiPredicate<Event, Player> condition) {
+        card.setCondition(condition);
+        return this;
+    }
 
     public CardConfigurator registerSimpleComponent( int cardsNow, int actsNow, int buysNow, int coinsNow,
                                                int cardsNext, int actsNext, int buysNext, int coinsNext) {
@@ -80,6 +85,16 @@ public class CardConfigurator {
 
     public CardConfigurator registerSimpleDuration( int cardsNext, int actsNext, int buysNext, int coinsNext) {
         card.addComponent(new DurationComponent((p,c) -> CardUtil.TriggerEffect(p, coinsNext, actsNext, cardsNext, buysNext, "Duration", c)));
+        return this;
+    }
+
+    public CardConfigurator onDiscard(TriggerComponent.onCardDiscard effect) {
+        card.addComponent(TriggerComponent.onCardDiscard.class, effect);
+        return this;
+    }
+
+    public CardConfigurator onPossession(ExtraTurnComponent extraTurnComponent) {
+        card.addComponent(ExtraTurnComponent.class, extraTurnComponent);
         return this;
     }
 

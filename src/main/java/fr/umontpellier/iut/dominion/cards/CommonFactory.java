@@ -1,6 +1,7 @@
 package fr.umontpellier.iut.dominion.cards;
 
 import fr.umontpellier.iut.dominion.CardType;
+import fr.umontpellier.iut.dominion.Item;
 import fr.umontpellier.iut.dominion.Player;
 import fr.umontpellier.iut.dominion.cards.component.OnPlayComponent;
 import fr.umontpellier.iut.dominion.cards.component.ScoreComponent;
@@ -19,5 +20,20 @@ public class CommonFactory {
         Card c =  new Card(name, RegistryPrice.SeasidePrice(cost), CardType.VICTORY);
         c.addComponent(ScoreComponent.class, player -> value);
         return c;
+    }
+
+    public static Card createCurseCard(String name, int cost, int value){
+        Card c =   new Card(name, RegistryPrice.SeasidePrice(cost), CardType.CURSE);
+        c.addComponent(ScoreComponent.class, player -> value);
+        return c;
+    }
+
+    public static Card createPotion(){
+        return new Card("Potion", RegistryPrice.DominionPrice(4), CardType.TREASURE)
+                .setup(config -> config
+                        .onPlay((player, self) ->
+                                player.increment(Item.POTION, 1)
+                                )
+                );
     }
 }

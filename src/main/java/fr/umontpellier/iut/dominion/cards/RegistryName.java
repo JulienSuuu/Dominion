@@ -1,5 +1,6 @@
 package fr.umontpellier.iut.dominion.cards;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -76,6 +77,54 @@ public class RegistryName {
                     "Spy",
                     "Thief",
                     "Woodcutter"
+            ),
+            "Intrigue", Arrays.asList(
+                    "Baron",
+                    "Bridge",
+                    "Conspirator",
+                    "Courtier",
+                    "Courtyard",
+                    "Diplomat",
+                    "Duke",
+                    "Farm",
+                    "Ironworks",
+                    "Lurker",
+                    "Masquerade",
+                    "Mill",
+                    "Mining_Village",
+                    "Minion",
+                    "Nobles",
+                    "Patrol",
+                    "Pawn",
+                    "Replace",
+                    "Secret_Passage",
+                    "Shanty_Town",
+                    "Steward",
+                    "Swindler",
+                    "Torturer",
+                    "Trading_Post",
+                    "Upgrade",
+                    "Wishing_Well",
+                    "Coppersmith",
+                    "Great_Hall",
+                    "Saboteur",
+                    "Scout",
+                    "Secret_Chamber",
+                    "Tribute"
+            ),
+            "Alchemy", Arrays.asList(
+                    "Alchemist",
+                    "Apothecary",
+                    "Apprentice",
+                    "Familiar",
+                    "Golem",
+                    "Herbalist",
+                    "Philosopher's Stone",
+                    "Possession",
+                    "Scrying Pool",
+                    "Transmute",
+                    "University",
+                    "Vineyard"
             )
     );
 
@@ -83,5 +132,13 @@ public class RegistryName {
 
     public static List<String> getExtension(String kingdom){
         return kingdomCards.get(kingdom);
+    }
+    public static List<String> getExtensions(String... kingdom){
+        List<String> kingdoms = new ArrayList<>();
+        for(String king : kingdom){
+            kingdoms.addAll(kingdomCards.get(king));
+        }
+        return kingdoms;
+
     }
 }

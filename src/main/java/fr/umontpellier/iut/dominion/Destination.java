@@ -9,6 +9,6 @@ public enum Destination {
     ASIDE,
     DISCARD,
     NATIVE,
-    ISLAND
-
+    ISLAND,
+    INPLAY
 }

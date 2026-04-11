@@ -1,11 +1,9 @@
 package fr.umontpellier.iut.dominion.cards.dominion;
 
-import fr.umontpellier.iut.dominion.Button;
-import fr.umontpellier.iut.dominion.CardType;
-import fr.umontpellier.iut.dominion.Destination;
-import fr.umontpellier.iut.dominion.Player;
+import fr.umontpellier.iut.dominion.*;
 import fr.umontpellier.iut.dominion.cards.Card;
 import fr.umontpellier.iut.dominion.cards.CardUtil;
+import fr.umontpellier.iut.dominion.cards.Event;
 import fr.umontpellier.iut.dominion.cards.RegistryPrice;
 import fr.umontpellier.iut.dominion.cards.component.DurationComponent;
 import fr.umontpellier.iut.dominion.cards.component.OnPlayComponent;
@@ -76,7 +74,7 @@ public class DominionFactory {
                                             player,
                                             self,
                                             card -> card.hasType(CardType.VICTORY),
-                                            (vi, cards) -> Optional.ofNullable(vi.chooseCardFromButtons("Choisie une carte victoire à défausser", cards, false)),
+                                            (vi, cards) -> Optional.ofNullable(vi.chooseCardFromList("Choisie une carte victoire à défausser", card -> true, cards, false)),
                                             Destination.DRAW
                                     )
                                 )
@@ -113,7 +111,7 @@ public class DominionFactory {
                                 CardUtil.executeOrOtherWise(
                                         () -> player.chooseCardFromHand("Choisi au maximum 4 cartes à défausser", true),
                                         Objects::nonNull,
-                                        card -> player.getGame().moveToTrash(card),
+                                        player::moveToTrash,
                                         () -> self.set("continu", false)
                                 );
                             }
@@ -155,12 +153,12 @@ public class DominionFactory {
                         .onPlay((player, self) -> {
                             CardUtil.TriggerEffect(player, 0, 1, 1, 0, "Effect", self);
 
-                            List<Card> distinctDiscard = player.getCardsInDiscard().stream()
+                            List<Card> distinctDiscard = player.getCopyOf(Destination.DISCARD).stream()
                                     .distinct()
                                     .toList();
 
                             CardUtil.executeIfSelected(
-                                    () -> player.chooseCardFromButtons("Choisit une carte de ta défausse à mettre sur ton deck", distinctDiscard, true),
+                                    () -> player.chooseCardFromList("Choisit une carte de ta défausse à mettre sur ton deck", card -> true, distinctDiscard, true),
                                     card -> {
                                         player.moveTo(card, Destination.DRAW);
                                         player.log(String.format("Action HARBINGER : %s met en pioche %s", player.getName(), card.getName().toUpperCase()));
@@ -180,14 +178,14 @@ public class DominionFactory {
                 .setup(config -> config
                         .onPlay((player, self) -> {
                             List<Card> sideTrack = new ArrayList<>();
-                            while(player.getCardsInHand().size() < 7){
+                            while(player.getCopyOf(Destination.HAND).size() < 7){
                                 Card drawn = player.getCardFromDeck();
 
                                 if(drawn == null) break;
 
                                 if(drawn.hasType(CardType.ACTION)){
                                     CardUtil.executeOrOtherWise(
-                                            () -> player.chooseStringFromButtons("Veux tu mettre cette carte sur le côté ou la récupérer dans la main ?", List.of(new Button("Aside", "y"), new Button("Hand", "n")),false),
+                                            () -> player.chooseStringFromButtons("Veux tu mettre cette carte sur le côté ou la récupérer dans la main ? " + drawn, List.of(new Button("Aside", "y"), new Button("Hand", "n")),false),
                                             "y"::equals,
                                             choice ->{
                                                 player.moveTo(drawn, Destination.ASIDE);
@@ -215,12 +213,11 @@ public class DominionFactory {
                             self.set("used", false);
                         })
                         .onCardPlayed((owner, victim, c) -> {
-                            if(config.get().get("used", Boolean.class) && victim == owner && c.hasName("Silver")){
-                                owner.incrementMoney(1);
+                                owner.increment(Item.MONEY,1);
                                 owner.log(String.format("Trigger %s : %s récupère une pièce", config.get().getName().toUpperCase(), victim.getName()));
                                 config.get().set("used", true);
-                            }
                         })
+                        .onCondition((event, player) -> (config.get().getFlag("used") && event.getCard().hasName("Silver") && event.getPlayer() != player))
                 );
     }
 
@@ -241,7 +238,7 @@ public class DominionFactory {
                             CardUtil.executeIfSelected(
                                     () -> player.chooseCardFromHand("Choisis un trésor un jetter", card -> card.hasType(CardType.TREASURE), true),
                                     card -> {
-                                        player.getGame().moveToTrash(card);
+                                        player.moveToTrash(card);
                                         CardUtil.executeIfSelected(
                                                 () -> CardUtil.gainFromSupply(
                                                         player,
@@ -277,6 +274,7 @@ public class DominionFactory {
                                 return self.get("used", Boolean.class);
                             }
                         })
+                        .onCondition((event, player) -> event.getCard().hasType(CardType.ATTACK) &&  config.get().getFlag("used"))
                 );
     }
 
@@ -287,8 +285,8 @@ public class DominionFactory {
                                 CardUtil.executeIfSelected(
                                     () -> player.chooseCardFromHand("Choisis de jetter un Copper pour gagner 3 pièces", card -> card.hasName("Copper"), true),
                                         card -> {
-                                        player.getGame().moveToTrash(card);
-                                        player.incrementMoney(3);
+                                        player.moveToTrash(card);
+                                        player.increment(Item.MONEY,3);
                                         player.log(String.format("%s écarte un CUIVRE pour +3 pièces", player.getName()));
                                         })
                         )
@@ -312,7 +310,7 @@ public class DominionFactory {
                         .onPlay((player, self) ->
                                 CardUtil.executeIfSelected(
                                         () -> player.chooseCardFromHand("Jette une carte de ta main pour en récupèrer une nouvelle coutant jusqu'à 2 pièce de plus", false),
-                                        card ->{ player.getGame().moveToTrash(card);
+                                        card ->{ player.moveToTrash(card);
                                         CardUtil.gainFromSupply(
                                                 player,
                                                 "Choisi une carte (Max " + (card.getCost()+2) + " pièces)",
@@ -341,9 +339,9 @@ public class DominionFactory {
                                 if ("x".equals(choice)) break;
 
                                 CardUtil.executeIfSelected(
-                                        () -> player.chooseCardFromButtons("Quelle carte ?", view, true),
+                                        () -> player.chooseCardFromList("Quelle carte ?", card -> true, view, true),
                                         selected -> {
-                                            if ("t".equals(choice)) player.getGame().moveToTrash(selected);
+                                            if ("t".equals(choice)) player.moveToTrash(selected);
                                             else player.discard(selected);
                                             view.remove(selected);
                                         }
@@ -352,7 +350,7 @@ public class DominionFactory {
 
                             while (!view.isEmpty()) {
                                 CardUtil.executeIfSelected(
-                                        () -> player.chooseCardFromButtons("Ordre du Deck (La prochaine sera sur le dessus)", view, false),
+                                        () -> player.chooseCardFromList("Ordre du Deck (La prochaine sera sur le dessus)", card -> true, view, false),
                                         selected -> {
                                             player.moveTo(selected, Destination.DRAW);
                                             view.remove(selected);
@@ -383,8 +381,9 @@ public class DominionFactory {
                                         player.log(player.getName() + " Throne Room -> " + selected.getName());
 
                                         player.playCard(selected);
+                                        player.increment(Item.ACTION_PLAYED, 1);
+                                        player.triggerEvent(TriggerComponent.OnCardPlayed.class, new Event(selected, null, player));
                                         selected.play(player);
-
                                         if (selected.hasComponent(DurationComponent.class)) {
                                             self.set("linkedCard", selected);
                                             self.set("justPlayed", false);
@@ -490,7 +489,7 @@ public class DominionFactory {
                             CardUtil.executeOrOtherWise(
                                     () -> player.chooseStringFromButtons("Veux-tu vider ta pioche dans la défausse ?", yesOrNo, true),
                                     "y"::equals,
-                                    choice -> player.getCardsInDraw().forEach(card -> player.moveTo(card, Destination.DISCARD)),
+                                    choice -> player.getCopyOf(Destination.DRAW).forEach(card -> player.moveTo(card, Destination.DISCARD)),
                                     () ->{}
                             );
                         })
@@ -501,7 +500,7 @@ public class DominionFactory {
         return new Card("Feast", RegistryPrice.DominionPrice(4), CardType.ACTION)
                 .setup(config -> config
                         .onPlay((player, self) -> {
-                            player.getGame().moveToTrash(self);
+                            player.moveToTrash(self);
                             CardUtil.gainFromSupply(player, "Choisit une carte de la réserve ( max 5 pièce )", filter -> filter.getCost()<=5, Destination.DISCARD, false);
                         })
                 );
@@ -546,7 +545,7 @@ public class DominionFactory {
                                 Card chosen = null;
                                 if(!treasures.isEmpty()){
                                     chosen = player.getGame().chooseACard(player, treasures);
-                                    p.getGame().moveToTrash(chosen);
+                                    p.moveToTrash(chosen);
 
                                     Card Final = chosen;
                                     CardUtil.executeOrOtherWise(
@@ -573,5 +572,7 @@ public class DominionFactory {
         return new Card("Woodcutter", RegistryPrice.DominionPrice(3), CardType.ACTION)
                 .setup(config -> config.registerSimpleAction(0,0,1,2));
     }
+
+
 
 }

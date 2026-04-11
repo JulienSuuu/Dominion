@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 
 import fr.umontpellier.iut.dominion.cards.Card;
 import fr.umontpellier.iut.dominion.cards.CardUtil;
+import fr.umontpellier.iut.dominion.cards.Event;
 import fr.umontpellier.iut.dominion.cards.FactorySupplyPile;
 import fr.umontpellier.iut.dominion.cards.component.CardSelector;
 import fr.umontpellier.iut.dominion.cards.component.TriggerComponent;
@@ -86,6 +87,7 @@ public class Game {
         supplyPiles.add(FactorySupplyPile.createSupplyPile("Duchy", nbPlayers));
         supplyPiles.add(FactorySupplyPile.createSupplyPile("Province", nbPlayers));
         supplyPiles.add(FactorySupplyPile.createSupplyPile("Curse", nbPlayers));
+        supplyPiles.add(FactorySupplyPile.createSupplyPile("Potion", nbPlayers));
 
         // Création des joueurs
         players = new ArrayList<>(nbPlayers);
@@ -122,12 +124,8 @@ public class Game {
      * 
      * @param c la carte à écarter
      */
-    void moveCardToTrash(Card c) {
+    public void moveCardToTrash(Card c) {
         c.moveTo(trashedCards);
-    }
-    public void moveToTrash(Card c) {
-        log(String.format("Trash %s ", c.getName()));
-        moveCardToTrash(c);
     }
 
     /**
@@ -171,12 +169,7 @@ public class Game {
     public String toJSON() {
         StringJoiner joiner = new StringJoiner(", ");
         joiner.add("\"turn_player\": " + players.indexOf(currentTurnPlayer));
-        StringJoiner kingdomJoiner = new StringJoiner(", ");
-        for (SupplyPile pile : supplyPiles) {
-            kingdomJoiner.add(
-                    "{\"card\": \"%s\", \"number\": %d, \"cost\": %d}"
-                            .formatted(pile.getName(), pile.size(), pile.getCost()));
-        }
+        StringJoiner kingdomJoiner = getStringJoiner();
         joiner.add("\"supply\": [" + kingdomJoiner + "]");
 
         StringJoiner playersJoiner = new StringJoiner(", ");
@@ -188,6 +181,23 @@ public class Game {
                 + String.join(", ", logLines.stream().map(s -> "\"" + s.replace("\"", "\\\"") + "\"").toList())
                 + "]");
         return "{" + joiner + "}";
+    }
+
+    private StringJoiner getStringJoiner() {
+        StringJoiner kingdomJoiner = new StringJoiner(", ");
+        for (SupplyPile pile : supplyPiles) {
+            kingdomJoiner.add(
+                    "{\"card\": \"%s\", \"number\": %d, \"cost\": %d, \"potion\": %d, \"debt\": %d}"
+                            .formatted(
+                                    pile.getName(),
+                                    pile.size(),
+                                    pile.getCost(),
+                                    pile.getPrice().potion(),
+                                    pile.getPrice().debt()
+                            )
+            );
+        }
+        return kingdomJoiner;
     }
 
     /**
@@ -256,19 +266,40 @@ public class Game {
 
     }
 
-    public <T extends TriggerComponent & TriggerEffect> void notifyTrigger(Class<T> triggerType, Player actor, Card card) {
-        for (Player p : players) {
-            p.getCardsInPlay().forEach(c -> processTrigger(c, triggerType, p, actor, card));
+    public <T extends TriggerComponent & TriggerEffect> void notifyTrigger(Class<T> triggerType, Player actor, Event event) {
+        List<Player> orderedPlayers = getPlayersStartingFrom(actor);
 
-            p.getCardsInHand().stream()
-                    .filter(c -> c.hasType(CardType.REACTION))
-                    .forEach(c -> processTrigger(c, triggerType, p, actor, card));
+        for (Player p : orderedPlayers) {
+            p.getCopyOf(Destination.INPLAY).stream()
+                    .filter(c ->( !c.hasType(CardType.REACTION) &&  c.canExecute(event, p) && c.hasComponent(triggerType)))
+                    .forEach(c -> processTrigger(c, triggerType, p, actor, event));
+
+            Set<Card> alreadyRevealed = new HashSet<>();
+
+            while (true) {
+                List<Card> validReactions = p.getCopyOf(Destination.HAND).stream()
+                        .filter(c -> c.hasType(CardType.REACTION)
+                                && c.canExecute(event, p)
+                                && c.hasComponent(triggerType)
+                                && !alreadyRevealed.contains(c))
+                        .toList();
+
+                if (validReactions.isEmpty()) break;
+
+                Card chosen = p.chooseCardFromList("Reveal a Reaction?", card -> true, validReactions, true);
+
+                if (chosen == null) break;
+
+                alreadyRevealed.add(chosen);
+
+                processTrigger(chosen, triggerType, p, actor, event);
+            }
         }
     }
 
-    private <T extends TriggerComponent & TriggerEffect> void processTrigger(Card c, Class<T> type, Player owner, Player actor, Card source) {
+    private <T extends TriggerComponent & TriggerEffect> void processTrigger(Card c, Class<T> type, Player owner, Player actor, Event event) {
         if (isImmune(c, actor)) return;
-        c.as(type).ifPresent(trigger -> trigger.execute(owner, actor, source));
+        c.as(type).ifPresent(trigger -> trigger.execute(owner, actor, event));
     }
 
     public boolean isImmune(Card c, Player actor) {
@@ -287,9 +318,9 @@ public class Game {
     public void processMoveTo( Player p, Card c, Destination dest, int number, boolean discard){
 
         Consumer<Player> logic = victim -> {
-            while(victim.getCardsInHand().size() > number){
+            while(victim.getCopyOf(Destination.HAND).size() > number){
                 CardUtil.executeIfSelected(
-                        () -> victim.chooseCardFromHand("Défausse encore " + (victim.getCardsInHand().size() - number) + " carte(s)", false),
+                        () -> victim.chooseCardFromHand("Défausse encore " + (victim.getCopyOf(Destination.HAND).size() - number) + " carte(s)", false),
                         card -> {
                             if(discard) victim.discard(card);
                             else victim.moveTo(card, dest);
@@ -303,7 +334,7 @@ public class Game {
     }
 
     public List<Card> processAttackWithReveal(Player attacker, Card attackCard, int count, Predicate<Card> filter, CardSelector selector) {
-        return players.stream()
+        return getPlayersStartingFrom(attacker).stream()
                 .filter(v -> v != attacker && !isImmune(attackCard, v))
                 .map(victim -> {
                     List<Card> revealed = CardUtil.getTopCards(victim, count);
@@ -315,7 +346,7 @@ public class Game {
                     Card chosen = null;
                     if (!targets.isEmpty()) {
                         chosen = selector.select(attacker, victim, targets);
-                        victim.getGame().moveToTrash(chosen);
+                        victim.moveToTrash(chosen);
                     }
 
                     Card finalChosen = chosen;
@@ -331,7 +362,7 @@ public class Game {
 
 
     public Card chooseACard(Player p, List<Card> treasure){
-        return p.chooseCardFromButtons("Choisis un carte à mettre dans la défausse commune", treasure, false );
+        return p.chooseCardFromList("Move a card from a list", c -> true, treasure, false);
 
     }
 
@@ -346,7 +377,7 @@ public class Game {
 
     public void checkHandOrShow(Player attacker ,Card attackCard, Predicate<Card> targetFilter, BiFunction<Player, List<Card>, Optional<Card>> decisionLogic, Destination destination) {
         processAttack(attacker, attackCard, victim -> {
-            List<Card> validCards = victim.getCardsInHand().stream()
+            List<Card> validCards = victim.getCopyOf(Destination.HAND).stream()
                     .filter(targetFilter).toList();
 
             decisionLogic.apply(victim, validCards).ifPresentOrElse(
@@ -356,23 +387,27 @@ public class Game {
                                 attackCard.getName().toUpperCase(), victim.getName(), chosen.getName().toUpperCase()));
                     },
                     () -> attacker.log(String.format("Main de %s : %s",
-                            victim.getName(), victim.getCardsInHand()))
+                            victim.getName(), victim.getCopyOf(Destination.HAND)))
             );
         });
     }
 
 
     public void processAttack(Player attacker, Card attackCard, Consumer<Player> attackLogic) {
-        this.players.stream()
+        this.getPlayersStartingFrom(attacker).stream()
                 .filter(victim -> victim != attacker && !isImmune(attackCard, victim))
                 .forEach(attackLogic);
     }
 
     public void processBenefit(Player attacker, Consumer<Player> benefitLogic) {
-        this.players.stream()
+        this.getPlayersStartingFrom(attacker).stream()
                 .filter(victim -> victim != attacker)
                 .forEach(benefitLogic);
 
+    }
+
+    public void processGlobalEffect(Player actor, Consumer<Player> effectLogic) {
+        this.getPlayersStartingFrom(actor).forEach(effectLogic);
     }
 
 
@@ -387,7 +422,22 @@ public class Game {
         return index == -1 ? null : players.get((players.size() + index - 1) % players.size());
     }
 
+    private List<Player> getPlayersStartingFrom(Player actor) {
+        List<Player> ordered = new ArrayList<>();
+        int startIndex = players.indexOf(actor);
+        for (int i = 0; i < players.size(); i++) {
+            ordered.add(players.get((startIndex + i) % players.size()));
+        }
+        return ordered;
+    }
 
+
+
+    public Player onTheLeft(Player victim) {
+        int index = getPlayerIndex(victim);
+        int nextIndex = (index + 1) % players.size();
+        return players.get(nextIndex);
+    }
 
     /**
      * Boucle d'exécution d'une partie.
@@ -473,7 +523,12 @@ public class Game {
         joiner.add("\"buttons\": " + buttons.stream()
                 .map(b -> String.format("{\"label\": \"%s\", \"value\": \"%s\"}", b.label(), b.value()))
                 .toList());
-        // Envoie la version pour l'UI
+        String selectionCardsJson = choices.stream()
+                .filter(c -> c.startsWith("SELECT_CARD:"))
+                .map(c -> "\"" + c + "\"")
+                .collect(Collectors.joining(", ", "[", "]"));
+
+        joiner.add("\"selection_cards\": " + selectionCardsJson);
         sendToUI(joiner.toString());
     }
 
@@ -505,6 +560,10 @@ public class Game {
         if(!card.hasSameNameAs(revealed))return false;
         supplyPiles.stream().filter(s -> s.getName().equals(revealed.getName()) && revealed.hasSameNameAs(card)).findFirst().ifPresent(s -> s.setCard(card));
         return true;
+    }
+
+    public List<Card> getTrashCards(){
+        return new ArrayList<>(trashedCards);
     }
 
 

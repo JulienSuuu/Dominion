@@ -47,7 +47,7 @@ public class SeasideSet  {
             Map.entry("Wharf", PileConfig.kingdom(SeaSideFactory::Wharf))
     );
 
-    public static Map<String, PileConfig> SeaSideSet(){
+    public static Map<String, PileConfig> get(){
         return PILE_SEASIDES;
     }
 

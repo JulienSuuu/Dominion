@@ -1,13 +1,9 @@
 package fr.umontpellier.iut.dominion.cards.seaside;
 
-import fr.umontpellier.iut.dominion.Button;
-import fr.umontpellier.iut.dominion.CardType;
-import fr.umontpellier.iut.dominion.Destination;
-import fr.umontpellier.iut.dominion.Player;
+import fr.umontpellier.iut.dominion.*;
 import fr.umontpellier.iut.dominion.cards.Card;
 import fr.umontpellier.iut.dominion.cards.CardUtil;
 import fr.umontpellier.iut.dominion.cards.RegistryPrice;
-import fr.umontpellier.iut.dominion.cards.component.*;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -43,12 +39,11 @@ public class SeaSideFactory {
                         ))
                         .onDuration((player, self )-> CardUtil.moveTo(player, () -> self.get("Blocked", Card.class), c -> self.set("Blocked", c), Destination.HAND))
                         .onGain((owner, victim, c) -> {
-                            if(config.get().get("Blocked", Card.class) != null && c.hasSameNameAs(config.get().get("Blocked", Card.class)) && victim!= owner){
                                 victim.gain(victim.getCardFromSupply("Curse"), Destination.DISCARD);
-                                owner.log(String.format("TRIGGER %s : %s gagne une malédiction ", c.getName().toUpperCase(), victim.getName()));
-                            }
-                        }
-                        ));
+                                owner.log(String.format("TRIGGER %s : %s gagne une malédiction ", c.getCard().getName().toUpperCase(), victim.getName()));
+                        })
+                        .onCondition((event, player) -> config.get().get("Blocked", Card.class) != null && event.getCard().hasSameNameAs(config.get().get("Blocked", Card.class)) && event.getPlayer()!= player)
+                );
     }
 
     public static Card Caravan(){
@@ -61,9 +56,6 @@ public class SeaSideFactory {
                 config -> config
                         .registerSimpleComponent(0,0,0,2,1,0,0,0)
                         .onCardPlayed((owner, actor, playedCard) -> {
-                            if (owner == actor) return;
-
-                            if (playedCard.hasName("Silver") || playedCard.hasName("Gold")) {
                                 int currentTurn = owner.getGame().getTurnNumber();
 
                                 Map<Player, Integer> history = config.get().getMap("attackHistory");
@@ -75,14 +67,14 @@ public class SeaSideFactory {
                                 if (history.getOrDefault(actor, -1) != currentTurn) {
                                     if (owner.getGame().isImmune(config.get(), actor)) return;
 
-                                    actor.getGame().moveToTrash(playedCard);
+                                    actor.moveToTrash(playedCard.getCard());
                                     history.put(actor, currentTurn);
 
                                     owner.log(String.format("TRIGGER %s : %s écarte %s ",
-                                            config.get().getName().toUpperCase(), actor.getName(), playedCard.getName().toUpperCase()));
+                                            config.get().getName().toUpperCase(), actor.getName(), playedCard.getCard().getName().toUpperCase()));
                                 }
-                            }
                         })
+                        .onCondition(((event, player) -> player != event.getPlayer() && (event.getCard().hasName("Silver") || event.getCard().hasName("Gold"))))
                 );
     }
 
@@ -117,7 +109,7 @@ public class SeaSideFactory {
                             Runnable logic = () -> CardUtil.executeIfSelected(
                                     () -> p.chooseCardFromSupply("Choisissez une pile de la réserve à maudir", Objects::nonNull, false),
                                     card ->{
-                                        p.getGame().moveToTrash(self);
+                                        p.moveToTrash(self);
                                         p.getGame().setToken(card.getName());
                                         p.log(String.format("Curse %s : %s a été maudit", self.getName().toUpperCase(), card.getName().toUpperCase()));
                                     }
@@ -151,7 +143,7 @@ public class SeaSideFactory {
                                 p.log(p.getName() + " gagne un " + treasure.toUpperCase() + " en main.");
                             };
 
-                            Optional<Card> province = p.getCardsInHand().stream()
+                            Optional<Card> province = p.getCopyOf(Destination.HAND).stream()
                                     .filter(card -> card.hasName("Province"))
                                     .findFirst();
 
@@ -283,14 +275,14 @@ public class SeaSideFactory {
 
                             List<Card> view = CardUtil.getTopCards(p, 3);
                             CardUtil.executeIfSelected(
-                                    () -> p.chooseCardFromButtons("Choississez une carte à écarter", view, false),
+                                    () -> p.chooseCardFromList("Choississez une carte à écarter", card -> true, view, false),
                                     card -> {
-                                        p.getGame().moveToTrash(card);
+                                        p.moveToTrash(card);
                                         view.remove(card);
                                     });
 
                             CardUtil.executeIfSelected(
-                                    () -> p.chooseCardFromButtons("Choississez une carte à défaussez", view, false),
+                                    () -> p.chooseCardFromList("Choississez une carte à défaussez", card -> true, view, false),
                                     card -> {
                                         p.moveTo(card, Destination.DISCARD);
                                         p.log(String.format("Action %s : %s défausse %s", self.getName().toUpperCase(), p.getName(), card.getName().toUpperCase()));
@@ -346,7 +338,7 @@ public class SeaSideFactory {
                                     () -> p.chooseStringFromButtons("Choississez entre poser une carte sur votre village ou de récupérer toutes vos cartes", List.of(new Button("add", "add"), new Button("take", "take")), false),
                                     "add"::equals,
                                     isPresent -> p.drawTo(Destination.NATIVE),
-                                    () -> p.getCardsOnNativeVillageMat().forEach( card -> p.moveTo(card, Destination.HAND))
+                                    () -> p.getCopyOf(Destination.NATIVE).forEach( card -> p.moveTo(card, Destination.HAND))
                             );
                         })
         );
@@ -369,7 +361,7 @@ public class SeaSideFactory {
                             Runnable chooseOrder = () -> {
                                 while(!view.isEmpty()){
                                     CardUtil.executeIfSelected(
-                                            () -> p.chooseCardFromButtons("Remet les cartes dans l'ordre que tu veux", view, false),
+                                            () -> p.chooseCardFromList("Remet les cartes dans l'ordre que tu veux",card -> true , view, false),
                                             card -> {
                                                 view.remove(card);
                                                 p.moveTo(card, Destination.DRAW);
@@ -453,15 +445,16 @@ public class SeaSideFactory {
                             card ->  p.log(String.format("Action %s : %s récupère %s coutant %d pièces", self.getName().toUpperCase(), p.getName(), card.getName().toUpperCase(), card.getCost()))
                             ))
                     .onGain((owner, victim, c) -> {
-                        if(c.hasType(CardType.TREASURE) && owner.getCardsInHand().contains(config.get())) {
                             CardUtil.executeIfSelected(
                                     () ->  owner.chooseCardFromHand("Veux tu jouer ton pirate ?", card -> card.hasSameNameAs(config.get()), true),
                                     card -> {
                                         owner.playCard(config.get());
                                         owner.log(String.format("Reaction %s", config.get().getName().toUpperCase()));
                                     });
-                        }
                     })
+                    .onCondition(
+                            (event, player) -> event.getCard().hasType(CardType.TREASURE) && player.getCopyOf(Destination.HAND).contains(config.get())
+                    )
                 );
     }
     /**
@@ -479,7 +472,7 @@ public class SeaSideFactory {
                         .onPlay((p, current) -> {
                             Runnable money = () -> {
                                 int numberOfCoin = p.getCoins();
-                                p.incrementMoney(numberOfCoin);
+                                p.increment(Item.MONEY, numberOfCoin);
                                 p.log(String.format("Action %s : %s récupère %d pièce sur son bateau", current.getName().toUpperCase(), p.getName(), numberOfCoin));
                             };
 
@@ -492,7 +485,7 @@ public class SeaSideFactory {
                                         (attacker, victim, options) -> attacker.getGame().chooseACard(attacker, options)
                                 );
                                 if(treasureRemoved.isEmpty()) return;
-                                p.incrementCoin(1);
+                                p.increment(Item.COIN_TOKEN,1);
                             };
 
                             CardUtil.executeOrOtherWise(
@@ -525,25 +518,24 @@ public class SeaSideFactory {
                             CardUtil.TriggerEffect(p, 2, 0, 0, 0, "Effect", self);
                             CardUtil.executeIfSelected(
                                     () -> p.chooseCardFromHand("Choisie une carte à écarter", true),
-                                    card -> p.getGame().moveToTrash(card)
+                                    p::moveToTrash
                             );
                         })
                         .onGain((owner, victim, c) -> {
-                            if(c.hasType(CardType.DURATION) && owner == victim && !config.get().get("used",  Boolean.class)){
                                 List<Button> buttons = new ArrayList<>();
                                 buttons.add(new Button("play", "y"));
                                 buttons.add(new Button("skip", "n"));
                                 CardUtil.executeOrOtherWise(
-                                        () ->owner.chooseStringFromButtons("Veux-tu jouer ta carte " + c.getName(), buttons, true),
+                                        () ->owner.chooseStringFromButtons("Veux-tu jouer ta carte " + c.getCard().getName(), buttons, true),
                                         "y"::equals,
                                         choice -> {
-                                            owner.playCard(c);
+                                            owner.playCard(c.getCard());
                                             config.get().set("used", true);
                                         },
                                         () -> {}
                                 );
-                            }
                         })
+                        .onCondition((event, player) -> event.getCard().hasType(CardType.DURATION) && player != event.getPlayer() && !config.get().get("used",  Boolean.class))
                 );
     }
 
@@ -561,8 +553,8 @@ public class SeaSideFactory {
                             CardUtil.executeIfSelected(
                                     () -> p.chooseCardFromHand("Choisis une carte à écarter", false),
                                     card -> {
-                                        p.getGame().moveToTrash(card);
-                                        p.incrementMoney(card.getCost());
+                                        p.moveToTrash(card);
+                                        p.increment(Item.MONEY, card.getCost());
                                     });
                         })
                 );
@@ -583,7 +575,7 @@ public class SeaSideFactory {
                             CardUtil.TriggerEffect(p, 0,1,1,0, "Effect", self);
                             Card c = p.getCardFromDeck();
                             if(c != null){
-                                boolean hasCopy = p.getCardsInPlay().stream().anyMatch(card -> card.hasSameNameAs(c));
+                                boolean hasCopy = p.getCopyOf(Destination.INPLAY).stream().anyMatch(card -> card.hasSameNameAs(c));
                                 if(hasCopy) p.moveTo(c, Destination.HAND);
                             }
                         })
@@ -648,7 +640,7 @@ public class SeaSideFactory {
                                 buttons.add(new Button(c.getName(), c.getName()));
                             }
 
-                            String choice = p.choose("Choississez une carte de la liste du joueur de votre droite (prix max 6) " + right.getCardGainedLastTurn(), choices, buttons, false);
+                            String choice = p.getController().choose("Choississez une carte de la liste du joueur de votre droite (prix max 6) " + right.getCardGainedLastTurn(), choices, buttons, false);
                             if(choice.isEmpty()) return;
                             Card c = p.getCardFromSupply(choice.split(":")[1]);
                             if(c!= null){
@@ -664,12 +656,12 @@ public class SeaSideFactory {
                 .setup(config -> config
                         .onPlay((p, self) -> {
 
-                            if (p.getCardsInHand().isEmpty()) {
+                            if (p.getCopyOf(Destination.HAND).isEmpty()) {
                                 p.log(p.getName() + " joue un Tactician mais n'a rien à défausser.");
                                 self.set("activated", false);
                                 return;
                             }
-                            p.getCardsInHand().forEach(p::discard);
+                            p.getCopyOf(Destination.HAND).forEach(p::discard);
 
                             p.log(String.format("TACTICIAN : %s défausse sa main pour activer le bonus du tour prochain", p.getName()));
 
@@ -707,11 +699,11 @@ public class SeaSideFactory {
         return new Card("Treasure Map", RegistryPrice.SeasidePrice(4), CardType.ACTION)
                 .setup(config -> config
                         .onPlay((p, self) -> {
-                            p.getGame().moveToTrash(self);
+                            p.moveToTrash(self);
 
-                            Card other = p.getCardsInHand().stream().filter(self::hasSameNameAs).findFirst().orElse(null);
+                            Card other = p.getCopyOf(Destination.HAND).stream().filter(self::hasSameNameAs).findFirst().orElse(null);
                             if (other != null) {
-                                p.getGame().moveToTrash(other);
+                                p.moveToTrash(other);
 
                                 IntStream.range(0,4)
                                         .mapToObj(c -> p.getCardFromSupply("Gold"))
@@ -735,8 +727,8 @@ public class SeaSideFactory {
         return new Card("Treasury", RegistryPrice.SeasidePrice(5), CardType.ACTION)
                 .setup(config -> config
                         .registerSimpleAction(1,1,0,1)
-                        .onEndBuy((owner, victim, c) -> {
-                            if (!owner.getCardsInPlay().contains(config.get())) return;
+                        .onEndBuy((owner, c) -> {
+                            if (!owner.getCopyOf(Destination.INPLAY).contains(config.get())) return;
 
                             boolean victory = owner.getCardGainedCurrentTurn()
                                     .stream()

@@ -45,7 +45,7 @@ public class DominionSet {
             Map.entry("Woodcutter", PileConfig.kingdom(DominionFactory::WoodCutter))
 
     );
-    public static Map<String, PileConfig> DominionSet() {
+    public static Map<String, PileConfig> get() {
         return PILE_DOMINION;
     }
 }

@@ -1,6 +1,7 @@
 package fr.umontpellier.iut.dominion.cards;
 
 import fr.umontpellier.iut.dominion.Destination;
+import fr.umontpellier.iut.dominion.Item;
 import fr.umontpellier.iut.dominion.Player;
 import fr.umontpellier.iut.dominion.cards.component.DurationComponent;
 import fr.umontpellier.iut.dominion.cards.component.OnPlayComponent;
@@ -12,6 +13,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+
+import static fr.umontpellier.iut.dominion.Destination.*;
 
 public class CardUtil {
     /**
@@ -33,15 +36,15 @@ public class CardUtil {
             bonuses.add(String.format("+%d Carte%s", card, card > 1 ? "s" : ""));
         }
         if (action > 0) {
-            p.incrementActions(action);
+            p.increment(Item.ACTION, action);
             bonuses.add(String.format("+%d Action%s", action, action > 1 ? "s" : ""));
         }
         if (money > 0) {
-            p.incrementMoney(money);
+            p.increment(Item.MONEY, money);
             bonuses.add(String.format("+%d Pièce%s", money, money > 1 ? "s" : ""));
         }
         if (buy > 0) {
-            p.incrementBuyActions(buy);
+            p.increment(Item.BUY, buy);
             bonuses.add(String.format("+%d Achat%s", buy, buy > 1 ? "s" : ""));
         }
 
@@ -62,8 +65,7 @@ public class CardUtil {
     }
 
     public static List<Card> getTopCards(Player p, int count) {
-        if (p.getCardsInDraw().size() < count) p.shuffle();
-        List<Card> draw = p.getCardsInDraw();
+        List<Card> draw = getCards(p, count);
         List<Card> result = new ArrayList<>();
         int actualCount = Math.min(draw.size(), count);
 
@@ -73,9 +75,11 @@ public class CardUtil {
         return result;
     }
 
+
+
+
     public static List<Card> getBottomCards(Player p, int count) {
-        if (p.getCardsInDraw().size() < count) p.shuffle();
-        List<Card> draw = p.getCardsInDraw();
+        List<Card> draw = getCards(p, count);
         List<Card> result = new ArrayList<>();
         int actualCount = Math.min(draw.size(), count);
 
@@ -83,6 +87,11 @@ public class CardUtil {
             result.add(draw.get(i));
         }
         return result;
+    }
+
+    private static List<Card> getCards(Player p, int count) {
+        if (p.getCopyOf(DRAW).size() < count) p.shuffle();
+        return p.getCopyOf(DRAW);
     }
 
     public static Card gainIfPresent(Player p, Card target, Destination dest, boolean silent) {
@@ -128,7 +137,7 @@ public class CardUtil {
                 revealed -> {
                     p.log(p.getName() + " dévoile " + revealed.getName());
                     handleReplacements(p, revealed, 2);
-                    p.getGame().processGain(p, self, Destination.DISCARD, revealed.getName());
+                    p.getGame().processGain(p, self, DISCARD, revealed.getName());
                 }
         );
     }

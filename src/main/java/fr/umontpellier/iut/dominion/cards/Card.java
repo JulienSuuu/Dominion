@@ -1,7 +1,10 @@
 package fr.umontpellier.iut.dominion.cards;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiPredicate;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import fr.umontpellier.iut.dominion.CardType;
 import fr.umontpellier.iut.dominion.Player;
@@ -15,16 +18,17 @@ public class Card {
      * Le nom de la carte
      */
     private final String name;
-
+    private static int reduction = 0;
     /**
      * Le coût de la carte à l'achat
      */
     private final Price cost;
 
+
     private final Set<CardType> types;
 
     private List<Card> location;
-
+    private BiPredicate<Event, Player> condition = (event, player) ->  true;
     private final Map<Class<? extends CardComponent>, CardComponent> components;
     private final Map<String,Object > properties;
 
@@ -58,6 +62,9 @@ public class Card {
         this.properties.put(property, value);
     }
 
+    public <T> T getOrDefault(String property, Class<T> type) {
+        return type.cast(this.properties.getOrDefault(property,0));
+    }
     public <T> T get(String property, Class<T> type){
         return type.cast(this.properties.get(property));
     }
@@ -79,9 +86,6 @@ public class Card {
         return false;
     }
 
-
-
-
     public void clear(){
         this.properties.clear();
     }
@@ -91,11 +95,32 @@ public class Card {
         return this;
     }
 
+    public void setCondition(BiPredicate<Event, Player> condition) {
+        this.condition = condition;
+    }
+
+    public boolean canExecute(Event event, Player player) {
+        return condition.test(event, player);
+    }
+
+
     /**
      * Getters et setters
      */
     public int getCost() {
-        return cost.price();
+
+        int base = cost.price();
+        return Math.max(0, (base - reduction));
+    }
+    public static void addReduction(int value) {
+        reduction += value;
+    }
+
+    public static void resetReduction() {
+        reduction = 0;
+    }
+    public static int getReduction() {
+        return reduction;
     }
     public int getPotion() {return cost.potion();}
     public int getDebt() {return cost.debt();}
@@ -180,6 +205,7 @@ public class Card {
      */
     public int getVictoryValue(Player player) {return as(ScoreComponent.class).map(s -> s.giveScore(player)).orElse(0);}
 
+
     /**
      *
      * @param clazz le composent à chercher dans {@link Card#components}
@@ -192,5 +218,13 @@ public class Card {
 
     public <T extends CardComponent> boolean hasComponent(Class<T> type) {
         return components.containsKey(type);
+    }
+
+    public int  numberType(){
+        return  types.size();
+    }
+
+    public Price getPrice() {
+        return cost;
     }
 }

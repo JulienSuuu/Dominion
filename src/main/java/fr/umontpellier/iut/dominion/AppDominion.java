@@ -19,7 +19,7 @@ public class AppDominion {
 
     public static void main(String[] args) {
         // Liste de toutes les cartes disponibles
-        List<String> allKingdomCards = RegistryName.getExtension("Dominion");
+        List<String> allKingdomCards = RegistryName.getExtensions("Intrigue", "Alchemy");
         Collections.shuffle(allKingdomCards);
 
         // Noms des joueurs

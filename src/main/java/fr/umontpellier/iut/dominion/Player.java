@@ -3,11 +3,13 @@ package fr.umontpellier.iut.dominion;
 
 import java.util.*;
 import java.util.List;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import fr.umontpellier.iut.dominion.cards.Card;
+import fr.umontpellier.iut.dominion.cards.Event;
 import fr.umontpellier.iut.dominion.cards.seaside.SeaSideFactory;
 import fr.umontpellier.iut.dominion.cards.component.DurationComponent;
 import fr.umontpellier.iut.dominion.cards.component.ExtraTurnComponent;
@@ -26,23 +28,8 @@ public class Player {
      */
     private final String name;
 
-    /**
-     * Nombre d'actions disponibles
-     */
-    private int numberOfActions;
-
-    /**
-     * Nombre d'achats disponibles
-     */
-    private int numberOfBuys;
-
-    /**
-     * Nombre de pièces disponibles pour acheter des cartes
-     */
-    private int money;
-    private int potion;
-    private int debt;
-    private int coffre;
+    private final EnumMap<Destination, List<Card>> cardSet = new EnumMap<>(Destination.class);
+    private final EnumMap<Item, Integer> items = new EnumMap<>(Item.class);
 
     /**
      * Bonus ou malus sur le nombre de cartes à piocher
@@ -50,56 +37,10 @@ public class Player {
      */
     private int drawBonusNextTurn;
 
-
-    /**
-     * Jeton pièces du joueur {@link SeaSideFactory#PirateShip}
-     */
-    private int coins;
-
     /**
      * La partie en cours
      */
     private final Game game;
-
-    /**
-     * Liste des cartes dans la main du joueur
-     */
-    private final List<Card> hand;
-
-    /**
-     * Liste des cartes dans la défausse du joueur
-     */
-    private final List<Card> discard;
-
-    /**
-     * Liste des cartes dans la pioche du joueur (on considère que le dessus de
-     * la pioche est à la fin de la liste)
-     */
-    private final List<Card> draw;
-
-    /**
-     * Listes des cartes qui ont été jouées pendant le tour courant
-     */
-    private final List<Card> inPlay;
-
-    /**
-     * Liste des cartes actuellement mises de côté par une action (par exemple Haven
-     * of Blockade) qui ne sont pas considérées comme "in play" ni sur aucun des
-     * tapis spéciaux du joueur (island mat, native village mat, etc.)
-     */
-    private final List<Card> cardsSetAside;
-
-    /**
-     * Liste des cartes mises de côté sur le plateau île (island mat) du joueur
-     */
-    private final List<Card> islandMat;
-
-    /**
-     * Liste des cartes mises de côté sur le plateau correspondant à la carte Native
-     * Village du joueur
-     */
-    private final List<Card> nativeVillageMat;
-
 
     /**
      * Liste des cartes gagnées au tour précédent
@@ -110,6 +51,17 @@ public class Player {
      * Liste des cartes gagnées au tour en cours
      */
     private final List<Card> CardGainedCurrentTurn;
+    private final List<Card> mustBeDiscarded = new ArrayList<>();
+
+    private Player controller = this;
+    private boolean mustConductPossessedTurn = false;
+    private Player nextPossessor = null;
+
+    public void preparePossession(Player possessor) {
+        this.mustConductPossessedTurn = true;
+        this.nextPossessor = possessor;
+    }
+
     //endregion
 
     //region --CONSTRUCTEUR--
@@ -126,31 +78,35 @@ public class Player {
     public Player(String name, Game game) {
         this.name = name;
         this.game = game;
-        // Prépare les listes de cartes
-        hand = new ArrayList<>();
-        discard = new ArrayList<>();
-        draw = new ArrayList<>();
-        inPlay = new ArrayList<>();
-        cardsSetAside = new ArrayList<>();
-        islandMat = new ArrayList<>();
-        nativeVillageMat = new ArrayList<>();
+
         CardGainedLastTurn = new ArrayList<>();
         CardGainedCurrentTurn = new ArrayList<>();
+
+        for (Destination d : Destination.values()) {
+            cardSet.put(d, new ArrayList<>());
+        }
+
+
+        for (Item i : Item.values()) {
+            items.put(i, 0);
+        }
+
+
 
         // Ajoute 3 Estate et 7 Copper (pris dans la réserve du jeu) dans la
         // défausse du joueur
         for (int i = 0; i < 3; i++)
-            getCardFromSupply("Estate").moveTo(discard);
+            getCardFromSupply("Estate").moveTo(get(Destination.DISCARD));
         for (int i = 0; i < 7; i++)
-            getCardFromSupply("Copper").moveTo(discard);
+            getCardFromSupply("Copper").moveTo(get(Destination.DISCARD));
 
         // Mélange la défausse, construit la pioche et pioche 5 cartes en main
-        Collections.shuffle(discard);
-        while (!discard.isEmpty()) {
-            discard.getLast().moveTo(draw);
+        Collections.shuffle(get(Destination.DISCARD));
+        while (!get(Destination.DISCARD).isEmpty()) {
+            get(Destination.DISCARD).getLast().moveTo(get(Destination.DRAW));
         }
         for (int i = 0; i < 5; i++) {
-            draw.getLast().moveTo(hand);
+            get(Destination.DRAW).getLast().moveTo(get(Destination.HAND));
         }
     }
     //endregion
@@ -168,106 +124,33 @@ public class Player {
     }
 
     public int getMoney() {
-        return money;
+        return items.get(Item.MONEY);
     }
 
-    public int getNumberOfActions() {
-        return numberOfActions;
+    public int getNumberOfActions() {return items.get(Item.ACTION);
     }
 
     public int getNumberOfBuys() {
-        return numberOfBuys;
+        return  items.get(Item.BUY);
     }
 
     public Game getGame() {
         return game;
     }
 
-    public int getDebt() {return debt;}
+    public int getDebt() {return items.get(Item.DEBT);}
 
     public int getPotion() {
-        return potion;
+        return items.get(Item.POTION);
+    }
+    public Player getOwner() {
+        return this;
     }
 
-    /**
-     * Renvoie une liste des cartes que le joueur a en main.
-     * <p>
-     * La liste renvoyée est une copie de la liste {@code hand} du joueur.
-     * Elle contient les mêmes cartes mais une modification de la liste renvoyée ne
-     * modifie pas la liste originale.
-     */
-    public List<Card> getCardsInHand() {
-        return new ArrayList<>(hand);
+    private List<Card> get(Destination destination) {
+        return cardSet.get(destination);
     }
-
-    /**
-     * Renvoie une liste des cartes que le joueur a dans sa défausse.
-     * <p>
-     * La liste renvoyée est une copie de la liste {@code discard} du joueur.
-     * Elle contient les mêmes cartes mais une modification de la liste renvoyée ne
-     * modifie pas la liste originale.
-     */
-    public List<Card> getCardsInDiscard() {
-        return new ArrayList<>(discard);
-    }
-
-    /**
-     * Renvoie une liste des cartes que le joueur a dans sa pioche.
-     * <p>
-     * La liste renvoyée est une copie de la liste {@code draw} du joueur.
-     * Elle contient les mêmes cartes mais une modification de la liste renvoyée ne
-     * modifie pas la liste originale.
-     * 
-     */
-    public List<Card> getCardsInDraw() {
-        return new ArrayList<>(draw);
-    }
-
-    /**
-     * Renvoie une liste des cartes que le joueur a en jeu.
-     * <p>
-     * La liste renvoyée est une copie de la liste {@code inPlay} du joueur.
-     * Elle contient les mêmes cartes mais une modification de la liste renvoyée ne
-     * modifie pas la liste originale.
-     */
-    public List<Card> getCardsInPlay() {
-        return new ArrayList<>(inPlay);
-    }
-
-    /**
-     * Renvoie une liste des cartes que le joueur a mises de côté.
-     * <p>
-     * La liste renvoyée est une copie de la liste {@code cardsSetAside} du joueur.
-     * Elle contient les mêmes cartes mais une modification de la liste renvoyée ne
-     * modifie pas la liste originale.
-     */
-    public List<Card> getCardsSetAside() {
-        return new ArrayList<>(cardsSetAside);
-    }
-
-    /**
-     * Renvoie une liste des cartes que le joueur a sur son plateau île (island
-     * mat).
-     * <p>
-     * La liste renvoyée est une copie de la liste {@code islandMat} du joueur.
-     * Elle contient les mêmes cartes mais une modification de la liste renvoyée ne
-     * modifie pas la liste originale.
-     */
-    public List<Card> getCardsOnIslandMat() {
-        return new ArrayList<>(islandMat);
-    }
-
-    /**
-     * Renvoie une liste des cartes que le joueur a sur son plateau Native Village.
-     * <p>
-     * La liste renvoyée est une copie de la liste {@code nativeVillageMat} du
-     * joueur.
-     * Elle contient les mêmes cartes mais une modification de la liste renvoyée ne
-     * modifie pas la liste originale.
-     */
-    public List<Card> getCardsOnNativeVillageMat() {
-        return new ArrayList<>(nativeVillageMat);
-    }
+    public int getValueOf (Item item) {return items.get(item);}
 
     /**
      * @return une copie de {@link Player#CardGainedLastTurn}
@@ -288,15 +171,16 @@ public class Player {
      */
     public List<Card> getAllOwnedCards() {
         List<Card> allCards = new ArrayList<>();
-        allCards.addAll(hand);
-        allCards.addAll(discard);
-        allCards.addAll(draw);
-        allCards.addAll(inPlay);
-        allCards.addAll(cardsSetAside);
-        allCards.addAll(islandMat);
-        allCards.addAll(nativeVillageMat);
+        for (Destination d : Destination.values()) {
+            allCards.addAll(cardSet.get(d));
+        }
         return allCards;
     }
+
+    public List<Card> getCopyOf(Destination destination) {
+        return new ArrayList<>(cardSet.get(destination));
+    }
+
 
     /**
      * Renvoie le nombre total de points de victoire du joueur
@@ -306,39 +190,33 @@ public class Player {
      * {@code getVictoryValue()}) des cartes
      */
     public int getVictoryPoints() {
-        return getCardsInHand().stream().mapToInt(card -> card.getVictoryValue(this)).sum();
+        return getCopyOf(Destination.HAND).stream().mapToInt(card -> card.getVictoryValue(this)).sum();
     }
 
-    /**
-     * Incrémente le nombre de pièces du joueur ({@code money})
-     *
-     * @param n nombre de pièces à ajouter (ce nombre peut être négatif si l'on
-     *          souhaite diminuer le nombre de pièces)
-     */
-    public void incrementMoney(int n) {
-        money += n;
+
+    public void increment(Item it, int value){items.put(it, items.get(it) + value);}
+    public void decrement(Item it, int value){items.put(it, items.get(it) - value);}
+
+    public void resetItem() {
+        Set<Item> persistent = EnumSet.of(
+                Item.DEBT,
+                Item.COFFER,
+                Item.COIN_TOKEN
+        );
+        Card.resetReduction();
+        for (Item item : Item.values()) {
+            if (!persistent.contains(item)) {
+                items.put(item, 0);
+            }
+        }
     }
 
-    /** Incrémente le nombre d'actions d'achats du joueur ({@link Player#numberOfBuys})
-     * @param value nombre d'action d'achat à ajouter
-     */
-    public void incrementBuyActions(int value){numberOfBuys += value;}
-
-    /**
-     * Incrémente le nombre d'action du joueur ({@link Player#numberOfActions})
-     * @param value nombre d'action à ajouter
-     */
-    public void incrementActions(int value){numberOfActions += value;}
-
-    /**
-     * Incrémente, ou décrémente le nombre de cartes à piocher au prochain tour ({@link Player#drawBonusNextTurn})
-     * @param value - nombre de cartes à piocher au prochain tour ({@link SeaSideFactory#Outpost()}
-     */
-
-    public void incrementDebt(int value){debt += value;}
-    public void incrementPotion(int value){potion += value;}
-    public void incrementCoffre(int value){coffre += value;}
-
+    public Player getController() {
+        return controller;
+    }
+    public void setController(Player controller) {
+        this.controller = controller;
+    }
 
 
     public void updateDrawBonusValue(int value){
@@ -346,16 +224,8 @@ public class Player {
         drawBonusNextTurn += value;
     }
 
-    /**
-     * Incremente le nombre de jeton pièce du joueur ({@link Player#coins})
-     * @param value nombre de Jeton à ajouter ({@link SeaSideFactory#PirateShip})
-     */
-    public void incrementCoin(int value){
-        coins+=value;
-    }
-
     public int getCoins(){
-        return coins;
+        return items.get(Item.COIN_TOKEN);
     }
     //endregion
 
@@ -366,12 +236,14 @@ public class Player {
      * @param c la carte à déplacer
      */
     public void moveToHand(Card c) {
-        c.moveTo(hand);
+        c.moveTo(get(Destination.HAND));
     }
+
     public void discard(Card c){
         if(c==null) return;
-        c.as(TriggerComponent.onCardDiscard.class).ifPresent(t -> t.accept(this, c));
-        gainSilent(c, Destination.DISCARD, false);
+        Event event = new Event(c, Destination.DISCARD, this );
+        c.as(TriggerComponent.onCardDiscard.class).ifPresent(t -> t.accept(this, event));
+        gainSilent(c, event.getDest(), false);
     }
 
     /**
@@ -400,18 +272,19 @@ public class Player {
      * @return la carte piochée, ou {@code null} si aucune carte disponible
      */
     public Card getCardFromDeck() {
-        if(draw.isEmpty()){
+        if(get(Destination.DRAW).isEmpty()){
             shuffle();
+            if(get(Destination.DRAW).isEmpty())return null;
         }
-        return draw.getLast();
+        return get(Destination.DRAW).getLast();
     }
 
     /**
      * Mélange la défausse puis remet les cartes dans la pioche
      */
     public void shuffle(){
-        Collections.shuffle(discard);
-        getCardsInDiscard().forEach(c -> c.moveTo(draw));
+        Collections.shuffle(get(Destination.DISCARD));
+        getCopyOf(Destination.DISCARD).forEach(c -> c.moveTo(get(Destination.DRAW)));
     }
 
     /**
@@ -468,13 +341,13 @@ public class Player {
      * @param number nombre de carte de la main à défausser
      */
     public void discardFromHand(int number) {
-        if (hand.isEmpty()) return;
+        if (get(Destination.HAND).isEmpty()) return;
 
-        int target = Math.min(number, hand.size());
+        int target = Math.min(number, get(Destination.HAND).size());
         int discardedCount = 0;
 
         while (discardedCount < target) {
-            Card c = chooseCardFromHand("Défausse encore " + (target - discardedCount) + " carte(s)", false);
+            Card c = controller.chooseCardFromHand("Défausse encore " + (target - discardedCount) + " carte(s)", false);
             if (c != null) {
                 discard(c);
                 discardedCount++;
@@ -485,7 +358,7 @@ public class Player {
     }
 
     public Card discard(){
-        Card c = chooseCardFromHand("Défausse une carte ", true );
+        Card c = controller.chooseCardFromHand("Défausse une carte ", true );
         if(c != null){
             discard(c);
            return c;}
@@ -519,9 +392,11 @@ public class Player {
      */
     public void playCard(Card c) {
         if(c == null)return;
-        c.moveTo(inPlay);
+        c.moveTo(get(Destination.INPLAY));
+        if(c.hasType(CardType.ACTION))increment(Item.ACTION_PLAYED, 1);
+        Event event = new Event(c, null, this);
+        triggerEvent(TriggerComponent.OnCardPlayed.class, event);
         c.play(this);
-        triggerEvent(TriggerComponent.OnCardPlayed.class, c);
     }
 
     /**
@@ -535,7 +410,7 @@ public class Player {
      * @param cardName nom de la carte à jouer
      */
     public void playCard(String cardName) {
-        hand.stream()
+        get(Destination.HAND).stream()
                 .filter(card -> card.getName().equalsIgnoreCase(cardName))
                 .findFirst()
                 .ifPresent(this::playCard);
@@ -561,7 +436,7 @@ public class Player {
      * Le joueur gagne une carte et la place dans un emplacement donné
      * <p>Ajoute la carte dans {@link Player#CardGainedCurrentTurn}  </p>
      * <p>Cette méthode applique l'effet des cartes ayant le composant {@link fr.umontpellier.iut.dominion.cards.component.TriggerComponent.OnPlayerGain}
-     * en appelant {@link Player#triggerEvent(Class, Card)}</p>
+     *</p>
      *
      *
      * @param card carte gagnée
@@ -571,8 +446,16 @@ public class Player {
     public void gain(Card card, Destination dest){
         if(card == null)return;
         CardGainedCurrentTurn.add(card);
-        gainTo(dest, card);
-        triggerEvent(TriggerComponent.OnPlayerGain.class, card);
+
+        if(controller != this){
+            controller.gainTo(Destination.DISCARD, card);
+            return;
+        }
+
+        Event event = new Event(card, dest, this);
+        triggerEvent(TriggerComponent.OnPlayerGain.class, event);
+
+        gainTo(event.getDest(), event.getCard());
     }
 
 
@@ -589,6 +472,11 @@ public class Player {
      */
     public void gainSilent(Card card, Destination dest, boolean gained) {
         if(gained)CardGainedCurrentTurn.add(card);
+
+        if(controller != this){
+            controller.gainTo(Destination.DISCARD, card);
+        }
+
         gainTo(dest, card);
     }
 
@@ -599,14 +487,7 @@ public class Player {
      * @see Player#gainTo(Card, List)
      */
     public void gainTo(Destination dest, Card card){
-        switch(dest){
-            case HAND -> gainTo(card, hand);
-            case DRAW -> gainTo(card, draw);
-            case ASIDE -> gainTo(card, cardsSetAside);
-            case ISLAND -> gainTo(card, islandMat);
-            case NATIVE ->  gainTo(card, nativeVillageMat);
-            default -> gainTo(card, discard);
-        }
+        gainTo(card, get(dest));
     }
     //endregion
 
@@ -633,10 +514,10 @@ public class Player {
     public String toString() {
         String r = String.format("     -- %s --\n", name);
         r += String.format("Actions: %d     Money: %d     Buys: %d     Draw: %d     Discard: %d\n",
-                numberOfActions,
-                money, numberOfBuys, draw.size(), discard.size());
-        r += String.format("In play: %s\n", inPlay.toString());
-        r += String.format("Hand: %s\n", hand.toString());
+               items.get(Item.ACTION),
+                items.get(Item.MONEY), items.get(Item.BUY), get(Destination.DRAW).size(), get(Destination.DISCARD).size());
+        r += String.format("In play: %s\n", get(Destination.INPLAY).toString());
+        r += String.format("Hand: %s\n", get(Destination.HAND).toString());
         return r;
     }
 
@@ -651,16 +532,16 @@ public class Player {
     public String toJSON() {
         StringJoiner joiner = new StringJoiner(", ");
         joiner.add(String.format("\"name\": \"%s\"", name));
-        joiner.add(String.format("\"actions\": %d", numberOfActions));
-        joiner.add(String.format("\"money\": %d", money));
-        joiner.add(String.format("\"debt\": %d", debt));
-        joiner.add(String.format("\"potion\": %d", potion));
-        joiner.add(String.format("\"coffre\": %d", coffre));
-        joiner.add(String.format("\"buys\": %d", numberOfBuys));
-        joiner.add(String.format("\"draw\": %s", Utils.toJSON(draw)));
-        joiner.add(String.format("\"discard\": %s", Utils.toJSON(discard)));
-        joiner.add(String.format("\"in_play\": %s", Utils.toJSON(inPlay)));
-        joiner.add(String.format("\"hand\": %s", Utils.toJSON(hand)));
+        joiner.add(String.format("\"actions\": %d", items.get(Item.ACTION)));
+        joiner.add(String.format("\"money\": %d", items.get(Item.MONEY)));
+        joiner.add(String.format("\"debt\": %d", items.get(Item.DEBT)));
+        joiner.add(String.format("\"potion\": %d", items.get(Item.POTION)));
+        joiner.add(String.format("\"coffre\": %d", items.get(Item.COFFER)));
+        joiner.add(String.format("\"buys\": %d", items.get(Item.BUY)));
+        joiner.add(String.format("\"draw\": %s", Utils.toJSON(get(Destination.DRAW))));
+        joiner.add(String.format("\"discard\": %s", Utils.toJSON(get(Destination.DISCARD))));
+        joiner.add(String.format("\"in_play\": %s", Utils.toJSON(get(Destination.INPLAY))));
+        joiner.add(String.format("\"hand\": %s", Utils.toJSON(get(Destination.HAND))));
         return "{" + joiner + "}";
     }
     /**
@@ -733,6 +614,19 @@ public class Player {
         }
     }
 
+
+
+    public String choose(String instruction, boolean canPass) {
+        List<String> choices = new ArrayList<>();
+        if(canPass) {
+            choices.add("");
+        }
+        while (true) {
+            game.prompt(instruction, choices, new ArrayList<>(), getIndex());
+             return game.readLine();
+        }
+    }
+
     /**
      * Attend une entrée de la part du joueur et renvoie le choix du joueur.
      * <p>
@@ -769,11 +663,11 @@ public class Player {
      */
     public Card chooseCardFromHand(String instruction, Predicate<Card> filter, boolean canPass) {
         // ajout des options correspondant aux cartes de la liste
-        List<String> choices = hand.stream().filter(filter).map(c -> "HAND:" + c.getName())
+        List<String> choices = get(Destination.HAND).stream().filter(filter).map(c -> "HAND:" + c.getName())
                 .collect(Collectors.toList());
-        String choice = choose(instruction, choices, new ArrayList<>(), canPass);
+        String choice = controller.choose(instruction, choices, new ArrayList<>(), canPass);
         if (choice.startsWith("HAND:")) {
-            return hand.stream()
+            return get(Destination.HAND).stream()
                     .filter(c -> c.hasName(choice.split(":")[1]))
                     .findFirst()
                     .orElse(null);
@@ -787,10 +681,39 @@ public class Player {
      * 
      * @param instruction
      * @param canPass
-     * @return
+     * @return a card
      */
     public Card chooseCardFromHand(String instruction, boolean canPass) {
         return chooseCardFromHand(instruction, c -> true, canPass);
+    }
+
+
+    /**
+     * Fait choisir une carte au joueur parmi une liste spécifique (différente de sa main).
+     * Utile pour les cartes révélées, la défausse, ou le dessus du deck.
+     * * @param instruction Message à afficher au joueur.
+     * @param filter      Prédicat pour filtrer les cartes valides dans la liste.
+     * @param list        La liste de cartes parmi lesquelles choisir.
+     * @param canPass     Si le joueur peut passer.
+     * @return La carte choisie ou null.
+     */
+    public Card chooseCardFromList(String instruction, Predicate<Card> filter, List<Card> list, boolean canPass) {
+        List<String> choices = new ArrayList<>();
+
+        for (int i = 0; i < list.size(); i++) {
+            Card c = list.get(i);
+            if (filter.test(c)) {
+                choices.add("SELECT_CARD:" + i + ":" + c.getName());
+            }
+        }
+
+        String choice = controller.choose(instruction, choices, new ArrayList<>(), canPass);
+
+        if (choice != null && choice.startsWith("SELECT_CARD:")) {
+            int selectedIndex = Integer.parseInt(choice.split(":")[1]);
+            return list.get(selectedIndex);
+        }
+        return null;
     }
 
     /**
@@ -829,7 +752,7 @@ public class Player {
                 .map(c -> "SUPPLY:" + c.getName())
                 .collect(Collectors.toList());
 
-        String choice = choose(instruction, choices, new ArrayList<>(), canPass);
+        String choice = controller.choose(instruction, choices, new ArrayList<>(), canPass);
         if (choice.startsWith("SUPPLY:")) {
             return getCardFromSupply(choice.split(":")[1]);
         }
@@ -856,7 +779,7 @@ public class Player {
         for (Card c : cards)
             buttons.add(new Button(c.getName(), c.getName()));
 
-        String choice = choose(instruction, new ArrayList<>(), buttons, canPass);
+        String choice = controller.choose(instruction, new ArrayList<>(), buttons, canPass);
         if (choice.startsWith("BUTTON:")) {
             for (Card c : cards) {
                 if (c.hasName(choice.split(":")[1])) {
@@ -882,7 +805,7 @@ public class Player {
      *         a choisi de passer ou si la liste de boutons était vide.
      */
     public String chooseStringFromButtons(String instruction, List<Button> buttons, boolean canPass) {
-        String choice = choose(instruction, new ArrayList<>(), buttons, canPass);
+        String choice = controller.choose(instruction, new ArrayList<>(), buttons, canPass);
         if (choice.startsWith("BUTTON:")) {
             return choice.split(":")[1];
         }
@@ -922,8 +845,8 @@ public class Player {
      */
 
     public void playTurn() {
-        numberOfActions++;
-        numberOfBuys++;
+        items.put(Item.ACTION, 1);
+        items.put(Item.BUY, 1);
 
         boolean canPlayAction = true;
         boolean canPlayTreasure = true;
@@ -936,7 +859,7 @@ public class Player {
             List<Button> buttons = computeButtons();
             String instruction = computeInstruction(canPlayAction, canPlayTreasure);
 
-            String playCard = choose(instruction, choices, buttons, true);
+            String playCard = controller.choose(instruction, choices, buttons, true);
 
             if (playCard.isEmpty()) break;
 
@@ -954,7 +877,7 @@ public class Player {
             }
 
             if (playCard.startsWith("HAND:")) {
-                Card play = hand.stream()
+                Card play = get(Destination.HAND).stream()
                         .filter(c -> c.hasName(playCard.split(":")[1]))
                         .findFirst()
                         .orElse(null);
@@ -962,7 +885,7 @@ public class Player {
                 if (play == null) continue;
 
                 if (play.hasType(CardType.ACTION)) {
-                    numberOfActions--;
+                    increment(Item.ACTION, -1);
 
                 }
                 if (play.hasType(CardType.TREASURE)) {
@@ -971,7 +894,7 @@ public class Player {
 
                 playCard(play);
 
-                if (numberOfActions == 0) {
+                if (items.get(Item.ACTION) == 0) {
                     canPlayAction = false;
                 }
             }
@@ -979,11 +902,11 @@ public class Player {
             if (playCard.startsWith("SUPPLY:")) {
                 Card play = getCardFromSupply(playCard.split(":")[1]);
                 if(play == null) continue;
-                numberOfBuys--;
+                increment(Item.BUY, -1);
                 canPlayAction = false;
                 canPlayTreasure = false;
                 buyCard(play);
-                if (numberOfBuys == 0) {
+                if (items.get(Item.BUY) == 0) {
                     break;
                 }
             }
@@ -991,29 +914,29 @@ public class Player {
     }
 
     public void repayDebt(){
-        int toRepay = Math.min(money, debt);
-        debt -= toRepay;
-        money -= toRepay;
+        int toRepay = Math.min(items.get(Item.MONEY), items.get(Item.DEBT));
+        decrement(Item.DEBT, toRepay);
+        decrement(Item.MONEY, toRepay);
     }
 
     public void useCoffre(){
-        if(coffre > 0){
-            coffre--;
-            money++;
+        if(items.get(Item.COFFER) > 0){
+            decrement(Item.COFFER, 1);
+            decrement(Item.MONEY, 1);
         }
     }
 
     public boolean canBuy(Card c) {
-        boolean enoughMoney = money >= c.getCost();
-        boolean enoughPotion = potion >= c.getPotion();
-        boolean isNotDebted = debt == 0;
+        boolean enoughMoney = items.get(Item.MONEY) >= c.getCost();
+        boolean enoughPotion = items.get(Item.POTION) >= c.getPotion();
+        boolean isNotDebted = items.get(Item.DEBT) == 0;
         return enoughMoney && enoughPotion && isNotDebted;
     }
 
     public void buyCard(Card c) {
-        money -= c.getCost();
-        potion -= c.getPotion();
-        debt += c.getDebt();
+        decrement(Item.MONEY, c.getCost());
+        decrement(Item.POTION, c.getPotion());
+        decrement(Item.DEBT, c.getDebt());
 
         log(name + " a acheté " + c.getName());
         gain(c, Destination.DISCARD);
@@ -1036,8 +959,8 @@ public class Player {
      * @param canPlayTreasure si le joueur peut jouer une carte Treasure
      */
     private void computeChoices(List<String> choices, boolean canPlayAction, boolean canPlayTreasure) {
-        for (Card c : hand) {
-            if(canPlayAction && c.hasType(CardType.ACTION) && numberOfActions > 0){
+        for (Card c : get(Destination.HAND)) {
+            if(canPlayAction && c.hasType(CardType.ACTION) && items.get(Item.ACTION) > 0){
                 choices.add("HAND:" + c.getName());
             }
             if(canPlayTreasure && c.hasType(CardType.TREASURE)) {
@@ -1052,11 +975,11 @@ public class Player {
 
     private List<Button> computeButtons() {
         List<Button> buttons = new ArrayList<>();
-        if(debt > 0){
+        if(items.get(Item.DEBT) > 0){
             buttons.add(new Button("Rembourser la dette", "REMBOURSER"));
         }
-        if(coffre > 0){
-            buttons.add(new Button("Coffre (" + coffre + ")", "COFFRE"));
+        if(items.get(Item.COFFER) > 0){
+            buttons.add(new Button("Coffre (" + items.get(Item.COFFER) + ")", "COFFRE"));
         }
         return buttons;
     }
@@ -1093,20 +1016,23 @@ public class Player {
      */
     public void cleanup() {
         triggerEvent(TriggerComponent.onEndBuy.class);
+        resetItem();
+        getCopyOf(Destination.HAND).forEach(c -> {c.moveTo(get(Destination.DISCARD)); c.clear();});
 
-        numberOfBuys = 0;
-        numberOfActions = 0;
-        money = 0;
-        potion = 0;
-
-        getCardsInHand().forEach(c -> {c.moveTo(discard);});
-
-        getCardsInPlay().stream().filter(c->
+        getCopyOf(Destination.INPLAY).stream().filter(c->
                         c.as(DurationComponent.class)
                                 .map(DurationComponent::isFinished)
                                 .orElse(true))
                 .toList()
-                .forEach(c -> c.moveTo(discard));
+                .forEach(c ->{
+                    c.moveTo(get(Destination.DISCARD));
+                    c.clear();
+                });
+
+        if (this.controller != this) {
+            this.setController(this);
+            mustBeDiscarded.forEach(c -> {c.moveTo(get(Destination.DISCARD)); c.clear();});
+        }
 
 
         int numberOfDraw = Math.max(5 + drawBonusNextTurn,0) ;
@@ -1124,14 +1050,14 @@ public class Player {
     //region --TriggerComponent--
     /**
      *Utilisé dans {@link Player#playTurn()} en début de tour.
-     * <p>Cette méthode parcourt le {@link Player#inPlay}, puis lance l'action du composant {@link DurationComponent}, 
+     * <p>Cette méthode parcourt le inplay,  puis lance l'action du composant {@link DurationComponent},
      * si l'{@link Optional} est vide la méthode ne fait rien et passe à la prochaine carte
      * </p>
      * @see Card#as(Class)
      */
 
     private void triggerDurationCard() {
-        getCardsInPlay()
+        getCopyOf(Destination.INPLAY)
                 .forEach(c -> c.as(DurationComponent.class).ifPresent(d ->{
                     d.execute(this, c);
                     d.consume();
@@ -1143,11 +1069,11 @@ public class Player {
      * Lance l'effet (Trigger) de la carte sur tout les joueurs ( qui peut être soit-même)
      *
      * @param type classe du composant (triggerComponent & TriggerEffect
-     * @param c la carte qui a été déclenché par une action d'un joueur
+     * @param event l'evenement qui a été déclenché par une action d'un joueur
      * @param <T> le composant héritant de TriggerComponent et TriggerEffect qui sont des {@link FunctionalInterface}
      */
-    public<T extends TriggerComponent & TriggerEffect> void triggerEvent(Class<T> type, Card c){
-        getGame().notifyTrigger(type, this, c);
+    public<T extends TriggerComponent & TriggerEffect> void triggerEvent(Class<T> type, Event event){
+        getGame().notifyTrigger(type, this, event);
     }
 
     /**
@@ -1156,22 +1082,22 @@ public class Player {
      * @param type classe du composant (triggerComponent & TriggerEffect
      * @param <T> le composant héritant de TriggerComponent et TriggerEffect qui sont des {@link FunctionalInterface}
      */
-    public<T extends TriggerComponent & TriggerEffect> void triggerEvent(Class<T> type){
-        for(Card c : getCardsInPlay()){
-            c.as(type).ifPresent(d -> d.execute(this, this, c));
+    public<T extends TriggerComponent & BiConsumer<Player, Card>> void triggerEvent(Class<T> type){
+        for(Card c : getCopyOf(Destination.INPLAY)){
+            c.as(type).ifPresent(d -> d.accept(this, c));
         }
     }
 
     /**
      *Utilisé dans {@link Player#playTurn()} en début de tour.
-     * <p>Cette méthode parcourt le {@link Player#inPlay}, puis lance l'action du composant {@link TriggerComponent.onStartTurn},
+     * <p>Cette méthode parcourt le inplay , puis lance l'action du composant {@link TriggerComponent.onStartTurn},
      * si l'{@link Optional} est vide la méthode ne fait rien et passe à la prochaine carte
      * </p>
      * @param type la classe du composant
      * @see Card#as(Class)
      */
     public<T extends TriggerComponent & Consumer<Player>> void triggerStart(Class<T> type){
-        getCardsInPlay().forEach(c-> c.as(type).ifPresent(t -> t.accept(this)));
+        getCopyOf(Destination.INPLAY).forEach(c-> c.as(type).ifPresent(t -> t.accept(this)));
     }
 
     /**
@@ -1181,27 +1107,25 @@ public class Player {
      * @return l'état du joueur {@code False} si il n'est pas immunisé {@code True} si il l'est
      * @param <T> le composant
      *           
-     * @see Player#getCardsInPlay() 
      * @see Card#hasComponent(Class)
      */
     public <T extends TriggerComponent.Immunity> boolean immunity(Class<T> type) {
-        boolean inPlay = getCardsInPlay().stream()
+        boolean inPlay = getCopyOf(Destination.INPLAY).stream()
                 .anyMatch(card -> card.hasComponent(type));
 
         if (inPlay) return true;
 
-        return getCardsInHand().stream().anyMatch(card -> card.hasComponent(type) && card.as(type).map(i -> i.revealed(this, card)).orElse(false));
+        return getCopyOf(Destination.HAND).stream().anyMatch(card -> card.hasComponent(type) && card.as(type).map(i -> i.revealed(this, card)).orElse(false));
     }
 
     /**
      * Regarde dans la main en jeu, si la carte comporte le composant {@link ExtraTurnComponent}
      * <p>Dans l'ordre</p>
-     * <li> Stream {@link Player#getCardsInPlay()}</li>
      * <li> {@code flatMap()} Vérifie les cartes qui contiennent un {@code ExtraTurnComponent}
      * une par une  et Stream le résultat</li>
      * <li> {@code flatMap()} Vérifie si la carte peut déclencher l'effet {@link ExtraTurnComponent#canUseExtraTurn()} et retoune un nouveau Stream}</li>
      * <li> {@code findFirst()} Récupère le premier qui peut déclencher le résultat en tant que {@code Optional<ExtraTurnComponent>} </li>
-     * <li> {@code map()} si L'Optional existe {@code Non Vide}, la map déclenche {@link ExtraTurnComponent#consume()} puis renvoie true}</li>
+     * <li> {@code map()} si L'Optional existe {@code Non Vide}, la map déclenche {@link ExtraTurnComponent#consume(Player)} puis renvoie true}</li>
      * <li> {@code orElse()} retourne false si l'Optional est vide</li>
      *
      * @return si le joueur peut faire un tour en plus {@link SeaSideFactory#Outpost()}
@@ -1209,13 +1133,57 @@ public class Player {
      * @see Card#as(Class)
      */
     public boolean triggerAnotherTurn() {
-        return getCardsInPlay().stream()
+        if (this.mustConductPossessedTurn) {
+            this.setController(nextPossessor);
+            this.mustConductPossessedTurn = false;
+            return true;
+        }
+
+        return getCopyOf(Destination.HAND).stream()
                 .flatMap(c -> c.as(ExtraTurnComponent.class).stream())
                 .flatMap(comp -> comp.canUseExtraTurn().stream())
                 .findFirst()
-                .map(e -> {e.consume();
+                .map(e -> {
+                    e.consume(this);
                     return true;
                 }).orElse(false);
     }
+
+    public void moveToTrash(Card c) {
+        if(controller != this){
+            c.moveTo(get(Destination.ASIDE));
+            mustBeDiscarded.add(c);
+        }
+
+
+        log(String.format("Trash %s ", c.getName()));
+        //TODO mettre en place le trashTrigger ici
+        getGame().moveCardToTrash(c);
+    }
     //--endregion
+
+
+    public void putACardInDraw(Card card, Card selected) {
+        List<Card> drawPile = get(Destination.DRAW);
+        List<Card> tempAside = new ArrayList<>();
+
+        if (selected == null) {
+            moveTo(card, Destination.DRAW);
+        } else {
+
+            while (!drawPile.isEmpty()) {
+                Card top = drawPile.getLast();
+                if (top.equals(selected)) {
+                    break;
+                }
+                top.moveTo(tempAside);
+            }
+
+            moveTo(card, Destination.DRAW);
+
+            for (int j = tempAside.size() - 1; j >= 0; j--) {
+                moveTo(tempAside.get(j), Destination.DRAW);
+            }
+        }
+    }
 }

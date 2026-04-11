@@ -7,6 +7,8 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import fr.umontpellier.iut.dominion.SupplyPile;
+import fr.umontpellier.iut.dominion.cards.Alchimie.AlchimySet;
+import fr.umontpellier.iut.dominion.cards.Intrigue.IntrigueSet;
 import fr.umontpellier.iut.dominion.cards.dominion.DominionSet;
 import fr.umontpellier.iut.dominion.cards.seaside.*;
 
@@ -39,12 +41,16 @@ public class FactorySupplyPile {
         public static PileConfig curse(Supplier<Card> supplier) {
             return new PileConfig(supplier, n -> 10 * (n - 1));
         }
+
+        public static PileConfig potion(Supplier<Card> supplier) {return  new PileConfig(supplier, n -> 20);}
     }
 
     private static final Map<String, PileConfig> PILE_CONFIGS = merge(
-            CommonSet.CommonSet(),
-            DominionSet.DominionSet(),
-            SeasideSet.SeaSideSet()
+            CommonSet.get(),
+            DominionSet.get(),
+            SeasideSet.get(),
+            IntrigueSet.get(),
+            AlchimySet.get()
     );
 
     @SafeVarargs
@@ -67,4 +73,6 @@ public class FactorySupplyPile {
         PileConfig config = PILE_CONFIGS.get(cardName);
         return new SupplyPile(config.cardSupplier(), config.countFunction().apply(numberOfPlayers));
     }
+
+
 }

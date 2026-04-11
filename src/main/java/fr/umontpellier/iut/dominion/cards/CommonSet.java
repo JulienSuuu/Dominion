@@ -12,10 +12,11 @@ public class CommonSet {
             Map.entry("Estate", FactorySupplyPile.PileConfig.estate(() -> CommonFactory.createVictoryCard("Estate", 2, 1))),
             Map.entry("Duchy", FactorySupplyPile.PileConfig.victory(() -> CommonFactory.createVictoryCard("Duchy", 5, 3))),
             Map.entry("Province", FactorySupplyPile.PileConfig.victory(() -> CommonFactory.createVictoryCard("Province", 8, 6))),
-            Map.entry("Curse", FactorySupplyPile.PileConfig.curse(() -> CommonFactory.createVictoryCard("Curse", 0, -1)))
+            Map.entry("Curse", FactorySupplyPile.PileConfig.curse(() -> CommonFactory.createCurseCard("Curse", 0, -1))),
+            Map.entry("Potion", FactorySupplyPile.PileConfig.potion(CommonFactory::createPotion))
     );
 
-    public static Map<String, FactorySupplyPile.PileConfig> CommonSet() {
+    public static Map<String, FactorySupplyPile.PileConfig> get() {
         return PILE_COMMON;
     }
 }

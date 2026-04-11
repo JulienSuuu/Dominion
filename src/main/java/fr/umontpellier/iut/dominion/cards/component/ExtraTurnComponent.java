@@ -1,5 +1,7 @@
 package fr.umontpellier.iut.dominion.cards.component;
 
+import fr.umontpellier.iut.dominion.Player;
+
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -13,7 +15,7 @@ public class ExtraTurnComponent implements CardComponent {
         return used.get()? Optional.empty(): Optional.of(this);
     }
 
-    public void consume() {
+    public void consume(Player player) {
         used.set(true);
     }
 
