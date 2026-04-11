@@ -17,6 +17,8 @@ function Main() {
         instruction: null,
         choices: null,
         buttons: null,
+        selection_cards: null,
+        message_type: null
     });
 
     useEffect(() => {
@@ -31,9 +33,9 @@ function Main() {
                 choices: data.choices,
                 buttons: data.buttons,
                 log: data.game.log,
+                selection_cards: data.selection_cards || null,
             });
         };
-
         return () => { socket.onmessage = null; };
     }, []);
 
@@ -43,43 +45,72 @@ function Main() {
 
     return html`
         <div id="main">
+            ${state.selection_cards && html`
+                <${SelectionOverlay}
+                        instruction=${state.instruction}
+                        cards=${state.selection_cards}
+                onSelect=${(choice) => sendMessage(choice)}
+                />
+            `}
+
             <div id="game">
                 <div id="supply">
                     <div id="kingdom_supply">
-                        ${state.supply.slice(0, -7).map(pile =>
-        html`<${Card} key=${pile.card} name=${pile.card} number=${pile.number} cost=${pile.cost} classes=${['half']} messageType="SUPPLY" overlay=${pile.number === 0} />`)}
+                        ${state.supply.slice(0, -8).map(pile =>
+                                html`<${Card}
+                                        key=${pile.card}
+                                        name=${pile.card}
+                                        number=${pile.number}
+                                        cost=${pile.cost}
+                                        potion=${pile.potion}
+                                        debt=${pile.debt}
+                                        classes=${['half']}
+                                        messageType="SUPPLY"
+                                        overlay=${pile.number === 0}
+                                />`
+                        )}
                     </div>
                     <div id="common_supply">
-                        ${state.supply.slice(-7).map(pile => html`<${Card} key=${pile.card} name=${pile.card} number=${pile.number} cost=${pile.cost} messageType="SUPPLY" overlay=${pile.number === 0} />`
-        )}
+                        ${state.supply.slice(-8).map(pile =>
+                                html`<${Card}
+                                        key=${pile.card}
+                                        name=${pile.card}
+                                        number=${pile.number}
+                                        cost=${pile.cost}
+                                        potion=${pile.potion}
+                                        debt=${pile.debt}
+                                        messageType="SUPPLY"
+                                        overlay=${pile.number === 0}
+                                />`
+                        )}
                     </div>
                 </div>
                 <div id="players">
                     ${state.players.map((player_data, index) => {
-            const is_active = index === state.active_player;
-            const is_turn_player = index === state.turn_player;
-            return html`<${Player}
-                    key=${player_data.name}
-                    data=${player_data}
-                    is_active=${is_active}
-                    is_turn_player=${is_turn_player}
-                    instruction=${is_active ? state.instruction : ""}
-                    choices=${is_active ? state.choices : []}
-                    buttons=${is_active ? state.buttons : []}
-                    game_over=${state.active_player === undefined}
-                />`;
-        })}
+                        const is_active = index === state.active_player;
+                        const is_turn_player = index === state.turn_player;
+                        return html`<${Player}
+                                key=${player_data.name}
+                                data=${player_data}
+                                is_active=${is_active}
+                                is_turn_player=${is_turn_player}
+                                instruction=${is_active ? state.instruction : ""}
+                                choices=${is_active ? state.choices : []}
+                                buttons=${is_active ? state.buttons : []}
+                                game_over=${state.active_player === undefined}
+                        />`;
+                    })}
                 </div>
             </div>
+
             <div id="side">
                 <${MessagePrompt} />
                 <${Log} log=${state.log} />
             </div>
         </div>`;
-
 }
 
-function Card({ name, number, cost, classes, messageType, overlay }) {
+function Card({ name, number, cost, potion, debt, classes, messageType, overlay }) {
     const short_name = name ? name.replace(/[^A-Za-z]/g, '') : '';
 
     const handleMouseEnter = () => {
@@ -95,15 +126,20 @@ function Card({ name, number, cost, classes, messageType, overlay }) {
 
     return html`
         <div
-            class="${['card', ...(classes || [])].join(' ')}"
-            style=${name ? { backgroundImage: `url(cards/${short_name}.jpg)` } : null}
-            onMouseEnter=${handleMouseEnter}
-            onMouseLeave=${handleMouseLeave}
-            onClick=${name && messageType ? () => sendMessage(`${messageType}:${name}`) : null}
+                class="${['card', ...(classes || [])].join(' ')}"
+                style=${name ? { backgroundImage: `url(cards/${short_name}.jpg)` } : null}
+                onMouseEnter=${handleMouseEnter}
+                onMouseLeave=${handleMouseLeave}
+                onClick=${name && messageType ? () => sendMessage(`${messageType}:${name}`) : null}
         >
-        ${cost !== undefined ? html`<div class="cost">${cost}</div>` : null}
-        ${number ? html`<div class="number">${number}</div>` : null}
-        ${overlay && html`<div class="overlay"></div>`}
+            <div class="card-footer">
+                ${cost > 0 ? html`<div class="cost">${cost}</div>` : null}
+                ${potion > 0 ? html`<div class="potion"></div>` : null}
+                ${debt > 0 ? html`<div class="debt">${debt}</div>` : null}
+            </div>
+
+            ${number ? html`<div class="number">${number}</div>` : null}
+            ${overlay && html`<div class="overlay"></div>`}
         </div>`;
 }
 
@@ -149,6 +185,33 @@ function Player({ data, is_active, is_turn_player, instruction, choices, buttons
             <${ListOfCards} classes=${["hand"]} cards=${sortedHand} messageType=${is_active ? "HAND" : null}/>
         </div>`;
 }
+
+function SelectionOverlay({ instruction, cards, onSelect}) {
+    if ((!cards || cards.length === 0)) return null;
+
+    return html`
+        <div class="selection-overlay">
+            <div class="selection-window">
+                <div class="selection-instruction">${instruction}</div>
+
+                <div class="selection-grid">
+                    ${cards.map((fullChoice) => {
+                        const cardName = fullChoice.split(":")[2];
+                        return html`
+                            <div class="selection-item" onClick=${() => onSelect(fullChoice)}>
+                                <${Card} name=${cardName} />
+                            </div>
+                        `;
+                    })}
+                </div>
+                
+                <div class="buttons">
+                    <button onClick=${() => sendMessage("")} disabled=${!cards.includes("")}>Pass</button>
+                </div>
+            </div>
+        </div>`;
+}
+
 
 function ListOfCards({ cards, classes, messageType }) {
     if (cards.length === 0) {
