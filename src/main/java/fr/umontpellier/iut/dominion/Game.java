@@ -6,14 +6,15 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import fr.umontpellier.iut.dominion.cards.Card;
-import fr.umontpellier.iut.dominion.cards.CardUtil;
-import fr.umontpellier.iut.dominion.cards.Event;
-import fr.umontpellier.iut.dominion.cards.FactorySupplyPile;
+import fr.umontpellier.iut.dominion.cards.*;
 import fr.umontpellier.iut.dominion.cards.component.CardSelector;
 import fr.umontpellier.iut.dominion.cards.component.TriggerComponent;
 import fr.umontpellier.iut.dominion.cards.component.TriggerEffect;
 import fr.umontpellier.iut.dominion.gui.Utils;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 
 /**
  * Class représentant une partie de Dominion
@@ -28,12 +29,14 @@ public class Game {
      * Le joueur dont c'est actuellement le tour
      */
     private Player currentTurnPlayer;
-
+    private final ObjectProperty<Player> currentTurnPlayerProperty = new SimpleObjectProperty<>(null);
+    private final Map<String, ObservableList<String>> namedCard = new HashMap<>();
     /**
      * Numéro du tour courant (commence à 1 et est incrémenté à chaque fois que
      * le tour d'un nouveau joueur commence)
      */
     private int turnNumber = 1;
+    private int sizeOfcommun = 7;
 
     /**
      * Messages envoyés dans le log du jeu (pour affichage dans l'interface
@@ -87,13 +90,40 @@ public class Game {
         supplyPiles.add(FactorySupplyPile.createSupplyPile("Duchy", nbPlayers));
         supplyPiles.add(FactorySupplyPile.createSupplyPile("Province", nbPlayers));
         supplyPiles.add(FactorySupplyPile.createSupplyPile("Curse", nbPlayers));
-        supplyPiles.add(FactorySupplyPile.createSupplyPile("Potion", nbPlayers));
+
+        List<String> Alchimy = RegistryName.getExtension("Alchemy");
+        List<String> Prosperity = RegistryName.getExtension("Prosperity");
+
+        boolean asAlchimy = supplyPiles.stream().anyMatch(p -> Alchimy.contains(p.getName()));
+        boolean asProsperity = supplyPiles.stream().anyMatch(p -> Prosperity.contains(p.getName()));
+
+        if(asAlchimy){
+            supplyPiles.add(FactorySupplyPile.createSupplyPile("Potion", nbPlayers));
+            sizeOfcommun++;
+        }
+        if(asProsperity){
+            supplyPiles.add(FactorySupplyPile.createSupplyPile("Platinum", nbPlayers));
+            supplyPiles.add(FactorySupplyPile.createSupplyPile("Colony", nbPlayers));
+            sizeOfcommun++;
+        }
+
+        if(supplyPiles.stream().anyMatch(s -> s.getName().equals("Trade Route"))) {
+            supplyPiles.forEach(s ->{
+                if(s.getFirst().hasType(CardType.VICTORY)){
+                    s.setToken(1);
+                }
+            });
+        }
 
         // Création des joueurs
         players = new ArrayList<>(nbPlayers);
         for (String playerName : playerNames)
             players.add(new Player(playerName, this));
         currentTurnPlayer = players.getFirst();
+        currentTurnPlayerProperty.set(currentTurnPlayer);
+
+        GameStat.initialize(supplyPiles,currentTurnPlayerProperty);
+
     }
 
     /**
@@ -171,7 +201,7 @@ public class Game {
         joiner.add("\"turn_player\": " + players.indexOf(currentTurnPlayer));
         StringJoiner kingdomJoiner = getStringJoiner();
         joiner.add("\"supply\": [" + kingdomJoiner + "]");
-
+        joiner.add("\"size\": " + sizeOfcommun);
         StringJoiner playersJoiner = new StringJoiner(", ");
         for (Player p : players) {
             playersJoiner.add(p.toJSON());
@@ -193,7 +223,7 @@ public class Game {
                                     pile.size(),
                                     pile.getCost(),
                                     pile.getPrice().potion(),
-                                    pile.getPrice().debt()
+                                    pile.getPrice().debt().get()
                             )
             );
         }
@@ -217,35 +247,6 @@ public class Game {
     }
 
     /**
-     * Teste si la partie est terminée
-     *
-     * @return un booléen indiquant si la partie est terminée, c'est-à-dire si
-     *         au moins l'une des deux conditions de fin suivantes est vraie
-     *         - 3 piles ou plus de la réserve sont vides
-     *         - la pile de Provinces de la réserve est vide
-     */
-    public boolean isFinished() {
-        boolean provincesIsEmpty = supplyPiles.stream()
-                .filter(pile -> pile.getName().equals("Province"))
-                .findFirst()
-                .map(SupplyPile::isEmpty)
-                .orElse(false);
-
-        if(provincesIsEmpty) return true;
-
-        long nbQueueEmpty = getNbQueueEmpty();
-
-        return nbQueueEmpty >= 3;
-    }
-
-    public long getNbQueueEmpty() {
-        return supplyPiles
-                .stream().
-                filter(ArrayList::isEmpty)
-                .count();
-    }
-
-    /**
      * Passe au joueur suivant et incrémente le numéro du tour si nécessaire.
      * <p>
      * Cette méthode doit mettre à jour l'attribut {@code currentTurnPlayer} pour
@@ -253,17 +254,20 @@ public class Game {
      * méthode.
      */
     public void moveToNextPlayer() {
-        boolean next = currentTurnPlayer.triggerAnotherTurn();
-        if(next){
-            turnNumber++;
-            return;
-        }
-
-        int currentIndex = getPlayerIndex(currentTurnPlayer);
-        int nextIndex = (currentIndex + 1)%players.size();
+        namedCard.clear();
         turnNumber++;
-        currentTurnPlayer = players.get(nextIndex);
 
+        boolean anotherTurn = currentTurnPlayer.triggerAnotherTurn();
+
+        if (!anotherTurn) {
+            int currentIndex = getPlayerIndex(currentTurnPlayer);
+            int nextIndex = (currentIndex + 1) % players.size();
+            currentTurnPlayer = players.get(nextIndex);
+            currentTurnPlayerProperty.set(currentTurnPlayer);
+        } else {
+            currentTurnPlayerProperty.set(null);
+            currentTurnPlayerProperty.set(currentTurnPlayer);
+        }
     }
 
     public <T extends TriggerComponent & TriggerEffect> void notifyTrigger(Class<T> triggerType, Player actor, Event event) {
@@ -303,7 +307,13 @@ public class Game {
     }
 
     public boolean isImmune(Card c, Player actor) {
-        return c.hasType(CardType.ATTACK) && actor.immunity(TriggerComponent.Immunity.class);
+        if(!c.hasType(CardType.ATTACK))return false;
+
+        if(c.get("Players", Set.class) != null){
+            return c.get("Players", Set.class).contains(actor);
+        }
+
+        return actor.immunity(TriggerComponent.Immunity.class);
     }
 
     public void processGain(Player p, Card c, Destination dest, String nameCard){
@@ -431,8 +441,6 @@ public class Game {
         return ordered;
     }
 
-
-
     public Player onTheLeft(Player victim) {
         int index = getPlayerIndex(victim);
         int nextIndex = (index + 1) % players.size();
@@ -447,7 +455,7 @@ public class Game {
      * final et les cartes possédées par chacun des joueurs.
      */
     public void run() {
-        while (!isFinished()) {
+        while (!GameStat.isFinished.get()) {
             // joue le tour du joueur courant
             log("<div class=\"turn-title\">%s (turn %d)</div>".formatted(currentTurnPlayer.toLog(), turnNumber));
             currentTurnPlayer.playTurn();
@@ -557,7 +565,7 @@ public class Game {
     }
 
     public boolean replaceCardInSupply(Card card, Card revealed){
-        if(!card.hasSameNameAs(revealed))return false;
+        if(!card.hasSameNameAs(revealed)) return false;
         supplyPiles.stream().filter(s -> s.getName().equals(revealed.getName()) && revealed.hasSameNameAs(card)).findFirst().ifPresent(s -> s.setCard(card));
         return true;
     }
@@ -566,5 +574,22 @@ public class Game {
         return new ArrayList<>(trashedCards);
     }
 
+    public Set<Player> scanImmunity(Player p) {
+        return getPlayersStartingFrom(p).stream().filter(s -> s != p && s.immunity(TriggerComponent.Immunity.class)).collect(Collectors.toSet());
+    }
 
+    public ObservableList<String> getNamedCardsThisTurn(String key) {
+        return namedCard.computeIfAbsent(key, k -> FXCollections.observableArrayList());
+    }
+
+    public int tradeRoute(Card c){
+        if(!c.hasType(CardType.VICTORY))return 0;
+
+
+        return supplyPiles.stream().filter(s -> s.getName().equals(c.getName()) && s.hasToken()).findFirst().map(s ->{
+            int i = s.getToken();
+            s.setToken(0);
+            return i;
+        }).orElse(0);
+    }
 }

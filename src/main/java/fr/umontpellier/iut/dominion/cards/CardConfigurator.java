@@ -1,12 +1,12 @@
 package fr.umontpellier.iut.dominion.cards;
 
-import fr.umontpellier.iut.dominion.Destination;
 import fr.umontpellier.iut.dominion.Player;
 import fr.umontpellier.iut.dominion.cards.component.*;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 public class CardConfigurator {
@@ -88,13 +88,23 @@ public class CardConfigurator {
         return this;
     }
 
-    public CardConfigurator onDiscard(TriggerComponent.onCardDiscard effect) {
-        card.addComponent(TriggerComponent.onCardDiscard.class, effect);
+    public CardConfigurator onDiscard(TriggerComponent.onCardDiscarded effect) {
+        card.addComponent(TriggerComponent.onCardDiscarded.class, effect);
         return this;
     }
 
-    public CardConfigurator onPossession(ExtraTurnComponent extraTurnComponent) {
-        card.addComponent(ExtraTurnComponent.class, extraTurnComponent);
+    public CardConfigurator onStartTurn(TriggerComponent.onStartTurn effect) {
+        card.addComponent(TriggerComponent.onStartTurn.class, effect);
+        return this;
+    }
+
+    public CardConfigurator available(Predicate<Player> consumer) {
+        card.setAvailable(consumer);
+        return this;
+    }
+
+    public CardConfigurator onBuy(TriggerComponent.onBuy effect) {
+        card.addComponent(TriggerComponent.onBuy.class, effect);
         return this;
     }
 

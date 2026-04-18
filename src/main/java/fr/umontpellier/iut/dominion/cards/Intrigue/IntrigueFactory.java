@@ -3,10 +3,10 @@ package fr.umontpellier.iut.dominion.cards.Intrigue;
 import fr.umontpellier.iut.dominion.*;
 import fr.umontpellier.iut.dominion.cards.Card;
 import fr.umontpellier.iut.dominion.cards.CardUtil;
+import fr.umontpellier.iut.dominion.cards.GameStat;
 import fr.umontpellier.iut.dominion.cards.RegistryPrice;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class IntrigueFactory {
     public static List<Button> yesOrNo = List.of(new Button("Yes", "y"), new Button("No", "n"));
@@ -14,8 +14,9 @@ public class IntrigueFactory {
     public static Card Baron(){
         return new Card("Baron", RegistryPrice.IntriguePrice(4), CardType.ACTION)
                 .setup(config -> config
-                        .onPlay( (player, self) ->
-                                CardUtil.executeOrOtherWise(
+                        .onPlay( (player, self) ->{
+                                CardUtil.TriggerEffect(player, 0, 0, 0, 1, "Effect", self);
+                                CardUtil.executeOrOtherwise(
                                         () -> player.chooseCardFromHand("You may choose an Estate to discard ", c -> c.hasName("Estate"), true),
                                         Objects::nonNull,
                                         card -> {
@@ -24,7 +25,7 @@ public class IntrigueFactory {
                                             player.log("Action %s : %s discard an Estate".formatted(self.getName().toUpperCase(), player.toLog()));
                                         },
                                         () -> CardUtil.gainFromSupply(player, "Estate", Destination.DISCARD, false)
-                                )
+                                );}
                         )
                 );
     }
@@ -34,7 +35,7 @@ public class IntrigueFactory {
                 .setup(config -> config
                         .onPlay((player, self) -> {
                             CardUtil.TriggerEffect(player, 1,0,0,1, "Effect", self);
-                            Card.addReduction(1);
+                            GameStat.reduction.set(GameStat.reduction.get() + 1);
                         })
                 );
     }
@@ -233,7 +234,7 @@ public class IntrigueFactory {
                             int i;
                             for(i = 0; i < 2 && !self.getFlag("skip"); i++) {
                                 self.set("skip", false);
-                                CardUtil.executeOrOtherWise(
+                                CardUtil.executeOrOtherwise(
                                         () -> player.chooseCardFromHand("Choose a card to discard (2)", true ),
                                         Objects::nonNull,
                                         player::discard,
@@ -256,7 +257,7 @@ public class IntrigueFactory {
 
                             if(!player.getCopyOf(Destination.INPLAY).contains(self)) return;
 
-                            CardUtil.executeOrOtherWise(
+                            CardUtil.executeOrOtherwise(
                                     () -> player.chooseStringFromButtons("You may trash Mining Village to gain 2 Money", yesOrNo, true),
                                     "y"::equals,
                                     choice ->  {
@@ -274,7 +275,7 @@ public class IntrigueFactory {
                 .setup(config -> config
                         .onPlay((player, self) -> {
                             CardUtil.TriggerEffect(player, 0,1,0,0, "Effect", self);
-                            CardUtil.executeOrOtherWise(
+                            CardUtil.executeOrOtherwise(
                                     () -> player.chooseStringFromButtons("Choose one : +2 Money or discard and Attack others", List.of(new Button("Money", "m"), new Button("Discard", "d")), false),
                                     "m"::equals,
                                     choice -> CardUtil.TriggerEffect(player, 2,0,0,0, "Action Money", self),
@@ -302,7 +303,7 @@ public class IntrigueFactory {
         return new Card("Nobles", RegistryPrice.IntriguePrice(6), CardType.ACTION, CardType.VICTORY)
                 .setup(config -> config
                         .onPlay((player, self) -> {
-                            CardUtil.executeOrOtherWise(
+                            CardUtil.executeOrOtherwise(
                                     () -> player.chooseStringFromButtons(" Nobles, Choose : 3 cards or 2 actions", List.of(new Button("Cards", "c"), new Button("Actions", "a")), false),
                                     "c"::equals,
                                     choice -> player.draw(3),
@@ -477,7 +478,7 @@ public class IntrigueFactory {
                             player.getGame().processAttack(
                                     player, self,
                                     vi ->
-                                        CardUtil.executeOrOtherWise(
+                                        CardUtil.executeOrOtherwise(
                                                 () -> vi.chooseStringFromButtons("Choose:Discard or gain a curse", List.of(new Button("Discard", "d"), new Button("Curse", "c")), false),
                                                 "d"::equals,
                                                 choice -> vi.discardFromHand(2),
@@ -496,7 +497,7 @@ public class IntrigueFactory {
                                 int i;
                                 for(i = 0; i<2 && self.getFlag("continu"); i++  ){
                                     int used = i;
-                                    CardUtil.executeOrOtherWise(
+                                    CardUtil.executeOrOtherwise(
                                             () -> player.chooseCardFromHand("Choose " + (2 - used) + " to trash to gain a silver", true),
                                             Objects::nonNull,
                                             player::moveToTrash,
@@ -519,7 +520,7 @@ public class IntrigueFactory {
                                     () -> player.chooseCardFromHand("Choose a card to trash", false),
                                     card -> {
                                         player.moveToTrash(card);
-                                        CardUtil.gainFromSupply(player, "Choose a card costing exactly 1$ more that " + card + "(" + card.getCost() + "$ )", gained -> gained.getCost() == card.getCost() +1 , Destination.HAND, false);
+                                        CardUtil.gainFromSupply(player, "Choose a card costing exactly 1$ more that " + card + "(" + card.getCost() + 1 + "$ )", gained -> gained.getCost() == card.getCost() +1 , Destination.HAND, false);
                                     }
                             );
                         })
@@ -531,7 +532,7 @@ public class IntrigueFactory {
                 .setup(config -> config
                         .onPlay((player, self) -> {
                             CardUtil.TriggerEffect(player, 0,1,1,0, "Effect", self);
-                            String choice = player.choose("On message,  compute a name of a card", false);
+                            String choice = player.choose("On channel,  compute a name of a card", false);
                             Card revealed = player.getCardFromDeck();
                             if (choice != null && !choice.isEmpty()) {
                                 String formattedChoice = choice.substring(0, 1).toUpperCase() + choice.substring(1).toLowerCase();
@@ -575,7 +576,6 @@ public class IntrigueFactory {
                                         while (true) {
                                             c = player.getCardFromDeck();
                                             if (c == null) break;
-                                            aside.add(c);
                                             c.moveTo(aside);
                                             if (c.getCost() >= 3) {
                                                 break;
@@ -585,9 +585,9 @@ public class IntrigueFactory {
                                                 player.log( vi.getName() + "Revealed Card : " + aside);
                                                 player.moveToTrash(c);
                                                 Card finalCard = c;
-                                                CardUtil.gainFromSupply(player, "Choose an card cost up (" + (c.getCost() -2) +")", card -> card.getCost() <= finalCard.getCost() -2, Destination.DISCARD, false);
+                                                CardUtil.gainFromSupply(player, "Choose an card cost up (" + (c.getCost() - 2) +")", card -> card.getCost() <= finalCard.getCost() - 2 && card.getPotion() == 0, Destination.DISCARD, false);
                                             }
-                                            aside.forEach(card -> player.moveTo(card, Destination.DISCARD));
+                                            new ArrayList<>(aside).forEach(card -> player.moveTo(card, Destination.DISCARD));
                                     }
                             );
                         })
@@ -628,7 +628,7 @@ public class IntrigueFactory {
                         .onPlay((player, self) -> {
                                 self.set("stop", false);
                                 while(!player.getCopyOf(Destination.HAND).isEmpty() && !self.getFlag("stop")){
-                                    CardUtil.executeOrOtherWise(
+                                    CardUtil.executeOrOtherwise(
                                             () -> player.chooseCardFromHand("Choose an card to discard from your hand ( you can stop )", true),
                                             Objects::nonNull,
                                             card ->{

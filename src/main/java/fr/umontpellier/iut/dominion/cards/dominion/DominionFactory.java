@@ -1,25 +1,16 @@
 package fr.umontpellier.iut.dominion.cards.dominion;
 
 import fr.umontpellier.iut.dominion.*;
-import fr.umontpellier.iut.dominion.cards.Card;
-import fr.umontpellier.iut.dominion.cards.CardUtil;
-import fr.umontpellier.iut.dominion.cards.Event;
-import fr.umontpellier.iut.dominion.cards.RegistryPrice;
+import fr.umontpellier.iut.dominion.cards.*;
 import fr.umontpellier.iut.dominion.cards.component.DurationComponent;
-import fr.umontpellier.iut.dominion.cards.component.OnPlayComponent;
-import fr.umontpellier.iut.dominion.cards.component.ScoreComponent;
 import fr.umontpellier.iut.dominion.cards.component.TriggerComponent;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 
 public class DominionFactory {
     public static List<Button> yesOrNo = List.of(new Button("Yes", "y"), new Button("No", "n"));
-
-
-
 
     public static Card Artisan(){
         return new Card("Artisan", RegistryPrice.DominionPrice(6), CardType.ACTION)
@@ -108,7 +99,7 @@ public class DominionFactory {
                         .onPlay((player, self) -> {
                             self.set("continu", true);
                             for(int i = 0; i < 4 && self.get("continu", Boolean.class); i++){
-                                CardUtil.executeOrOtherWise(
+                                CardUtil.executeOrOtherwise(
                                         () -> player.chooseCardFromHand("Choisi au maximum 4 cartes à défausser", true),
                                         Objects::nonNull,
                                         player::moveToTrash,
@@ -184,7 +175,7 @@ public class DominionFactory {
                                 if(drawn == null) break;
 
                                 if(drawn.hasType(CardType.ACTION)){
-                                    CardUtil.executeOrOtherWise(
+                                    CardUtil.executeOrOtherwise(
                                             () -> player.chooseStringFromButtons("Veux tu mettre cette carte sur le côté ou la récupérer dans la main ? " + drawn, List.of(new Button("Aside", "y"), new Button("Hand", "n")),false),
                                             "y"::equals,
                                             choice ->{
@@ -262,7 +253,7 @@ public class DominionFactory {
                             @Override
                             public boolean revealed(Player player, Card self) {
                                 self.set("used", false);
-                                CardUtil.executeOrOtherWise(
+                                CardUtil.executeOrOtherwise(
                                         () -> player.chooseStringFromButtons(String.format("Révèle %s pour te protéger", self.getName().toUpperCase()), List.of(new Button("reveal", "y"), new Button("keep", "n")), true),
                                         "y"::equals,
                                         choice ->{
@@ -297,7 +288,7 @@ public class DominionFactory {
         return new Card("Poacher", RegistryPrice.DominionPrice(4), CardType.ACTION)
                 .setup(config -> config
                     .onPlay((player, self) ->{
-                        Number emptyPile = player.getGame().getNbQueueEmpty();
+                        Number emptyPile = GameStat.emptyPiles.get();
                         CardUtil.TriggerEffect(player, 1,1,1,0,"Effect", self);
                         player.discardFromHand(emptyPile.intValue());
                     })
@@ -412,8 +403,10 @@ public class DominionFactory {
                             CardUtil.TriggerEffect(player, 2, 0, 0, 0, "Effect", self);
 
                             Card top = player.getCardFromDeck();
+                            if(top == null) return;
+
                             if(top.hasType(CardType.ACTION)){
-                                CardUtil.executeOrOtherWise(
+                                CardUtil.executeOrOtherwise(
                                         () -> player.chooseStringFromButtons("Veux tu jouer la carte", yesOrNo, true ),
                                         "y"::equals,
                                         choice-> player.playCard(top),
@@ -486,7 +479,7 @@ public class DominionFactory {
                 .setup(config -> config
                         .onPlay((player, self) -> {
                             CardUtil.TriggerEffect(player, 2, 0, 0, 0, "Effect", self);
-                            CardUtil.executeOrOtherWise(
+                            CardUtil.executeOrOtherwise(
                                     () -> player.chooseStringFromButtons("Veux-tu vider ta pioche dans la défausse ?", yesOrNo, true),
                                     "y"::equals,
                                     choice -> player.getCopyOf(Destination.DRAW).forEach(card -> player.moveTo(card, Destination.DISCARD)),
@@ -514,7 +507,7 @@ public class DominionFactory {
 
                             Consumer<Player> action = p -> {
                                 Card c =  p.getCardFromDeck();
-                                CardUtil.executeOrOtherWise(
+                                CardUtil.executeOrOtherwise(
                                     () -> player.chooseStringFromButtons("Discard the card or do nothing (your choice) " + c.getName(), yesOrNo, true),
                                     "y"::equals,
                                     choice -> p.moveTo(c, Destination.DISCARD),
@@ -548,7 +541,7 @@ public class DominionFactory {
                                     p.moveToTrash(chosen);
 
                                     Card Final = chosen;
-                                    CardUtil.executeOrOtherWise(
+                                    CardUtil.executeOrOtherwise(
                                             () -> player.chooseStringFromButtons("Voulez vous récupérer la carte " + Final.getName(), yesOrNo, true),
                                             "y"::equals,
                                             choice -> player.gain(Final, Destination.DISCARD),

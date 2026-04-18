@@ -3,13 +3,10 @@ package fr.umontpellier.iut.dominion.cards;
 import fr.umontpellier.iut.dominion.Destination;
 import fr.umontpellier.iut.dominion.Item;
 import fr.umontpellier.iut.dominion.Player;
-import fr.umontpellier.iut.dominion.cards.component.DurationComponent;
-import fr.umontpellier.iut.dominion.cards.component.OnPlayComponent;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -75,9 +72,6 @@ public class CardUtil {
         return result;
     }
 
-
-
-
     public static List<Card> getBottomCards(Player p, int count) {
         List<Card> draw = getCards(p, count);
         List<Card> result = new ArrayList<>();
@@ -109,11 +103,11 @@ public class CardUtil {
         return target;
     }
 
-    public static <T>   void executeIfSelected(Supplier<T> selector, Consumer<T> action ) {
+    public static <T> void executeIfSelected(Supplier<T> selector, Consumer<T> action ) {
         Optional.ofNullable(selector.get()).ifPresent(action);
     }
 
-    public static <T> void executeOrOtherWise(Supplier<T> selector, Predicate<T> filter, Consumer<T> action, Runnable other ) {
+    public static <T> void executeOrOtherwise(Supplier<T> selector, Predicate<T> filter, Consumer<T> action, Runnable other ) {
         Optional.ofNullable(selector.get()).filter(filter).ifPresentOrElse(action, other);
     }
 

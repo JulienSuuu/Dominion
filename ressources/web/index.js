@@ -28,6 +28,7 @@ function Main() {
                 supply: data.game.supply,
                 players: data.game.players,
                 turn_player: data.game.turn_player,
+                size : data.game.size,
                 active_player: data.active_player,
                 instruction: data.instruction,
                 choices: data.choices,
@@ -56,7 +57,7 @@ function Main() {
             <div id="game">
                 <div id="supply">
                     <div id="kingdom_supply">
-                        ${state.supply.slice(0, -8).map(pile =>
+                        ${state.supply.slice(0, -state.size).map(pile =>
                                 html`<${Card}
                                         key=${pile.card}
                                         name=${pile.card}
@@ -71,7 +72,7 @@ function Main() {
                         )}
                     </div>
                     <div id="common_supply">
-                        ${state.supply.slice(-8).map(pile =>
+                        ${state.supply.slice(-state.size).map(pile =>
                                 html`<${Card}
                                         key=${pile.card}
                                         name=${pile.card}

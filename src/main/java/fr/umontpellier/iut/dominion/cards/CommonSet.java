@@ -1,5 +1,7 @@
 package fr.umontpellier.iut.dominion.cards;
 
+import fr.umontpellier.iut.dominion.Flags;
+
 import java.util.Map;
 
 
@@ -13,7 +15,9 @@ public class CommonSet {
             Map.entry("Duchy", FactorySupplyPile.PileConfig.victory(() -> CommonFactory.createVictoryCard("Duchy", 5, 3))),
             Map.entry("Province", FactorySupplyPile.PileConfig.victory(() -> CommonFactory.createVictoryCard("Province", 8, 6))),
             Map.entry("Curse", FactorySupplyPile.PileConfig.curse(() -> CommonFactory.createCurseCard("Curse", 0, -1))),
-            Map.entry("Potion", FactorySupplyPile.PileConfig.potion(CommonFactory::createPotion))
+            Map.entry("Potion", FactorySupplyPile.PileConfig.potion(CommonFactory::createPotion)),
+            Map.entry("Platinum", FactorySupplyPile.PileConfig.platinum(() -> CommonFactory.createTreasure("Platinum", 9,5 ))),
+            Map.entry("Colony", FactorySupplyPile.PileConfig.victory(() -> CommonFactory.createVictoryCard("Colony", 11, 10)))
     );
 
     public static Map<String, FactorySupplyPile.PileConfig> get() {

@@ -7,8 +7,11 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import fr.umontpellier.iut.dominion.CardType;
+import fr.umontpellier.iut.dominion.Game;
 import fr.umontpellier.iut.dominion.Player;
 import fr.umontpellier.iut.dominion.cards.component.*;
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.IntegerProperty;
 
 /**
  * Représentation des cartes du jeu Dominion
@@ -18,17 +21,17 @@ public class Card {
      * Le nom de la carte
      */
     private final String name;
-    private static int reduction = 0;
     /**
      * Le coût de la carte à l'achat
      */
     private final Price cost;
 
-
     private final Set<CardType> types;
 
     private List<Card> location;
     private BiPredicate<Event, Player> condition = (event, player) ->  true;
+    private Predicate<Player> available = (player) -> true;
+    private int price;
     private final Map<Class<? extends CardComponent>, CardComponent> components;
     private final Map<String,Object > properties;
 
@@ -46,7 +49,17 @@ public class Card {
         this.components = new HashMap<>();
         this.properties = new HashMap<>();
         Collections.addAll(this.types, types);
+        price = cost.price().get();
+        cost.price().bind(Bindings.createIntegerBinding(
+                () -> price -GameStat.reduction.get(),
+                GameStat.reduction));
     }
+
+
+    public int basiquePrice() {
+        return price;
+    }
+
 
     public <T extends CardComponent> Card addComponent(Class <T> type, T component){
         this.components.put(type, component);
@@ -85,6 +98,21 @@ public class Card {
         }
         return false;
     }
+    @SuppressWarnings("unchecked")
+    private <T> Consumer<T> getAction(String key){
+        Object val = properties.get(key);
+        if (val instanceof Consumer) {
+            return (Consumer<T>) val;
+        }
+        return null;
+    }
+
+    public void execute(Player p) {
+        Consumer<Player>  action = getAction("action");
+        if (action != null) {
+            action.accept(p);
+        }
+    }
 
     public void clear(){
         this.properties.clear();
@@ -98,32 +126,23 @@ public class Card {
     public void setCondition(BiPredicate<Event, Player> condition) {
         this.condition = condition;
     }
+    public void setAvailable(Predicate<Player> available) {this.available = available;}
 
     public boolean canExecute(Event event, Player player) {
         return condition.test(event, player);
     }
+    public Predicate<Player> getAvailable() {return this.available;}
 
+    public IntegerProperty getCostProperty() {
+        return cost.price();
+    }
 
-    /**
-     * Getters et setters
-     */
     public int getCost() {
-
-        int base = cost.price();
-        return Math.max(0, (base - reduction));
-    }
-    public static void addReduction(int value) {
-        reduction += value;
+        return Math.max(0, cost.price().get());
     }
 
-    public static void resetReduction() {
-        reduction = 0;
-    }
-    public static int getReduction() {
-        return reduction;
-    }
     public int getPotion() {return cost.potion();}
-    public int getDebt() {return cost.debt();}
+    public int getDebt() {return cost.debt().get();}
 
     public String getName() {
         return name;
@@ -195,6 +214,11 @@ public class Card {
         as(DurationComponent.class).ifPresent(d -> d.activeDuration(this));
     };
 
+
+    public boolean buyCondition(int potion, int debt){
+        return potion == cost.potion()  &&  debt == cost.debt().get();
+    }
+
     /**
      * Renvoie la valeur de la carte en points de victoire (c'est cette méthode
      * qui est appelée sur toutes les cartes du deck d'un joueur pour
@@ -226,5 +250,9 @@ public class Card {
 
     public Price getPrice() {
         return cost;
+    }
+
+    public void removeType(CardType type) {
+        types.remove(type);
     }
 }

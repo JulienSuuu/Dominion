@@ -7,7 +7,8 @@ public enum Item {
     POTION,
     BUY,
     ACTION,
-    COIN_TOKEN,
-    //VICTORY_TOKEN,
-    ACTION_PLAYED
+    COIN_TOKEN_SHIP,
+    VICTORY_TOKEN,
+    ACTION_PLAYED,
+    COIN_TOKEN_ROUTE
 }

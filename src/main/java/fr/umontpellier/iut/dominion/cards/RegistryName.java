@@ -125,6 +125,9 @@ public class RegistryName {
                     "Transmute",
                     "University",
                     "Vineyard"
+            ),
+            "Prosperity", Arrays.asList(
+                    ""
             )
     );
 

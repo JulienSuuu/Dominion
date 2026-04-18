@@ -43,6 +43,8 @@ public class FactorySupplyPile {
         }
 
         public static PileConfig potion(Supplier<Card> supplier) {return  new PileConfig(supplier, n -> 20);}
+
+        public static PileConfig platinum(Supplier<Card> supplier) {return  new PileConfig(supplier, n -> 12);}
     }
 
     private static final Map<String, PileConfig> PILE_CONFIGS = merge(

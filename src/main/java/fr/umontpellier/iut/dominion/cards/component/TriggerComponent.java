@@ -13,8 +13,12 @@ public interface TriggerComponent extends CardComponent {
     interface OnPlayerGain extends TriggerComponent, TriggerEffect {}
     interface OnCardPlayed extends TriggerComponent, TriggerEffect {}
     interface onStartTurn extends TriggerComponent, Consumer<Player> {}
-    interface Immunity extends TriggerComponent { default boolean revealed(Player player, Card self) {return false;}
+    interface Immunity extends TriggerComponent {
+        default boolean revealed(Player player, Card self) {return false;}
+        default boolean immune(Card self) {return false;}
     }
     interface onEndBuy extends TriggerComponent, BiConsumer<Player, Card> {}
-    interface onCardDiscard extends TriggerComponent, BiConsumer<Player, Event> {}
+    interface onCardDiscarded extends TriggerComponent, BiConsumer<Player, Event> {}
+    interface onCardTrashed extends TriggerComponent, BiConsumer<Player, Event> {}
+    interface onBuy extends TriggerComponent, BiConsumer<Player, Card> {}
 }

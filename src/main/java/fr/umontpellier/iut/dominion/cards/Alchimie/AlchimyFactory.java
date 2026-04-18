@@ -7,7 +7,6 @@ import fr.umontpellier.iut.dominion.cards.RegistryPrice;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 public class AlchimyFactory {
@@ -25,7 +24,7 @@ public class AlchimyFactory {
                                             .stream().anyMatch(card -> card.hasName("Potion"));
 
                                     if(potionInPlay){
-                                        CardUtil.executeOrOtherWise(
+                                        CardUtil.executeOrOtherwise(
                                                 () -> player.chooseStringFromButtons("Want to move your Alchemist on top of your deck ?",yesOrNo,true  ),
                                                 "y"::equals,
                                                 choice -> player.moveTo(self, Destination.DRAW),
@@ -54,7 +53,7 @@ public class AlchimyFactory {
                                         "Select a Copper or Potion to put in your hand (Cancel to leave on deck)",
                                         card -> true,
                                         copperAndPotion,
-                                        false
+                                        true
                                 );
 
                                 if (chosen == null) break;
@@ -144,7 +143,8 @@ public class AlchimyFactory {
                                 );
                             }
 
-                            new ArrayList<>(discard).forEach(card -> player.moveTo(card, Destination.DISCARD));                        })
+                            new ArrayList<>(discard).forEach(card -> player.moveTo(card, Destination.DISCARD));
+                        })
                 );
     }
 

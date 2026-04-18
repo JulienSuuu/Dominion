@@ -1,3 +1,5 @@
 package fr.umontpellier.iut.dominion.cards.component;
 
-public record Price (int price, int potion, int debt ) { }
+import javafx.beans.property.IntegerProperty;
+
+public record Price (IntegerProperty price, int potion, IntegerProperty debt ) { }
