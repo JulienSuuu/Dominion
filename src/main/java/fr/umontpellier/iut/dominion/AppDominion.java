@@ -3,8 +3,7 @@ package fr.umontpellier.iut.dominion;
 import java.io.IOException;
 import java.util.*;
 
-import fr.umontpellier.iut.dominion.cards.RegistryName;
-import fr.umontpellier.iut.dominion.cards.RegistrySet;
+import fr.umontpellier.iut.dominion.cards.FactorySupplyPile;
 import jakarta.websocket.DeploymentException;
 import jakarta.websocket.Session;
 
@@ -19,8 +18,12 @@ public class AppDominion {
     private static GameGUI game;
 
     public static void main(String[] args) {
+        FactorySupplyPile.loadAllCards();
+
+
+
         // Liste de toutes les cartes disponibles
-        List<String> allKingdomCards = RegistryName.getExtensions("Intrigue", "Seaside");
+        List<String> allKingdomCards = FactorySupplyPile.getExtensions("Intrigue", "Seaside", "Prosperity");
         Collections.shuffle(allKingdomCards);
 
         // Noms des joueurs

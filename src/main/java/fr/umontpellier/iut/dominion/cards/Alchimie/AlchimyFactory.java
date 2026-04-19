@@ -1,6 +1,8 @@
 package fr.umontpellier.iut.dominion.cards.Alchimie;
 
 import fr.umontpellier.iut.dominion.*;
+import fr.umontpellier.iut.dominion.Annotation.Dominion_Card;
+import fr.umontpellier.iut.dominion.Annotation.PileType;
 import fr.umontpellier.iut.dominion.cards.Card;
 import fr.umontpellier.iut.dominion.cards.CardUtil;
 import fr.umontpellier.iut.dominion.cards.RegistryPrice;
@@ -12,9 +14,7 @@ import java.util.stream.Collectors;
 public class AlchimyFactory {
     public static List<Button> yesOrNo = List.of(new Button("Yes", "y"), new Button("No", "n"));
 
-
-
-
+    @Dominion_Card(extension = "Alchemy")
     public static Card Alchemist(){
         return new Card("Alchemist", RegistryPrice.AlchimyPrice(3, 1))
                 .setup(config -> config
@@ -35,7 +35,7 @@ public class AlchimyFactory {
                                 })
                 );
     }
-
+    @Dominion_Card(extension = "Alchemy")
     public static Card Apothecary() {
         return new Card("Apothecary", RegistryPrice.AlchimyPrice(2, 1), CardType.ACTION)
                 .setup(config -> config
@@ -85,7 +85,7 @@ public class AlchimyFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Alchemy")
     public static Card Apprentice(){
         return new Card("Apprentice", RegistryPrice.DominionPrice(5), CardType.ACTION)
                 .setup(config -> config
@@ -102,7 +102,7 @@ public class AlchimyFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Alchemy")
     public static Card Familiar(){
         return new Card("Familiar", RegistryPrice.AlchimyPrice(3, 1), CardType.ACTION, CardType.ATTACK)
                 .setup(config -> config
@@ -112,7 +112,7 @@ public class AlchimyFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Alchemy")
     public static Card Golem(){
         return new Card("Golem", RegistryPrice.AlchimyPrice(4, 1), CardType.ACTION)
                 .setup(config -> config
@@ -147,7 +147,7 @@ public class AlchimyFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Alchemy")
     public static Card Herbalist(){
         return new Card("Herbalist", RegistryPrice.AlchimyPrice(2, 0), CardType.ACTION)
                 .setup(config -> config
@@ -175,7 +175,7 @@ public class AlchimyFactory {
 
                 );
     }
-
+    @Dominion_Card(extension = "Alchemy")
     public static Card Philosopher_Stone() {
         return new Card("Philosopher's Stone", RegistryPrice.AlchimyPrice(3, 1), CardType.TREASURE)
                 .setup(config -> config
@@ -193,7 +193,7 @@ public class AlchimyFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Alchemy")
     public static Card Possession() {
         return new Card("Possession", RegistryPrice.AlchimyPrice(6, 1), CardType.ACTION)
                 .setup(config ->
@@ -203,7 +203,7 @@ public class AlchimyFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Alchemy")
     public static Card Scrying_Pool(){
         return new Card("Scrying Pool", RegistryPrice.AlchimyPrice(2, 1), CardType.ACTION, CardType.ATTACK)
                 .setup(config -> config
@@ -243,7 +243,7 @@ public class AlchimyFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Alchemy")
     public static Card Transmute(){
         return new Card("Transmute", RegistryPrice.AlchimyPrice(0, 1), CardType.ACTION)
                 .setup(config -> config
@@ -260,7 +260,7 @@ public class AlchimyFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Alchemy")
     public static Card University(){
         return new Card("University", RegistryPrice.AlchimyPrice(2, 1), CardType.ACTION)
                 .setup(config -> config
@@ -270,7 +270,7 @@ public class AlchimyFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Alchemy", pileType = PileType.VICTORY)
     public static Card Vineyard(){
         return new Card("Vineyard", RegistryPrice.AlchimyPrice(0, 1), CardType.VICTORY)
                 .setup(config -> config

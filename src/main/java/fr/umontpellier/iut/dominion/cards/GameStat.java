@@ -48,8 +48,11 @@ public class GameStat {
                 () -> allCards.stream().anyMatch(p -> p.getName().equals("Province") && p.isEmpty()),
                 emptyPiles
         );
+        BooleanBinding colonyEmpty = Bindings.createBooleanBinding(
+                () -> allCards.stream().anyMatch(p -> p.getName().equals("Colony") && p.isEmpty())
+        );
 
-        isFinished.bind(provinceEmpty.or(emptyPiles.greaterThanOrEqualTo(3)));
+        isFinished.bind(provinceEmpty.or(colonyEmpty).or(emptyPiles.greaterThanOrEqualTo(3)));
         updatePlayer(currentTurnPlayer);
 
     }

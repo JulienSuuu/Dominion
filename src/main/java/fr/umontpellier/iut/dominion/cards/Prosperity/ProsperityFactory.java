@@ -1,6 +1,7 @@
 package fr.umontpellier.iut.dominion.cards.Prosperity;
 
 import fr.umontpellier.iut.dominion.*;
+import fr.umontpellier.iut.dominion.Annotation.Dominion_Card;
 import fr.umontpellier.iut.dominion.cards.*;
 import fr.umontpellier.iut.dominion.cards.component.CardSelector;
 import fr.umontpellier.iut.dominion.cards.component.TriggerComponent;
@@ -13,7 +14,7 @@ import java.util.function.Consumer;
 
 public class ProsperityFactory {
     public static List<Button> yesOrNo = List.of(new Button("Yes", "y"), new Button("No", "n"));
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Anvil(){
         return new Card("Anvil", RegistryPrice.ProsperityPrice(3), CardType.TREASURE)
                 .setup(config -> config
@@ -30,7 +31,7 @@ public class ProsperityFactory {
 
                 );
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Bank(){
         return new Card("Bank", RegistryPrice.ProsperityPrice(7), CardType.TREASURE)
                 .setup(config -> config
@@ -41,7 +42,7 @@ public class ProsperityFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Bishop(){
         return new Card("Bishop",  RegistryPrice.ProsperityPrice(4), CardType.ACTION)
                 .setup(config -> config
@@ -69,7 +70,7 @@ public class ProsperityFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Charlatan(){
         return new Card("Charlatan", RegistryPrice.ProsperityPrice(5), CardType.ACTION, CardType.ATTACK)
                 .setup(config -> config
@@ -80,7 +81,7 @@ public class ProsperityFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card City(){
         return new Card("City", RegistryPrice.ProsperityPrice(5), CardType.ACTION)
                 .setup(config -> config
@@ -98,7 +99,7 @@ public class ProsperityFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Clerk(){
         return new Card("Clerk", RegistryPrice.ProsperityPrice(4), CardType.ACTION, CardType.REACTION, CardType.ATTACK)
                 .setup(config -> config
@@ -120,7 +121,7 @@ public class ProsperityFactory {
                         .onStartTurn(player -> player.playCard(config.get()))
                 );
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Collection(){
         return new Card("Collection", RegistryPrice.ProsperityPrice(5), CardType.TREASURE)
                 .setup(config -> config
@@ -133,7 +134,7 @@ public class ProsperityFactory {
 
                 );
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Crystal_Ball(){
         return new Card("Crystal ball", RegistryPrice.ProsperityPrice(5), CardType.TREASURE)
                 .setup(config -> config
@@ -160,7 +161,7 @@ public class ProsperityFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Expand(){
         return new Card("Expand", RegistryPrice.ProsperityPrice(7), CardType.ACTION)
                 .setup(config -> config
@@ -180,7 +181,7 @@ public class ProsperityFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Forge(){
         return new Card("Forge", RegistryPrice.ProsperityPrice(7), CardType.ACTION)
                 .setup(config -> config
@@ -216,7 +217,7 @@ public class ProsperityFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Grand_Market(){
         return new Card("Grand Market", RegistryPrice.ProsperityPrice(7), CardType.ACTION)
                 .setup(config -> config
@@ -224,7 +225,7 @@ public class ProsperityFactory {
                         .available(player -> !player.isFlagSet(Flags.COPPER_PLAYED))
                 );
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Hoard(){
         return new Card("Hoard", RegistryPrice.ProsperityPrice(6), CardType.TREASURE)
                 .setup(config -> config
@@ -238,7 +239,7 @@ public class ProsperityFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Investment(){
         return new Card("Investment", RegistryPrice.ProsperityPrice(4), CardType.TREASURE)
                 .setup(config -> config
@@ -262,7 +263,7 @@ public class ProsperityFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Kings_Court(){
         return new Card("King's Court", RegistryPrice.ProsperityPrice(7), CardType.ACTION)
                 .setup(config -> config
@@ -281,7 +282,7 @@ public class ProsperityFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Magnate(){
         return new Card("Magnate", RegistryPrice.ProsperityPrice(5), CardType.ACTION)
                 .setup(config -> config
@@ -293,7 +294,7 @@ public class ProsperityFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Mint(){
         return new Card("Mint", RegistryPrice.ProsperityPrice(5), CardType.ACTION)
                 .setup(config ->{
@@ -315,7 +316,7 @@ public class ProsperityFactory {
                     });}
                 );
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Monument(){
         return new Card("Monument", RegistryPrice.ProsperityPrice(4), CardType.ACTION)
                 .setup(config -> config
@@ -325,12 +326,12 @@ public class ProsperityFactory {
                     })
                 );
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Peddler(){
         return new Card("Peddler",  RegistryPrice.ProsperityPrice(8), CardType.ACTION)
                 .setup(config ->config.registerSimpleAction(1,1,0,1));
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Quarry(){
         return new Card("Quarry", RegistryPrice.ProsperityPrice(4), CardType.TREASURE)
                 .setup(config -> config
@@ -340,7 +341,7 @@ public class ProsperityFactory {
                             pRed.set(pRed.get()+2);
                         }));
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Rabble(){
         return new Card("Rabble", RegistryPrice.ProsperityPrice(5), CardType.ACTION, CardType.ATTACK)
                 .setup(config -> config
@@ -375,7 +376,7 @@ public class ProsperityFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Tiara(){
         return new Card("Tiara", RegistryPrice.ProsperityPrice(4), CardType.TREASURE)
                 .setup(config -> config
@@ -405,7 +406,7 @@ public class ProsperityFactory {
                 );
 
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Vault(){
         return new Card("Vault", RegistryPrice.ProsperityPrice(5), CardType.ACTION)
                 .setup(config -> config
@@ -440,7 +441,7 @@ public class ProsperityFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card War_Chest(){
         return new Card("War Chest", RegistryPrice.ProsperityPrice(5), CardType.TREASURE)
                 .setup(config -> config
@@ -460,7 +461,7 @@ public class ProsperityFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card WatchTower(){
         return new Card("Watchtower", RegistryPrice.ProsperityPrice(5), CardType.ACTION, CardType.REACTION)
                 .setup(config -> config
@@ -484,12 +485,12 @@ public class ProsperityFactory {
                         .onCondition((event, player) -> player == event.getPlayer())
                 );
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Workers_Village(){
         return new Card("Worker's Village",  RegistryPrice.ProsperityPrice(4), CardType.ACTION)
                 .setup(config -> config.registerSimpleAction(1,2,1,0));
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Contraband(){
         return new Card("Contreband", RegistryPrice.ProsperityPrice(5), CardType.TREASURE)
                 .setup(config -> config
@@ -507,7 +508,7 @@ public class ProsperityFactory {
         String choice = left.choose("Compute a name of a card ( pref existing), in box channel", false);
         player.getGame().getNamedCardsThisTurn(key).add(choice);
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Counting_House(){
         return new Card("Counting House",  RegistryPrice.ProsperityPrice(5), CardType.ACTION)
                 .setup(config -> config
@@ -528,7 +529,7 @@ public class ProsperityFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Goons(){
         return new Card("Goons",  RegistryPrice.ProsperityPrice(6), CardType.ACTION, CardType.ATTACK)
                 .setup(config -> config
@@ -544,7 +545,7 @@ public class ProsperityFactory {
                         .onBuy((player, gained) -> player.increment(Item.VICTORY_TOKEN, 1))
                 );
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Loan(){
         return new Card("Loan", RegistryPrice.ProsperityPrice(3), CardType.TREASURE)
                 .setup(config -> config
@@ -572,7 +573,7 @@ public class ProsperityFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Mountebank(){
         return new Card("Mountebank", RegistryPrice.ProsperityPrice(5), CardType.ACTION, CardType.ATTACK)
                 .setup(config -> config
@@ -594,7 +595,7 @@ public class ProsperityFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Royal_Seal(){
         return new Card("Royal Seal",  RegistryPrice.ProsperityPrice(5), CardType.TREASURE)
                 .setup(config -> config
@@ -610,7 +611,7 @@ public class ProsperityFactory {
                         .onCondition((event, player) -> player == event.getPlayer())
                 );
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Talisman(){
         return new Card("Talisman", RegistryPrice.ProsperityPrice(4), CardType.TREASURE)
                 .setup(config -> config
@@ -622,7 +623,7 @@ public class ProsperityFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Trade_Route(){
         return new Card("Trade Route",  RegistryPrice.ProsperityPrice(3), CardType.ACTION)
                 .setup(config -> config
@@ -638,7 +639,7 @@ public class ProsperityFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Prosperity")
     public static Card Venture(){
         return new Card("Venture", RegistryPrice.ProsperityPrice(5), CardType.TREASURE)
                 .setup(config -> config

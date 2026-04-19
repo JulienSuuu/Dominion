@@ -1,16 +1,17 @@
 package fr.umontpellier.iut.dominion.cards;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.lang.reflect.Method;
+import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
+import fr.umontpellier.iut.dominion.Annotation.Dominion_Card;
+import fr.umontpellier.iut.dominion.Annotation.PileType;
 import fr.umontpellier.iut.dominion.SupplyPile;
-import fr.umontpellier.iut.dominion.cards.Alchimie.AlchimySet;
-import fr.umontpellier.iut.dominion.cards.Intrigue.IntrigueSet;
-import fr.umontpellier.iut.dominion.cards.dominion.DominionSet;
-import fr.umontpellier.iut.dominion.cards.seaside.*;
+import org.reflections.Reflections;
+import org.reflections.scanners.Scanners;
+import org.reflections.util.ConfigurationBuilder;
 
 /**
  * Classe de fabrication de listes de cartes
@@ -47,13 +48,9 @@ public class FactorySupplyPile {
         public static PileConfig platinum(Supplier<Card> supplier) {return  new PileConfig(supplier, n -> 12);}
     }
 
-    private static final Map<String, PileConfig> PILE_CONFIGS = merge(
-            CommonSet.get(),
-            DominionSet.get(),
-            SeasideSet.get(),
-            IntrigueSet.get(),
-            AlchimySet.get()
-    );
+    private static final Map<String, String> cardToExpansion = new HashMap<>();
+    private static final Map<String, PileConfig> PILE_CONFIGS = new HashMap<>();
+
 
     @SafeVarargs
     private static Map<String, PileConfig> merge(Map<String, PileConfig>... maps) {
@@ -62,6 +59,70 @@ public class FactorySupplyPile {
             merged.putAll(map);
         }
         return Collections.unmodifiableMap(merged);
+    }
+
+    public static void loadAllCards(){
+        System.out.println("--- DÉBUT DU SCAN DES CARTES ---");
+        Reflections ref = new Reflections("fr.umontpellier.iut.dominion.cards", Scanners.MethodsAnnotated);
+        Set<Method> methods = ref.getMethodsAnnotatedWith(Dominion_Card.class);
+        System.out.println("Nombre de méthodes détectées : " + methods.size());
+        for (Method method : methods) {
+
+            try {
+                System.out.println("Méthode trouvée : " + method.getName());
+                Dominion_Card card = method.getAnnotation(Dominion_Card.class);
+
+                Supplier<Card> supplier = () -> {
+                    try{return (Card) method.invoke(null);}
+                    catch (Exception e){throw new RuntimeException(e);}
+                };
+
+                Card sample = supplier.get();
+                String name = sample.getName();
+
+                PileConfig pileConfig = createPileConfig(card.pileType(), supplier);
+
+                PILE_CONFIGS.put(name, pileConfig);
+                cardToExpansion.put(name, card.extension());
+
+
+            } catch (RuntimeException e) {
+                throw new RuntimeException(e);
+            }
+            System.out.println("--- FIN DU SCAN ---");
+        }
+    }
+
+    public static List<String> getExtensions(String... extensions) {
+        if (extensions == null) return new ArrayList<>();
+
+        Reflections reflections = new Reflections(
+                new ConfigurationBuilder()
+                        .forPackage("fr.umontpellier.iut.dominion.cards")
+                        .addScanners(Scanners.MethodsAnnotated)
+        );
+
+        Set<Method> methods = reflections.getMethodsAnnotatedWith(Dominion_Card.class);
+
+        Set<String> targetExtensions = Arrays.stream(extensions)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        return methods.stream()
+                .filter(method -> {
+                    Dominion_Card annotation = method.getAnnotation(Dominion_Card.class);
+                    return annotation != null && targetExtensions.contains(annotation.extension());
+                })
+                .map(method -> {
+                    try {
+                        Card c = (Card) method.invoke(null);
+                        return (c != null) ? c.getName() : null;
+                    } catch (Exception e) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
     }
 
     /**
@@ -74,6 +135,27 @@ public class FactorySupplyPile {
     public static SupplyPile createSupplyPile(String cardName, int numberOfPlayers) {
         PileConfig config = PILE_CONFIGS.get(cardName);
         return new SupplyPile(config.cardSupplier(), config.countFunction().apply(numberOfPlayers));
+    }
+
+    private static PileConfig createPileConfig(PileType type, Supplier<Card> s) {
+        return switch (type) {
+            case COPPER -> PileConfig.copper(s);
+            case ESTATE -> PileConfig.estate(s);
+            case VICTORY -> PileConfig.victory(s);
+            case KINGDOM -> PileConfig.kingdom(s);
+            case SILVER -> PileConfig.silver(s);
+            case GOLD -> PileConfig.gold(s);
+            case POTION -> PileConfig.potion(s);
+            case PLATINUM -> PileConfig.platinum(s);
+            case CURSE -> PileConfig.curse(s);
+        };
+    }
+
+    public static boolean isExpansionRequired(List<String> chosenNames, String expansionName) {
+        return chosenNames.stream()
+                .map(cardToExpansion::get)
+                .filter(Objects::nonNull)
+                .anyMatch(exp -> exp.equals(expansionName));
     }
 
 

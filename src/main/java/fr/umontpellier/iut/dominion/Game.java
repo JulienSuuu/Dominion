@@ -37,6 +37,7 @@ public class Game {
      */
     private int turnNumber = 1;
     private int sizeOfcommun = 7;
+    private int coffers = 35;
 
     /**
      * Messages envoyés dans le log du jeu (pour affichage dans l'interface
@@ -91,20 +92,14 @@ public class Game {
         supplyPiles.add(FactorySupplyPile.createSupplyPile("Province", nbPlayers));
         supplyPiles.add(FactorySupplyPile.createSupplyPile("Curse", nbPlayers));
 
-        List<String> Alchimy = RegistryName.getExtension("Alchemy");
-        List<String> Prosperity = RegistryName.getExtension("Prosperity");
-
-        boolean asAlchimy = supplyPiles.stream().anyMatch(p -> Alchimy.contains(p.getName()));
-        boolean asProsperity = supplyPiles.stream().anyMatch(p -> Prosperity.contains(p.getName()));
-
-        if(asAlchimy){
+        if(FactorySupplyPile.isExpansionRequired(List.of(kingdomPiles), "Alchemy")){
             supplyPiles.add(FactorySupplyPile.createSupplyPile("Potion", nbPlayers));
             sizeOfcommun++;
         }
-        if(asProsperity){
+        if(FactorySupplyPile.isExpansionRequired(List.of(kingdomPiles), "Prosperity")){
             supplyPiles.add(FactorySupplyPile.createSupplyPile("Platinum", nbPlayers));
             supplyPiles.add(FactorySupplyPile.createSupplyPile("Colony", nbPlayers));
-            sizeOfcommun++;
+            sizeOfcommun+=2;
         }
 
         if(supplyPiles.stream().anyMatch(s -> s.getName().equals("Trade Route"))) {
@@ -591,5 +586,9 @@ public class Game {
             s.setToken(0);
             return i;
         }).orElse(0);
+    }
+
+    public int coffers(int i){
+        return coffers-=i;
     }
 }

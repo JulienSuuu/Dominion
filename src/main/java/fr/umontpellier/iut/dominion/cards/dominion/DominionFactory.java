@@ -1,6 +1,8 @@
 package fr.umontpellier.iut.dominion.cards.dominion;
 
 import fr.umontpellier.iut.dominion.*;
+import fr.umontpellier.iut.dominion.Annotation.Dominion_Card;
+import fr.umontpellier.iut.dominion.Annotation.PileType;
 import fr.umontpellier.iut.dominion.cards.*;
 import fr.umontpellier.iut.dominion.cards.component.DurationComponent;
 import fr.umontpellier.iut.dominion.cards.component.TriggerComponent;
@@ -11,7 +13,7 @@ import java.util.function.Consumer;
 
 public class DominionFactory {
     public static List<Button> yesOrNo = List.of(new Button("Yes", "y"), new Button("No", "n"));
-
+    @Dominion_Card(extension = "Dominion")
     public static Card Artisan(){
         return new Card("Artisan", RegistryPrice.DominionPrice(6), CardType.ACTION)
                 .setup(config -> config
@@ -31,7 +33,7 @@ public class DominionFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Dominion")
     public static Card Bandit(){
         return new Card("Bandit", RegistryPrice.DominionPrice(5), CardType.ACTION, CardType.ATTACK)
                 .setup(config -> config
@@ -52,7 +54,7 @@ public class DominionFactory {
                         )
                 );
     }
-
+    @Dominion_Card(extension = "Dominion")
     public static Card Bureaucrat(){
         return new Card("Bureaucrat", RegistryPrice.DominionPrice(4), CardType.ACTION, CardType.ATTACK)
                 .setup(config -> config
@@ -72,7 +74,7 @@ public class DominionFactory {
                         )
                 );
     }
-
+    @Dominion_Card(extension = "Dominion")
     public static Card Cellar(){
         return new Card("Cellar", RegistryPrice.DominionPrice(2),CardType.ACTION)
                 .setup(config ->config
@@ -92,7 +94,7 @@ public class DominionFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Dominion")
     public static Card Chapel(){
         return new Card("Chapel", RegistryPrice.DominionPrice(2),CardType.ACTION)
                 .setup(config ->  config
@@ -109,7 +111,7 @@ public class DominionFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Dominion")
     public static Card Council_Room(){
         return new Card("CouncilRoom",  RegistryPrice.DominionPrice(5),CardType.ACTION)
                 .setup(config -> config
@@ -124,21 +126,18 @@ public class DominionFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Dominion")
     public static Card Festival(){
         return new Card("Festival", RegistryPrice.DominionPrice(5),CardType.ACTION)
                 .setup(config -> config.registerSimpleAction(0,2,1,2));
     }
-
+    @Dominion_Card(extension = "Dominion", pileType = PileType.VICTORY)
     public static Card Gardens(){
         return new Card("Gardens",  RegistryPrice.DominionPrice(4),CardType.VICTORY)
                 .setup(config -> config.score(player -> player.getAllOwnedCards().size()/10));
     }
-
+    @Dominion_Card(extension = "Dominion")
     public static Card Harbinger(){
-
-
-
         return new Card("Harbinger", RegistryPrice.DominionPrice(3),CardType.ACTION)
                 .setup(config -> config
                         .onPlay((player, self) -> {
@@ -158,12 +157,12 @@ public class DominionFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Dominion")
     public static Card Laboratory(){
         return new Card("Laboratory", RegistryPrice.DominionPrice(5),CardType.ACTION)
                 .setup(config -> config.registerSimpleAction(1,2,0,0));
     }
-
+    @Dominion_Card(extension = "Dominion")
     public static Card Library(){
         return new Card("Library", RegistryPrice.DominionPrice(5),CardType.ACTION)
                 .setup(config -> config
@@ -190,12 +189,12 @@ public class DominionFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Dominion")
     public static Card Market(){
        return new Card("Market", RegistryPrice.DominionPrice(5),CardType.ACTION)
                 .setup(config -> config.registerSimpleAction(1,1,1,1));
     }
-
+    @Dominion_Card(extension = "Dominion")
     public static Card Merchant(){
         return new Card("Merchant", RegistryPrice.DominionPrice(3),CardType.ACTION)
                 .setup(config -> config
@@ -211,7 +210,7 @@ public class DominionFactory {
                         .onCondition((event, player) -> (config.get().getFlag("used") && event.getCard().hasName("Silver") && event.getPlayer() != player))
                 );
     }
-
+    @Dominion_Card(extension = "Dominion")
     public static Card Militia() {
         return new Card("Militia", RegistryPrice.DominionPrice(4), CardType.ACTION, CardType.ATTACK)
                 .setup(config -> config
@@ -221,7 +220,7 @@ public class DominionFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Dominion")
     public static Card Mine(){
         return new Card("Mine", RegistryPrice.DominionPrice(5),CardType.ACTION)
                 .setup(config -> config
@@ -244,7 +243,7 @@ public class DominionFactory {
                         )
                 );
     }
-
+    @Dominion_Card(extension = "Dominion")
     public static Card Moat(){
         return new Card("Moat", RegistryPrice.DominionPrice(2),CardType.ACTION,CardType.REACTION)
                 .setup(config -> config
@@ -268,7 +267,7 @@ public class DominionFactory {
                         .onCondition((event, player) -> event.getCard().hasType(CardType.ATTACK) &&  config.get().getFlag("used"))
                 );
     }
-
+    @Dominion_Card(extension = "Dominion")
     public static Card MoneyLender(){
         return new Card("Moneylender", RegistryPrice.DominionPrice(4), CardType.ACTION)
                 .setup(config -> config
@@ -283,7 +282,7 @@ public class DominionFactory {
                         )
                 );
     }
-
+    @Dominion_Card(extension = "Dominion")
     public static Card Poacher(){
         return new Card("Poacher", RegistryPrice.DominionPrice(4), CardType.ACTION)
                 .setup(config -> config
@@ -294,7 +293,7 @@ public class DominionFactory {
                     })
                 );
     }
-
+    @Dominion_Card(extension = "Dominion")
     public static Card Remodel(){
         return new Card("Remodel", RegistryPrice.DominionPrice(4), CardType.ACTION)
                 .setup(config -> config
@@ -313,7 +312,7 @@ public class DominionFactory {
                 );
 
     }
-
+    @Dominion_Card(extension = "Dominion")
     public static Card Sentry() {
         return new Card("Sentry", RegistryPrice.DominionPrice(5), CardType.ACTION)
                 .setup(config -> config
@@ -352,13 +351,14 @@ public class DominionFactory {
                 );
     }
 
-
+    @Dominion_Card(extension = "Dominion")
     public static Card Smithy(){
         return new Card("Smithy", RegistryPrice.DominionPrice(4), CardType.ACTION)
                 .setup(config -> config.registerSimpleAction(3,0,0,0)
                 );
     }
 
+    @Dominion_Card(extension = "Dominion")
     public static Card Throne_Room() {
         return new Card("ThroneRoom", RegistryPrice.DominionPrice(4), CardType.ACTION)
                 .setup(config -> config
@@ -395,7 +395,7 @@ public class DominionFactory {
                         }, self -> self.getFlag("justPlayed"))
                 );
     }
-
+    @Dominion_Card(extension = "Dominion")
     public static Card Vassal(){
         return new Card("Vassal", RegistryPrice.DominionPrice(3), CardType.ACTION)
                 .setup(config -> config
@@ -417,11 +417,13 @@ public class DominionFactory {
                 );
     }
 
+    @Dominion_Card(extension = "Dominion")
     public static Card Village(){
         return new Card("Village", RegistryPrice.DominionPrice(3), CardType.ACTION)
                 .setup(config -> config.registerSimpleAction(1, 2, 0, 0));
     }
 
+    @Dominion_Card(extension = "Dominion")
     public static Card Witch(){
         return new Card("Witch", RegistryPrice.DominionPrice(3), CardType.ACTION, CardType.ATTACK)
                 .setup(config -> config
@@ -432,6 +434,7 @@ public class DominionFactory {
                 );
     }
 
+    @Dominion_Card(extension = "Dominion")
     public static Card Workshop(){
         return new Card("Workshop", RegistryPrice.DominionPrice(3), CardType.ACTION)
                 .setup(config -> config
@@ -440,7 +443,7 @@ public class DominionFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Dominion")
     public static Card Adventurer() {
         return new Card("Adventurer", RegistryPrice.DominionPrice(6), CardType.ACTION)
                 .setup(config -> config
@@ -473,7 +476,7 @@ public class DominionFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Dominion")
     public static Card Chancellor(){
         return new Card("Chancellor", RegistryPrice.DominionPrice(3), CardType.ACTION)
                 .setup(config -> config
@@ -488,7 +491,7 @@ public class DominionFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Dominion")
     public static Card Feast(){
         return new Card("Feast", RegistryPrice.DominionPrice(4), CardType.ACTION)
                 .setup(config -> config
@@ -498,7 +501,7 @@ public class DominionFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Dominion")
     public static Card Spy(){
         return new Card("Spy", RegistryPrice.DominionPrice(4), CardType.ACTION, CardType.ATTACK)
                 .setup(config -> config
@@ -523,7 +526,7 @@ public class DominionFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Dominion")
     public static Card Thief(){
         return new Card("Thief", RegistryPrice.DominionPrice(4), CardType.ACTION, CardType.ATTACK)
                 .setup(config -> config
@@ -560,7 +563,7 @@ public class DominionFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Dominion")
     public static Card WoodCutter(){
         return new Card("Woodcutter", RegistryPrice.DominionPrice(3), CardType.ACTION)
                 .setup(config -> config.registerSimpleAction(0,0,1,2));

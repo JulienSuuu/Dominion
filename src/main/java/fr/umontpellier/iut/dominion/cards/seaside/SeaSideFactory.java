@@ -1,6 +1,7 @@
 package fr.umontpellier.iut.dominion.cards.seaside;
 
 import fr.umontpellier.iut.dominion.*;
+import fr.umontpellier.iut.dominion.Annotation.Dominion_Card;
 import fr.umontpellier.iut.dominion.cards.Card;
 import fr.umontpellier.iut.dominion.cards.CardUtil;
 import fr.umontpellier.iut.dominion.cards.RegistryPrice;
@@ -17,20 +18,22 @@ public class SeaSideFactory {
 
     public static Predicate<Card> activate = card -> card.as(DurationComponent.class).map(d -> !d.isFinished()).orElse(false);
 
+    @Dominion_Card(extension = "Seaside")
     public static Card Ambassador() {
         return new Card("Ambassador", RegistryPrice.SeasidePrice(3), CardType.ACTION, CardType.ATTACK).setup(
                 config -> config.onPlay(CardUtil::executeAmbassador));
     }
+    @Dominion_Card(extension = "Seaside")
     public static Card Astrolabe(){
         return new Card("Astrolabe", RegistryPrice.SeasidePrice(3), CardType.TREASURE, CardType.DURATION).
                 setup(config -> config.registerSimpleComponent(0,0,1,1,0,0,1,1));
     }
-
+    @Dominion_Card(extension = "Seaside")
     public static Card Bazaar(){
         return new Card("Bazaar", RegistryPrice.SeasidePrice(5), CardType.ACTION)
                 .setup(config -> config.registerSimpleAction(1,2,0,1));
     }
-
+    @Dominion_Card(extension = "Seaside")
     public static Card Blockade(){
         return new Card("Blockade", RegistryPrice.SeasidePrice(4), CardType.ACTION, CardType.DURATION, CardType.ATTACK)
                 .setup(config -> config
@@ -66,12 +69,12 @@ public class SeaSideFactory {
                                         && event.getPlayer()!= player
                         ));
     }
-
+    @Dominion_Card(extension = "Seaside")
     public static Card Caravan(){
         return new Card("Caravan", RegistryPrice.SeasidePrice(4), CardType.ACTION, CardType.DURATION)
                 .setup(config -> config.registerSimpleComponent(1,1,0,0,1,0,0,0));
     }
-
+    @Dominion_Card(extension = "Seaside")
     public static Card Corsair() {
         return new Card("Corsair", RegistryPrice.SeasidePrice(5), CardType.ACTION, CardType.DURATION, CardType.ATTACK).setup(
                 config -> config
@@ -102,7 +105,7 @@ public class SeaSideFactory {
                         .onCondition(((event, player) -> player != event.getPlayer() && (event.getCard().hasName("Silver") || event.getCard().hasName("Gold"))))
                 );
     }
-
+    @Dominion_Card(extension = "Seaside")
     public static Card Cutpurse(){
         return new Card("Cutpurse", RegistryPrice.SeasidePrice(4), CardType.ACTION, CardType.ATTACK)
                 .setup(config -> config
@@ -127,6 +130,7 @@ public class SeaSideFactory {
      * (Pendant le reste de la partie, quand un joueur achète une carte de cette
      * pile, il reçoit une Malédiction (Curse).)
      */
+    @Dominion_Card(extension = "Seaside")
     public static Card Embargo(){
         return new Card("Embargo", RegistryPrice.SeasidePrice(2), CardType.ACTION).setup(
                 config -> config.onPlay(
@@ -159,6 +163,7 @@ public class SeaSideFactory {
      * Vous pouvez dévoiler une Province de votre main. Si vous le faites, recevez
      * un Or (Gold) en main. Sinon, recevez un Argent (Silver) en main.
      */
+    @Dominion_Card(extension = "Seaside")
     public static Card Explorer(){
         return new Card("Explorer", RegistryPrice.SeasidePrice(5), CardType.ACTION)
                 .setup(config ->config.
@@ -194,6 +199,7 @@ public class SeaSideFactory {
      * +1 Pièce
      * Au début de votre prochain tour, +1 Action et +1 Pièce.
      */
+    @Dominion_Card(extension = "Seaside")
     public static Card FishingVillage(){
         return new Card("Fishing Village", RegistryPrice.SeasidePrice(3), CardType.ACTION, CardType.DURATION)
                 .setup(config -> config.registerSimpleComponent(0,2,0,1,0,1,0,1));
@@ -206,6 +212,7 @@ public class SeaSideFactory {
      * Tous vos adversaires ayant au moins 4 cartes en main placent des cartes
      * de leur main sur leur pioche jusqu'à avoir 3 cartes en main.
      */
+    @Dominion_Card(extension = "Seaside")
     public static Card GhostShip(){
         return new Card("Ghost Ship", RegistryPrice.SeasidePrice(5), CardType.ACTION, CardType.ATTACK).setup(
                 config -> config.onPlay((p, c) -> {
@@ -223,6 +230,7 @@ public class SeaSideFactory {
      * Mettez de côté une carte de votre main face cachée (sous cette carte).
      * Au début de votre prochain tour, prenez-la en main.
      */
+    @Dominion_Card(extension = "Seaside")
     public static Card Haven(){
         return new Card("Haven", RegistryPrice.SeasidePrice(2), CardType.ACTION, CardType.DURATION).setup(
                 config -> config
@@ -252,6 +260,7 @@ public class SeaSideFactory {
      * Placez cette carte et une carte de votre main sur votre plateau Île (Island
      * Mat).
      */
+    @Dominion_Card(extension = "Seaside")
     public static Card Island(){
         return new Card("Island", RegistryPrice.SeasidePrice(4), CardType.ACTION, CardType.VICTORY).setup(
                 config -> config
@@ -276,6 +285,7 @@ public class SeaSideFactory {
      * D'ici là, les cartes Attaque jouées par vos adversaires ne vous affectent
      * pas.
      */
+    @Dominion_Card(extension = "Seaside")
     public static Card LightHouse(){
         return new Card("Lighthouse", RegistryPrice.SeasidePrice(2), CardType.ACTION, CardType.DURATION)
                 .setup(
@@ -297,6 +307,7 @@ public class SeaSideFactory {
      * Consultez les 3 premières cartes des votre pioche. Écartez-en une.
      * Défaussez-en une. Placez la carte restante sur le haut de votre pioche.
      */
+    @Dominion_Card(extension = "Seaside")
     public static Card Lookout(){
         return new Card("Lookout", RegistryPrice.SeasidePrice(3), CardType.ACTION).setup(
                 config -> config
@@ -331,6 +342,7 @@ public class SeaSideFactory {
      * <p>
      * Maintenant et au début de votre prochain tour, +2 Pièces.
      */
+    @Dominion_Card(extension = "Seaside")
     public static Card MerchantShip(){
         return new Card("Merchant Ship", RegistryPrice.SeasidePrice(5), CardType.ACTION, CardType.DURATION).setup(
                 config -> config.registerSimpleComponent(0,0,0,2,0,0,0,2));
@@ -342,6 +354,7 @@ public class SeaSideFactory {
      * carte, +1 Carte.
      * Au début de votre prochain tour, +1 Carte.
      */
+    @Dominion_Card(extension = "Seaside")
     public static Card Monkey(){
         return new Card("Monkey", RegistryPrice.SeasidePrice(3), CardType.ACTION, CardType.DURATION).setup(
                 config -> config
@@ -358,6 +371,7 @@ public class SeaSideFactory {
      * plateau Village indigène (vous pouvez consulter ces cartes à tout moment);
      * ou prenez en main toutes les cartes du plateau.
      */
+    @Dominion_Card(extension = "Seaside")
     public static Card NativeVillage(){
         return new Card("Native Village", RegistryPrice.SeasidePrice(2), CardType.ACTION).setup(
                 config -> config
@@ -380,6 +394,7 @@ public class SeaSideFactory {
      * Défaussez-les toutes ou replacez-les sur votre pioche dans l'ordre de
      * votre choix.
      */
+    @Dominion_Card(extension = "Seaside")
     public static Card Navigator(){
         return new Card("Navigator", RegistryPrice.SeasidePrice(4), CardType.ACTION).setup(
                 config -> config
@@ -412,6 +427,7 @@ public class SeaSideFactory {
      * Carte Avant-poste (Outpost)
      * Au prochain tour, pioche seulement 3 cartes puis joue un tour supplémentaire
      */
+    @Dominion_Card(extension = "Seaside")
     public static Card Outpost(){
         AtomicBoolean b = new AtomicBoolean(false);
         return new Card("Outpost", RegistryPrice.SeasidePrice(5), CardType.ACTION, CardType.DURATION).setup(
@@ -432,6 +448,7 @@ public class SeaSideFactory {
      * +1 Action
      * Consultez la carte du bas de votre pioche. Vous pouvez la placer sur le haut.
      */
+    @Dominion_Card(extension = "Seaside")
     public static Card PearlDiver(){
         return new Card("Pearl Diver", RegistryPrice.SeasidePrice(2), CardType.ACTION).setup(
                 config -> config
@@ -461,6 +478,7 @@ public class SeaSideFactory {
      * Quand un joueur reçoit un Trésor, vous pouvez jouer cette carte depuis votre
      * main.
      */
+    @Dominion_Card(extension = "Seaside")
     public static Card Pirate(){
         return new Card("Pirate", RegistryPrice.SeasidePrice(5), CardType.ACTION, CardType.DURATION, CardType.REACTION)
                 .setup(config -> config
@@ -495,6 +513,7 @@ public class SeaSideFactory {
      * et si au moins un Trésor a été écarté, placez un jeton Pièce sur votre
      * plateau Bateau pirate.
      */
+    @Dominion_Card(extension = "Seaside")
     public static Card PirateShip(){
         return new Card("Pirate Ship", RegistryPrice.SeasidePrice(4), CardType.ACTION, CardType.ATTACK)
                 .setup(config -> config
@@ -536,6 +555,7 @@ public class SeaSideFactory {
      * Au début de votre prochain tour, +2 Pièces et vous pouvez écarter une carte
      * de votre main.
      */
+    @Dominion_Card(extension = "Seaside")
     public static Card Sailor(){
         return new Card("Sailor", RegistryPrice.SeasidePrice(4), CardType.ACTION, CardType.DURATION)
                 .setup(config -> config
@@ -581,6 +601,7 @@ public class SeaSideFactory {
      * +1 Achat
      * Écartez une carte de votre main. +1 Pièce par Pièce de son coût.
      */
+    @Dominion_Card(extension = "Seaside")
     public static Card Salvager(){
         return new Card("Salvager", RegistryPrice.SeasidePrice(4), CardType.ACTION)
                 .setup(config -> config
@@ -604,6 +625,7 @@ public class SeaSideFactory {
      * Dévoilez la carte du haut de votre pioche. Si vous en avez un exemplaire
      * en jeu, prenez-la en main.
      */
+    @Dominion_Card(extension = "Seaside")
     public static Card SeaChart(){
         return new Card("Sea Chart", RegistryPrice.SeasidePrice(3), CardType.ACTION)
                 .setup( config -> config
@@ -624,6 +646,7 @@ public class SeaSideFactory {
      * Tous vos adversaires défaussent la carte du haut de leur pioche, puis
      * reçoivent une Malédiction (Curse) sur leur pioche.
      */
+    @Dominion_Card(extension = "Seaside")
     public static Card SeaHag(){
         return new Card("Sea Hag", RegistryPrice.SeasidePrice(4), CardType.ACTION, CardType.ATTACK)
                 .setup(config -> config
@@ -641,6 +664,7 @@ public class SeaSideFactory {
      * Tous vos adversaires reçoivent une Malédiction (Curse).
      * Au début de votre prochain tour, +2 Cartes, puis défaussez 2 cartes.
      */
+    @Dominion_Card(extension = "Seaside")
     public static Card SeaWitch(){
         return new Card("Sea Witch", RegistryPrice.SeasidePrice(5), CardType.ACTION, CardType.DURATION, CardType.ATTACK)
                 .setup(config -> config
@@ -661,6 +685,7 @@ public class SeaSideFactory {
      * Recevez un exemplaire d'une carte coûtant jusqu'à 6 Pièces que le joueur
      * à votre droite a reçues à son dernier tour.
      */
+    @Dominion_Card(extension = "Seaside")
     public static Card Smugglers(){
         return new Card("Smugglers", RegistryPrice.SeasidePrice(3), CardType.ACTION)
                 .setup(config -> config
@@ -676,7 +701,7 @@ public class SeaSideFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Seaside")
     public static Card Tactician() {
         return new Card("Tactician", RegistryPrice.SeasidePrice(5), CardType.ACTION, CardType.DURATION)
                 .setup(config -> config
@@ -707,6 +732,7 @@ public class SeaSideFactory {
      * +1 Action
      * Au début de votre prochain tour, défaussez 2 cartes.
      */
+    @Dominion_Card(extension = "Seaside")
     public static Card TidePools(){
         return new Card("Tide Pools", RegistryPrice.SeasidePrice(4), CardType.ACTION, CardType.DURATION)
                 .setup(config -> config
@@ -721,6 +747,7 @@ public class SeaSideFactory {
      * Écartez ceci et une Carte aux trésors de votre main. Si vous avez écarté
      * deux Cartes aux trésors, recevez 4 Ors (Gold) sur votre pioche.
      */
+    @Dominion_Card(extension = "Seaside")
     public static Card TreasureMap(){
         return new Card("Treasure Map", RegistryPrice.SeasidePrice(4), CardType.ACTION)
                 .setup(config -> config
@@ -749,6 +776,7 @@ public class SeaSideFactory {
      * À la fin de votre phase Achat, si vous n'avez pas reçu de carte Victoire
      * durant celle-ci, vous pouvez placer cette carte sur votre pioche.
      */
+    @Dominion_Card(extension = "Seaside")
     public static Card Treasury(){
         return new Card("Treasury", RegistryPrice.SeasidePrice(5), CardType.ACTION)
                 .setup(config -> config
@@ -775,7 +803,7 @@ public class SeaSideFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Seaside")
     public static Card Warehouse(){
         return new Card("Warehouse", RegistryPrice.SeasidePrice(3), CardType.ACTION)
                 .setup( config -> config
@@ -793,6 +821,7 @@ public class SeaSideFactory {
      * <p>
      * Maintenant et au début de votre prochain tour : +2 Cartes et +1 Achat.
      */
+    @Dominion_Card(extension = "Seaside")
     public static Card Wharf(){
         return new Card("Wharf", RegistryPrice.SeasidePrice(5), CardType.ACTION, CardType.DURATION)
                 .setup(config -> config.registerSimpleComponent(2,0,1,0,2,0,1,0));

@@ -981,6 +981,7 @@ public class Player {
         if(items.get(Item.COFFER) > 0){
             decrement(Item.COFFER, 1);
             decrement(Item.MONEY, 1);
+            game.coffers(-1);
         }
     }
 

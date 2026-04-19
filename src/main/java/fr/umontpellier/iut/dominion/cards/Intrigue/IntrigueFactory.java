@@ -1,6 +1,8 @@
 package fr.umontpellier.iut.dominion.cards.Intrigue;
 
 import fr.umontpellier.iut.dominion.*;
+import fr.umontpellier.iut.dominion.Annotation.Dominion_Card;
+import fr.umontpellier.iut.dominion.Annotation.PileType;
 import fr.umontpellier.iut.dominion.cards.Card;
 import fr.umontpellier.iut.dominion.cards.CardUtil;
 import fr.umontpellier.iut.dominion.cards.GameStat;
@@ -11,6 +13,7 @@ import java.util.*;
 public class IntrigueFactory {
     public static List<Button> yesOrNo = List.of(new Button("Yes", "y"), new Button("No", "n"));
 
+    @Dominion_Card(extension = "Intrigue")
     public static Card Baron(){
         return new Card("Baron", RegistryPrice.IntriguePrice(4), CardType.ACTION)
                 .setup(config -> config
@@ -29,7 +32,7 @@ public class IntrigueFactory {
                         )
                 );
     }
-
+    @Dominion_Card(extension = "Intrigue")
     public static Card Bridge(){
         return new Card("Bridge", RegistryPrice.IntriguePrice(4), CardType.ACTION)
                 .setup(config -> config
@@ -39,7 +42,7 @@ public class IntrigueFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Intrigue")
     public static Card Conspirator(){
         return new Card("Conspirator", RegistryPrice.IntriguePrice(4), CardType.ACTION)
                 .setup(config -> config
@@ -54,7 +57,7 @@ public class IntrigueFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Intrigue")
     public static Card Courtier() {
         return new Card("Courtier", RegistryPrice.IntriguePrice(5), CardType.ACTION)
                 .setup(config -> config
@@ -98,7 +101,7 @@ public class IntrigueFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Intrigue")
     public static Card Courtyard(){
         return new Card("Courtyard", RegistryPrice.IntriguePrice(2), CardType.ACTION)
                 .setup(config -> config
@@ -111,7 +114,7 @@ public class IntrigueFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Intrigue")
     public static Card Diplomat(){
         return new Card("Diplomat", RegistryPrice.IntriguePrice(4), CardType.ACTION, CardType.REACTION)
                 .setup(config -> config
@@ -134,6 +137,7 @@ public class IntrigueFactory {
                         })
                 );
     }
+    @Dominion_Card(extension = "Intrigue", pileType = PileType.VICTORY)
     public static Card Duke(){
         return new Card("Duke", RegistryPrice.IntriguePrice(5), CardType.VICTORY)
                 .setup(config -> config
@@ -143,7 +147,7 @@ public class IntrigueFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Intrigue", pileType = PileType.VICTORY)
     public static Card Farm(){
         return new Card("Farm", RegistryPrice.IntriguePrice(6), CardType.TREASURE, CardType.VICTORY)
                 .setup(config -> config
@@ -153,6 +157,7 @@ public class IntrigueFactory {
                         .score(player -> 2)
                 );
     }
+    @Dominion_Card(extension = "Intrigue")
     public static Card Ironworks(){
         return new Card("Ironworks", RegistryPrice.IntriguePrice(4), CardType.ACTION)
                 .setup(config -> config
@@ -163,7 +168,7 @@ public class IntrigueFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Intrigue")
     public static Card Lurker(){
         return new Card("Lurker", RegistryPrice.IntriguePrice(2), CardType.ACTION)
                 .setup(config -> config
@@ -190,7 +195,7 @@ public class IntrigueFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Intrigue")
     public static Card Masquerade(){
         return new Card("Masquerade", RegistryPrice.IntriguePrice(3), CardType.ACTION)
                 .setup(config -> config
@@ -225,7 +230,7 @@ public class IntrigueFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Intrigue", pileType = PileType.VICTORY)
     public static Card Mill(){
         return new Card("Mill", RegistryPrice.IntriguePrice(4), CardType.ACTION, CardType.VICTORY)
                 .setup(config -> config
@@ -248,7 +253,7 @@ public class IntrigueFactory {
                         .score(player -> 1)
                 );
     }
-
+    @Dominion_Card(extension = "Intrigue")
     public static Card Mining_Village(){
         return new Card("MiningVillage",  RegistryPrice.IntriguePrice(4), CardType.ACTION)
                 .setup(config -> config
@@ -269,7 +274,7 @@ public class IntrigueFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Intrigue")
     public static Card Minion(){
         return new Card("Minion", RegistryPrice.IntriguePrice(5), CardType.ACTION, CardType.ATTACK)
                 .setup(config -> config
@@ -298,7 +303,7 @@ public class IntrigueFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Intrigue", pileType = PileType.VICTORY)
     public static Card Nobles(){
         return new Card("Nobles", RegistryPrice.IntriguePrice(6), CardType.ACTION, CardType.VICTORY)
                 .setup(config -> config
@@ -313,7 +318,7 @@ public class IntrigueFactory {
                         .score(player -> 2)
                 );
     }
-
+    @Dominion_Card(extension = "Intrigue")
     public static Card Patrol(){
         return new Card("Patrol", RegistryPrice.IntriguePrice(5), CardType.ACTION)
                 .setup(config -> config
@@ -336,7 +341,7 @@ public class IntrigueFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Intrigue")
     public static Card Pawn() {
         return new Card("Pawn", RegistryPrice.IntriguePrice(2), CardType.ACTION)
                 .setup(config -> config
@@ -370,7 +375,7 @@ public class IntrigueFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Intrigue")
     public static Card Replace(){
         return new Card("Replace", RegistryPrice.IntriguePrice(5), CardType.ACTION, CardType.ATTACK)
                 .setup(config -> config
@@ -392,7 +397,7 @@ public class IntrigueFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Intrigue")
     public static Card Secret_Passage(){
         return new Card("SecretPassage", RegistryPrice.IntriguePrice(4), CardType.ACTION).setup(
                 config -> config
@@ -410,7 +415,7 @@ public class IntrigueFactory {
                         })
         );
     }
-
+    @Dominion_Card(extension = "Intrigue")
     public static Card Shanty_Town(){
         return new Card("ShantyTown", RegistryPrice.IntriguePrice(3), CardType.ACTION)
                 .setup(config -> config
@@ -423,7 +428,7 @@ public class IntrigueFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Intrigue")
     public static Card Steward(){
         return new Card("Steward", RegistryPrice.IntriguePrice(3), CardType.ACTION)
                 .setup(config -> config
@@ -445,7 +450,7 @@ public class IntrigueFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Intrigue")
     public static Card Swindler(){
         return new Card("Swindler", RegistryPrice.IntriguePrice(3), CardType.ACTION, CardType.ATTACK)
                 .setup(config -> config
@@ -469,7 +474,7 @@ public class IntrigueFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Intrigue")
     public static Card Torturer(){
         return new Card("Torturer", RegistryPrice.IntriguePrice(5), CardType.ACTION, CardType.ATTACK)
                 .setup(config -> config
@@ -488,7 +493,7 @@ public class IntrigueFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Intrigue")
     public static Card Trading_Post(){
         return new Card("TradingPost", RegistryPrice.IntriguePrice(3), CardType.ACTION)
                 .setup(config -> config
@@ -510,7 +515,7 @@ public class IntrigueFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Intrigue")
     public static Card Upgrade(){
         return new Card("Upgrade", RegistryPrice.IntriguePrice(5), CardType.ACTION)
                 .setup(config -> config
@@ -526,7 +531,7 @@ public class IntrigueFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Intrigue")
     public static Card Wishing_Well(){
         return new Card("WishingWell", RegistryPrice.IntriguePrice(3), CardType.ACTION)
                 .setup(config -> config
@@ -544,7 +549,7 @@ public class IntrigueFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Intrigue")
     public static Card Coppersmith(){
         return new Card("Coppersmith", RegistryPrice.IntriguePrice(4), CardType.ACTION)
                 .setup(config -> config
@@ -555,6 +560,7 @@ public class IntrigueFactory {
                         .onCondition((event, player) -> player == event.getPlayer() && event.getCard().hasName("Copper"))
                 );
     }
+    @Dominion_Card(extension = "Intrigue")
     public static Card GreatHall(){
         return new Card("GreatHall", RegistryPrice.IntriguePrice(4), CardType.ACTION, CardType.VICTORY)
                 .setup(config -> config
@@ -562,7 +568,7 @@ public class IntrigueFactory {
                         .score(player -> 1)
                 );
     }
-
+    @Dominion_Card(extension = "Intrigue")
     public static Card Saboteur(){
         return new Card("Saboteur", RegistryPrice.IntriguePrice(5), CardType.ACTION, CardType.ATTACK)
                 .setup(config -> config
@@ -593,7 +599,7 @@ public class IntrigueFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Intrigue")
     public static Card Scout(){
         return new Card("Scout", RegistryPrice.IntriguePrice(4), CardType.ACTION)
                 .setup(config -> config
@@ -621,7 +627,7 @@ public class IntrigueFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Intrigue")
     public static Card Secret_Chamber(){
         return new Card("SecretChamber", RegistryPrice.IntriguePrice(2), CardType.ACTION, CardType.REACTION)
                 .setup(config -> config
@@ -657,7 +663,7 @@ public class IntrigueFactory {
                         .onCondition((event, player) -> event.getCard().hasType(CardType.ATTACK) && player != event.getPlayer() && !config.get().get("last_ID", Integer.class).equals(event.getId()))
                 );
     }
-
+    @Dominion_Card(extension = "Intrigue")
     public static Card Tribute(){
         return new Card("Tribute", RegistryPrice.IntriguePrice(5), CardType.ACTION)
                 .setup(config -> config
