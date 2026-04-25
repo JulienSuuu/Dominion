@@ -1,7 +1,8 @@
-package fr.umontpellier.iut.dominion.cards;
+package fr.umontpellier.iut.dominion.cards.Events;
 
 import fr.umontpellier.iut.dominion.Destination;
 import fr.umontpellier.iut.dominion.Player;
+import fr.umontpellier.iut.dominion.cards.Card;
 
 public class Event {
     private static int Id = 0;
@@ -22,6 +23,7 @@ public class Event {
     public Destination getDest() {
         return destination;
     }
+    public Destination getNextDest(){return destination;}
     public Player getPlayer() {return player;}
     public int getId() {return id;}
 
@@ -34,4 +36,5 @@ public class Event {
     public void setDest(Destination destination) {
         this.destination = destination;
     }
+    public void setNextDest(Destination destination) {this.destination = destination;}
 }
