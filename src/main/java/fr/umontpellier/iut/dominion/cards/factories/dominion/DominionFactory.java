@@ -1,31 +1,39 @@
-package fr.umontpellier.iut.dominion.cards.dominion;
+package fr.umontpellier.iut.dominion.cards.factories.dominion;
 
 import fr.umontpellier.iut.dominion.*;
 import fr.umontpellier.iut.dominion.Annotation.Dominion_Card;
+import fr.umontpellier.iut.dominion.Annotation.ExtraSet;
+import fr.umontpellier.iut.dominion.Annotation.InSet;
 import fr.umontpellier.iut.dominion.Annotation.PileType;
 import fr.umontpellier.iut.dominion.cards.*;
+import fr.umontpellier.iut.dominion.cards.Events.Event;
 import fr.umontpellier.iut.dominion.cards.component.DurationComponent;
 import fr.umontpellier.iut.dominion.cards.component.TriggerComponent;
+
 
 import java.util.*;
 import java.util.function.Consumer;
 
+import static fr.umontpellier.iut.dominion.Button.yesOrNo;
+import static fr.umontpellier.iut.dominion.cards.factories.FactoryUtil.*;
+
 
 public class DominionFactory {
-    public static List<Button> yesOrNo = List.of(new Button("Yes", "y"), new Button("No", "n"));
+
     @Dominion_Card(extension = "Dominion")
+    @InSet(value = {"Size Distortion", "Deck Top", "Improvements", "Grand Scheme",
+            "Reach for Tomorrow", "Biggest Money"})
     public static Card Artisan(){
         return new Card("Artisan", RegistryPrice.DominionPrice(6), CardType.ACTION)
                 .setup(config -> config
                         .onPlay((player, self) -> {
                             CardUtil.executeIfSelected(
-                                    () -> CardUtil.gainFromSupply(player, "Choisi une carte coûtant au maximum 5", c -> c.getCost()<6, Destination.HAND, false),
+                                    () -> CardUtil.gainFromSupply(player, "Choisi une carte coûtant au maximum 5", c -> c.isAtMost(5), Destination.HAND, false),
                                     card -> player.log(String.format("Action %s : %s gagne %s", self.getName().toUpperCase(), player.getName(), card.getName().toUpperCase()))
                             );
 
-                            CardUtil.executeIfSelected(
-                                    () ->  player.chooseCardFromHand("Défausse une carte", false),
-                                    card -> {
+                            player.chooseCardFromHand("Défausse une carte", false)
+                                    .ifPresent(card -> {
                                         player.log(String.format("Action %s : %s remet en pioche %s", self.getName().toUpperCase(), player.getName(), card.getName().toUpperCase()));
                                         player.moveTo(card, Destination.DRAW);
                                     }
@@ -34,8 +42,9 @@ public class DominionFactory {
                 );
     }
     @Dominion_Card(extension = "Dominion")
+    @InSet(value = {"Size Distortion", "Silver & Gold", "Deconstruction", "Forbidden Arts"})
     public static Card Bandit(){
-        return new Card("Bandit", RegistryPrice.DominionPrice(5), CardType.ACTION, CardType.ATTACK)
+        return new Card("Bandit", RegistryPrice.DominionPrice(5), CardType.ActionAndAttack)
                 .setup(config -> config
                         .onPlay((player, self) ->
                                 CardUtil.execute(
@@ -55,8 +64,10 @@ public class DominionFactory {
                 );
     }
     @Dominion_Card(extension = "Dominion")
+    @InSet(value = {"Size Distortion", "Deck Top", "Silver & Gold",
+            "Chemistry Lesson", "The King's Army"})
     public static Card Bureaucrat(){
-        return new Card("Bureaucrat", RegistryPrice.DominionPrice(4), CardType.ACTION, CardType.ATTACK)
+        return new Card("Bureaucrat", RegistryPrice.DominionPrice(4), CardType.ActionAndAttack)
                 .setup(config -> config
                         .onPlay((player, self) ->
                                 CardUtil.execute(
@@ -67,7 +78,7 @@ public class DominionFactory {
                                             player,
                                             self,
                                             card -> card.hasType(CardType.VICTORY),
-                                            (vi, cards) -> Optional.ofNullable(vi.chooseCardFromList("Choisie une carte victoire à défausser", card -> true, cards, false)),
+                                            (vi, cards) -> vi.chooseCardFromList("Choisie une carte victoire à défausser", card -> true, cards, false),
                                             Destination.DRAW
                                     )
                                 )
@@ -75,11 +86,14 @@ public class DominionFactory {
                 );
     }
     @Dominion_Card(extension = "Dominion")
+    @InSet(value = {"First Game", "Sleight of Hand", "Improvements", "Underlings", "Reach for Tomorrow"
+            , "Forbidden Arts", "Potion Mixers", "Bounty of the Hunt"})
     public static Card Cellar(){
+        Bonus play = Bonus.empty().with(Item.ACTION, 1);
         return new Card("Cellar", RegistryPrice.DominionPrice(2),CardType.ACTION)
                 .setup(config ->config
                         .onPlay((player, self) -> {
-                            CardUtil.TriggerEffect(player, 0, 1, 0, 0, "Effect", self);
+                            CardUtil.TriggerEffect(player, EFFECT, self, play);
                             int count = 0;
                             while(true){
                                 Card c = player.discard();
@@ -95,28 +109,31 @@ public class DominionFactory {
                 );
     }
     @Dominion_Card(extension = "Dominion")
+    @InSet(value = {"Size Distortion", "Silver & Gold"})
     public static Card Chapel(){
         return new Card("Chapel", RegistryPrice.DominionPrice(2),CardType.ACTION)
                 .setup(config ->  config
                         .onPlay((player, self) -> {
                             self.set("continu", true);
-                            for(int i = 0; i < 4 && self.get("continu", Boolean.class); i++){
-                                CardUtil.executeOrOtherwise(
-                                        () -> player.chooseCardFromHand("Choisi au maximum 4 cartes à défausser", true),
-                                        Objects::nonNull,
-                                        player::moveToTrash,
-                                        () -> self.set("continu", false)
-                                );
+                            for(int i = 0; i < 4 && self.get("continu", Boolean.class); i++) {
+                                player.chooseCardFromHand("Choisi au maximum 4 cartes à défausser", true)
+                                        .ifPresentOrElse(
+                                                player::moveToTrash,
+                                                () -> self.set("continu", false)
+                                        );
                             }
                         })
                 );
     }
     @Dominion_Card(extension = "Dominion")
+    @InSet(value = {"Deck Top", "Sleight of Hand", "Grand Scheme",
+            "Reach for Tomorrow", "Forbidden Arts", "The King's Army"})
     public static Card Council_Room(){
+        Bonus  play = Bonus.empty().with(Item.BUY, 1).draw(4);
         return new Card("CouncilRoom",  RegistryPrice.DominionPrice(5),CardType.ACTION)
                 .setup(config -> config
                         .onPlay((player, self) -> {
-                            CardUtil.TriggerEffect(player, 0, 0, 4, 1, "Effect", self);
+                            CardUtil.TriggerEffect(player,  EFFECT, self, play);
                             player.getGame().processBenefit(
                                     player,
                                     victim -> {
@@ -127,29 +144,35 @@ public class DominionFactory {
                 );
     }
     @Dominion_Card(extension = "Dominion")
+    @InSet(value = {"Size Distortion", "Deck Top", "Sleight of Hand", "Underlings",
+            "Repetition", "Potion Mixers", "Bounty of the Hunt"})
     public static Card Festival(){
+        Bonus play = Bonus.empty().with(Item.ACTION,2).with(Item.BUY,1).with(Item.MONEY, 2);
         return new Card("Festival", RegistryPrice.DominionPrice(5),CardType.ACTION)
-                .setup(config -> config.registerSimpleAction(0,2,1,2));
+                .setup(config -> config.registerSimpleAction(play));
     }
     @Dominion_Card(extension = "Dominion", pileType = PileType.VICTORY)
+    @InSet(value = {"Size Distortion", "Sleight of Hand", "Forbidden Arts"})
     public static Card Gardens(){
         return new Card("Gardens",  RegistryPrice.DominionPrice(4),CardType.VICTORY)
                 .setup(config -> config.score(player -> player.getAllOwnedCards().size()/10));
     }
     @Dominion_Card(extension = "Dominion")
+    @InSet(value = {"Deck Top", "Sleight of Hand", "Silver & Gold", "Repetition"
+            , "Biggest Money"})
     public static Card Harbinger(){
+        Bonus play = Bonus.empty().with(Item.ACTION, 1).draw(1);
         return new Card("Harbinger", RegistryPrice.DominionPrice(3),CardType.ACTION)
                 .setup(config -> config
                         .onPlay((player, self) -> {
-                            CardUtil.TriggerEffect(player, 0, 1, 1, 0, "Effect", self);
+                            CardUtil.TriggerEffect(player,  EFFECT, self, play);
 
                             List<Card> distinctDiscard = player.getCopyOf(Destination.DISCARD).stream()
                                     .distinct()
                                     .toList();
 
-                            CardUtil.executeIfSelected(
-                                    () -> player.chooseCardFromList("Choisit une carte de ta défausse à mettre sur ton deck", card -> true, distinctDiscard, true),
-                                    card -> {
+                            player.chooseCardFromList("Choisit une carte de ta défausse à mettre sur ton deck", card -> true, distinctDiscard, true)
+                                    .ifPresent(card -> {
                                         player.moveTo(card, Destination.DRAW);
                                         player.log(String.format("Action HARBINGER : %s met en pioche %s", player.getName(), card.getName().toUpperCase()));
                                     }
@@ -158,11 +181,14 @@ public class DominionFactory {
                 );
     }
     @Dominion_Card(extension = "Dominion")
+    @InSet(value = {"Deck Top", "Silver & Gold", "Forbidden Arts", "Biggest Money"})
     public static Card Laboratory(){
+        Bonus play = Bonus.empty().draw(1).with(Item.ACTION, 2);
         return new Card("Laboratory", RegistryPrice.DominionPrice(5),CardType.ACTION)
-                .setup(config -> config.registerSimpleAction(1,2,0,0));
+                .setup(config -> config.registerSimpleAction(play));
     }
     @Dominion_Card(extension = "Dominion")
+    @InSet(value = {"Sleight of Hand", "Underlings", "Gilding the Lily"})
     public static Card Library(){
         return new Card("Library", RegistryPrice.DominionPrice(5),CardType.ACTION)
                 .setup(config -> config
@@ -175,7 +201,7 @@ public class DominionFactory {
 
                                 if(drawn.hasType(CardType.ACTION)){
                                     CardUtil.executeOrOtherwise(
-                                            () -> player.chooseStringFromButtons("Veux tu mettre cette carte sur le côté ou la récupérer dans la main ? " + drawn, List.of(new Button("Aside", "y"), new Button("Hand", "n")),false),
+                                            () -> player.chooseWhatToDo("Veux tu mettre cette carte sur le côté ou la récupérer dans la main ? ", List.of(drawn),List.of(new Button("Aside", "y"), new Button("Hand", "n")),false),
                                             "y"::equals,
                                             choice ->{
                                                 player.moveTo(drawn, Destination.ASIDE);
@@ -190,16 +216,22 @@ public class DominionFactory {
                 );
     }
     @Dominion_Card(extension = "Dominion")
+    @InSet(value = {"First Game", "Improvements", "Grand Scheme",
+            "Chemistry Lesson", "Gilding the Lily"})
     public static Card Market(){
-       return new Card("Market", RegistryPrice.DominionPrice(5),CardType.ACTION)
-                .setup(config -> config.registerSimpleAction(1,1,1,1));
+        Bonus bonus =  Bonus.empty().draw(1).with(Item.ACTION, 1).with(Item.BUY,1).with(Item.MONEY,1);
+        return new Card("Market", RegistryPrice.DominionPrice(5),CardType.ACTION)
+                .setup(config -> config.registerSimpleAction(bonus));
     }
     @Dominion_Card(extension = "Dominion")
+    @InSet(value = {"First Game", "Improvements", "Silver & Gold",
+            "The King's Army", "Gilding the Lily"})
     public static Card Merchant(){
+        Bonus play = Bonus.empty().with(Item.ACTION, 1).draw(1);
         return new Card("Merchant", RegistryPrice.DominionPrice(3),CardType.ACTION)
                 .setup(config -> config
                         .onPlay((player, self) -> {
-                            CardUtil.TriggerEffect(player,  0, 1, 1, 0, "Effect", self);
+                            CardUtil.TriggerEffect(player,  EFFECT, self, play);
                             self.set("used", false);
                         })
                         .onCardPlayed((owner, victim, c) -> {
@@ -207,33 +239,37 @@ public class DominionFactory {
                                 owner.log(String.format("Trigger %s : %s récupère une pièce", config.get().getName().toUpperCase(), victim.getName()));
                                 config.get().set("used", true);
                         })
-                        .onCondition((event, player) -> (config.get().getFlag("used") && event.getCard().hasName("Silver") && event.getPlayer() != player))
+                        .onCondition((event, player) -> (!config.get().getFlag("used") && event.getCard().hasName("Silver") && event.getPlayer() != player))
                 );
     }
     @Dominion_Card(extension = "Dominion")
+    @InSet(value = {"First Game", "Sleight of Hand", "Grand Scheme",
+            "Repetition", "Potion Mixers", "Bounty of the Hunt"})
     public static Card Militia() {
+        Bonus play = Bonus.empty().with(Item.MONEY,2 );
         return new Card("Militia", RegistryPrice.DominionPrice(4), CardType.ACTION, CardType.ATTACK)
                 .setup(config -> config
                         .onPlay((player, self) -> {
-                            CardUtil.TriggerEffect(player, 2, 0, 0, 0, "Effect", self);
+                            CardUtil.TriggerEffect(player, EFFECT, self, play);
                             player.getGame().processMoveTo(player, self, Destination.DISCARD, 3, true);
                         })
                 );
     }
     @Dominion_Card(extension = "Dominion")
+    @InSet(value = {"First Game", "Improvements", "Silver & Gold",
+            "Deconstruction", "Biggest Money"})
     public static Card Mine(){
         return new Card("Mine", RegistryPrice.DominionPrice(5),CardType.ACTION)
                 .setup(config -> config
                         .onPlay((player, self) ->
-                            CardUtil.executeIfSelected(
-                                    () -> player.chooseCardFromHand("Choisis un trésor un jetter", card -> card.hasType(CardType.TREASURE), true),
-                                    card -> {
+                            player.chooseCardFromHand("Choisis un trésor un jetter", card -> card.hasType(CardType.TREASURE), true)
+                                    .ifPresent(card -> {
                                         player.moveToTrash(card);
                                         CardUtil.executeIfSelected(
                                                 () -> CardUtil.gainFromSupply(
                                                         player,
-                                                        "Choisi une trésor (Max " + (card.getCost()+2) + " pièces)",
-                                                        filter -> filter.hasType(CardType.TREASURE) && filter.getCost() - filter.getCost() < 3,
+                                                        "Choisi une trésor (Max " + (card.getCost()+3) + " pièces)",
+                                                        filter -> filter.hasType(CardType.TREASURE) && filter.isAtMostWithBonus(card, 3) ,
                                                         Destination.HAND,
                                                         false),
                                                 gained -> player.log(String.format("Action %s : %s jette %s pour %s", self.getName().toUpperCase(), player.getName(), card.getName().toUpperCase(), gained.getName().toUpperCase()))
@@ -244,16 +280,18 @@ public class DominionFactory {
                 );
     }
     @Dominion_Card(extension = "Dominion")
+    @InSet(value = {"First Game", "Improvements", "Chemistry Lesson", "The King's Army"})
     public static Card Moat(){
+        Bonus play = Bonus.empty().draw(2);
         return new Card("Moat", RegistryPrice.DominionPrice(2),CardType.ACTION,CardType.REACTION)
                 .setup(config -> config
-                        .registerSimpleAction(2,0,0,0)
+                        .registerSimpleAction(play)
                         .immunity(new TriggerComponent.Immunity() {
                             @Override
                             public boolean revealed(Player player, Card self) {
                                 self.set("used", false);
                                 CardUtil.executeOrOtherwise(
-                                        () -> player.chooseStringFromButtons(String.format("Révèle %s pour te protéger", self.getName().toUpperCase()), List.of(new Button("reveal", "y"), new Button("keep", "n")), true),
+                                        () -> player.chooseWhatToDo(String.format("Révèle %s pour te protéger", self.getName().toUpperCase()), List.of(self) , List.of(new Button("reveal", "y"), new Button("keep", "n")), true),
                                         "y"::equals,
                                         choice ->{
                                             player.log(player.getName() + "révèle Moat");
@@ -268,69 +306,73 @@ public class DominionFactory {
                 );
     }
     @Dominion_Card(extension = "Dominion")
+    @InSet(value = {"Deck Top", "Improvements", "Silver & Gold",
+            "Biggest Money", "Bounty of the Hunt"})
     public static Card MoneyLender(){
         return new Card("Moneylender", RegistryPrice.DominionPrice(4), CardType.ACTION)
                 .setup(config -> config
                         .onPlay((player, self) ->
-                                CardUtil.executeIfSelected(
-                                    () -> player.chooseCardFromHand("Choisis de jetter un Copper pour gagner 3 pièces", card -> card.hasName("Copper"), true),
-                                        card -> {
-                                        player.moveToTrash(card);
-                                        player.increment(Item.MONEY,3);
-                                        player.log(String.format("%s écarte un CUIVRE pour +3 pièces", player.getName()));
-                                        })
+                         player.chooseCardFromHand("Choisis de jetter un Copper pour gagner 3 pièces", card -> card.hasName("Copper"), true)
+                                 .ifPresent(card -> {
+                                     player.moveToTrash(card);
+                                     player.increment(Item.MONEY,3);
+                                     player.log(String.format("%s écarte un CUIVRE pour +3 pièces", player.getName()));
+                                 })
                         )
                 );
     }
     @Dominion_Card(extension = "Dominion")
+    @InSet(value = {"Sleight of Hand", "Improvements", "Potion Mixers"})
     public static Card Poacher(){
+        Bonus play = Bonus.empty().with(Item.ACTION, 1).with(Item.MONEY, 1).draw(1);
         return new Card("Poacher", RegistryPrice.DominionPrice(4), CardType.ACTION)
                 .setup(config -> config
                     .onPlay((player, self) ->{
                         Number emptyPile = GameStat.emptyPiles.get();
-                        CardUtil.TriggerEffect(player, 1,1,1,0,"Effect", self);
+                        CardUtil.TriggerEffect(player, EFFECT, self, play);
                         player.discardFromHand(emptyPile.intValue());
                     })
                 );
     }
     @Dominion_Card(extension = "Dominion")
+    @InSet(value = {"First Game", "Improvements", "Deconstruction",
+            "Repetition", "Chemistry Lesson", "Gilding the Lily"})
     public static Card Remodel(){
         return new Card("Remodel", RegistryPrice.DominionPrice(4), CardType.ACTION)
                 .setup(config -> config
                         .onPlay((player, self) ->
-                                CardUtil.executeIfSelected(
-                                        () -> player.chooseCardFromHand("Jette une carte de ta main pour en récupèrer une nouvelle coutant jusqu'à 2 pièce de plus", false),
-                                        card ->{ player.moveToTrash(card);
-                                        CardUtil.gainFromSupply(
-                                                player,
-                                                "Choisi une carte (Max " + (card.getCost()+2) + " pièces)",
-                                                filter -> filter.getCost() - card.getCost() <=2,
-                                                Destination.DISCARD,
-                                                false );}
+                         player.chooseCardFromHand("Jette une carte de ta main pour en récupèrer une nouvelle coutant jusqu'à 2 pièce de plus", false)
+                                 .ifPresent(card ->{ player.moveToTrash(card);
+                                     CardUtil.gainFromSupply(
+                                             player,
+                                             "Choisi une carte (Max " + (card.getCost()+2) + " pièces)",
+                                             filter -> filter.isAtMostWithBonus(card, 2),
+                                             Destination.DISCARD,
+                                             false );}
                                 )
                         )
                 );
 
     }
     @Dominion_Card(extension = "Dominion")
+    @InSet(value = {"Size Distortion", "Deck Top", "Underlings", "Gilding the Lily"})
     public static Card Sentry() {
+        Bonus play = Bonus.empty().with(Item.ACTION, 1).draw(1);
         return new Card("Sentry", RegistryPrice.DominionPrice(5), CardType.ACTION)
                 .setup(config -> config
                         .onPlay((player, self) -> {
-                            CardUtil.TriggerEffect(player, 0, 1, 1, 0, "Effect", self);
+                            CardUtil.TriggerEffect(player,  EFFECT, self, play);
 
                             List<Card> view = CardUtil.getTopCards(player, 2);
 
                             while (!view.isEmpty()) {
                                 List<Button> actions = List.of(new Button("Trash", "t"), new Button("Discard", "d"), new Button("Done", "x"));
 
-                                String choice = player.chooseStringFromButtons("Sentinelle : Écarter ou Défausser ? " + view, actions, false);
+                                String choice = player.chooseWhatToDo("Sentinelle : Écarter ou Défausser ? ", view, actions, false);
 
                                 if ("x".equals(choice)) break;
-
-                                CardUtil.executeIfSelected(
-                                        () -> player.chooseCardFromList("Quelle carte ?", card -> true, view, true),
-                                        selected -> {
+                                player.chooseCardFromList("Quelle carte ?", card -> true, view, true)
+                                        .ifPresent(selected -> {
                                             if ("t".equals(choice)) player.moveToTrash(selected);
                                             else player.discard(selected);
                                             view.remove(selected);
@@ -339,11 +381,10 @@ public class DominionFactory {
                             }
 
                             while (!view.isEmpty()) {
-                                CardUtil.executeIfSelected(
-                                        () -> player.chooseCardFromList("Ordre du Deck (La prochaine sera sur le dessus)", card -> true, view, false),
-                                        selected -> {
-                                            player.moveTo(selected, Destination.DRAW);
-                                            view.remove(selected);
+                                 player.chooseCardFromList("Ordre du Deck (La prochaine sera sur le dessus)", card -> true, view, false)
+                                         .ifPresent(selected -> {
+                                             player.moveTo(selected, Destination.DRAW);
+                                             view.remove(selected);
                                         }
                                 );
                             }
@@ -352,30 +393,32 @@ public class DominionFactory {
     }
 
     @Dominion_Card(extension = "Dominion")
+    @InSet(value = {"First Game", "Sleight of Hand", "Potion Mixers", "Bounty of the Hunt"})
     public static Card Smithy(){
+        Bonus  play = Bonus.empty().draw(3);
         return new Card("Smithy", RegistryPrice.DominionPrice(4), CardType.ACTION)
-                .setup(config -> config.registerSimpleAction(3,0,0,0)
+                .setup(config -> config.registerSimpleAction(play)
                 );
     }
 
     @Dominion_Card(extension = "Dominion")
+    @InSet(value = {"Size Distortion", "Sleight of Hand", "Silver & Gold",
+            "Deconstruction", "Forbidden Arts"})
     public static Card Throne_Room() {
         return new Card("ThroneRoom", RegistryPrice.DominionPrice(4), CardType.ACTION)
                 .setup(config -> config
                         .onPlay((player, self) -> {
                             self.set("justPlayed", true);
                             self.set("linkedCard", null);
-
-                            CardUtil.executeIfSelected(
-                                    () -> player.chooseCardFromHand("Action à doubler", c -> c.hasType(CardType.ACTION), true),
-                                    selected -> {
+                            player.chooseCardFromHand("Action à doubler", c -> c.hasType(CardType.ACTION), true)
+                                    .ifPresent(selected -> {
                                         player.log(player.getName() + " Throne Room -> " + selected.getName());
 
                                         player.playCard(selected);
                                         player.increment(Item.ACTION_PLAYED, 1);
                                         player.triggerEvent(TriggerComponent.OnCardPlayed.class, new Event(selected, null, player));
                                         selected.play(player);
-                                        if (selected.hasComponent(DurationComponent.class)) {
+                                        if (selected.hasComponent(DurationComponent.class) && selected.hasName(self.getName())) {
                                             self.set("linkedCard", selected);
                                             self.set("justPlayed", false);
                                         }
@@ -396,18 +439,22 @@ public class DominionFactory {
                 );
     }
     @Dominion_Card(extension = "Dominion")
+    @InSet(value = {"Deck Top", "Silver & Gold", "Underlings",
+            "Reach for Tomorrow", "Chemistry Lesson"})
+    @ExtraSet(value = {"Gilding the Lily"})
     public static Card Vassal(){
+        Bonus play = Bonus.empty().with(Item.MONEY, 2);
         return new Card("Vassal", RegistryPrice.DominionPrice(3), CardType.ACTION)
                 .setup(config -> config
                         .onPlay((player, self) -> {
-                            CardUtil.TriggerEffect(player, 2, 0, 0, 0, "Effect", self);
+                            CardUtil.TriggerEffect(player,  EFFECT, self, play);
 
                             Card top = player.getCardFromDeck();
                             if(top == null) return;
 
                             if(top.hasType(CardType.ACTION)){
                                 CardUtil.executeOrOtherwise(
-                                        () -> player.chooseStringFromButtons("Veux tu jouer la carte", yesOrNo, true ),
+                                        () -> player.chooseWhatToDo("Veux tu jouer la carte", List.of(top), yesOrNo, true ),
                                         "y"::equals,
                                         choice-> player.playCard(top),
                                         () -> player.moveTo(top, Destination.DISCARD)
@@ -418,29 +465,32 @@ public class DominionFactory {
     }
 
     @Dominion_Card(extension = "Dominion")
+    @InSet(value = {"First Game", "Deck Top", "Deconstruction", "Reach for Tomorrow", "The King's Army"})
     public static Card Village(){
+        Bonus  play = Bonus.empty().with(Item.ACTION, 2).draw(1);
         return new Card("Village", RegistryPrice.DominionPrice(3), CardType.ACTION)
-                .setup(config -> config.registerSimpleAction(1, 2, 0, 0));
+                .setup(config -> config.registerSimpleAction(play));
     }
 
     @Dominion_Card(extension = "Dominion")
+    @InSet(value = {"Size Distortion", "Improvements", "Chemistry Lesson"})
     public static Card Witch(){
+       Bonus play = Bonus.empty().draw(2);
         return new Card("Witch", RegistryPrice.DominionPrice(3), CardType.ACTION, CardType.ATTACK)
                 .setup(config -> config
                     .onPlay((player, self) -> {
-                        CardUtil.TriggerEffect(player, 0, 0, 2, 0, "Effect", self);
+                        CardUtil.TriggerEffect(player,  EFFECT, self, play);
                         player.getGame().processGain(player, self, Destination.DISCARD, "Curse");
                     })
                 );
     }
 
     @Dominion_Card(extension = "Dominion")
+    @InSet(value = {"First Game", "Size Distortion", "Grand Scheme", "Repetition"})
     public static Card Workshop(){
         return new Card("Workshop", RegistryPrice.DominionPrice(3), CardType.ACTION)
                 .setup(config -> config
-                        .onPlay((player, self) -> {
-                            CardUtil.gainFromSupply(player, "Choisit une carte ( Max 4 pièces )", card -> card.getCost() <= 4, Destination.DISCARD,  false);
-                        })
+                        .onPlay((player, self) -> CardUtil.gainFromSupply(player, "Choisit une carte ( Max 4 pièces )", card -> card.isAtMost(4), Destination.DISCARD,  false))
                 );
     }
     @Dominion_Card(extension = "Dominion")
@@ -478,12 +528,13 @@ public class DominionFactory {
     }
     @Dominion_Card(extension = "Dominion")
     public static Card Chancellor(){
+        Bonus play =  Bonus.empty().with(Item.MONEY, 2);
         return new Card("Chancellor", RegistryPrice.DominionPrice(3), CardType.ACTION)
                 .setup(config -> config
                         .onPlay((player, self) -> {
-                            CardUtil.TriggerEffect(player, 2, 0, 0, 0, "Effect", self);
+                            CardUtil.TriggerEffect(player, EFFECT, self, play);
                             CardUtil.executeOrOtherwise(
-                                    () -> player.chooseStringFromButtons("Veux-tu vider ta pioche dans la défausse ?", yesOrNo, true),
+                                    () -> player.chooseWhatToDo("Veux-tu vider ta pioche dans la défausse ?", List.of(self) , yesOrNo, true),
                                     "y"::equals,
                                     choice -> player.getCopyOf(Destination.DRAW).forEach(card -> player.moveTo(card, Destination.DISCARD)),
                                     () ->{}
@@ -497,21 +548,22 @@ public class DominionFactory {
                 .setup(config -> config
                         .onPlay((player, self) -> {
                             player.moveToTrash(self);
-                            CardUtil.gainFromSupply(player, "Choisit une carte de la réserve ( max 5 pièce )", filter -> filter.getCost()<=5, Destination.DISCARD, false);
+                            CardUtil.gainFromSupply(player, "Choisit une carte de la réserve ( max 5 pièce )", filter -> filter.isAtMost(5), Destination.DISCARD, false);
                         })
                 );
     }
     @Dominion_Card(extension = "Dominion")
     public static Card Spy(){
+        Bonus play = Bonus.empty().with(Item.ACTION, 1).draw(1);
         return new Card("Spy", RegistryPrice.DominionPrice(4), CardType.ACTION, CardType.ATTACK)
                 .setup(config -> config
                         .onPlay((player, self) -> {
-                            CardUtil.TriggerEffect(player, 0, 1, 1, 0, "Effect", self);
+                            CardUtil.TriggerEffect(player, EFFECT, self, play);
 
                             Consumer<Player> action = p -> {
                                 Card c =  p.getCardFromDeck();
                                 CardUtil.executeOrOtherwise(
-                                    () -> player.chooseStringFromButtons("Discard the card or do nothing (your choice) " + c.getName(), yesOrNo, true),
+                                    () -> player.chooseWhatToDo("Discard the card or do nothing (your choice) " + c.getName(), List.of(c), yesOrNo, true),
                                     "y"::equals,
                                     choice -> p.moveTo(c, Destination.DISCARD),
                                     ()-> {}
@@ -545,7 +597,7 @@ public class DominionFactory {
 
                                     Card Final = chosen;
                                     CardUtil.executeOrOtherwise(
-                                            () -> player.chooseStringFromButtons("Voulez vous récupérer la carte " + Final.getName(), yesOrNo, true),
+                                            () -> player.chooseWhatToDo("Voulez vous récupérer la carte " + Final.getName(),List.of(Final), yesOrNo, true),
                                             "y"::equals,
                                             choice -> player.gain(Final, Destination.DISCARD),
                                             () -> {}
@@ -565,8 +617,9 @@ public class DominionFactory {
     }
     @Dominion_Card(extension = "Dominion")
     public static Card WoodCutter(){
+        Bonus bonus =  Bonus.empty().with(Item.BUY, 1).with(Item.MONEY, 2);
         return new Card("Woodcutter", RegistryPrice.DominionPrice(3), CardType.ACTION)
-                .setup(config -> config.registerSimpleAction(0,0,1,2));
+                .setup(config -> config.registerSimpleAction(bonus));
     }
 
 

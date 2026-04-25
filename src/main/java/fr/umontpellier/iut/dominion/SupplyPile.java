@@ -15,7 +15,7 @@ import javafx.collections.ModifiableObservableListBase;
 
 public class SupplyPile extends ModifiableObservableListBase<Card> {
     private final String name;
-    private final Price cost;
+    private Price cost;
     private int Cursed;
     private ArrayList<Card> cards = new ArrayList<>();
     private Predicate<Player> available;
@@ -28,15 +28,17 @@ public class SupplyPile extends ModifiableObservableListBase<Card> {
         name = card.getName();
         cost = card.getPrice();
         for (int i = 0; i < numberOfCopies; i++) {
-            cardSupplier.get().moveTo(this);
+            cardSupplier.get().moveTo(this, Destination.SUPPLY);
         }
     }
-
+    public IntegerProperty priceProperty() {
+        return cost.price();
+    }
     public String getName() {
         return name;
     }
     public void setCard(Card card) {
-        card.moveTo(this);
+        card.moveTo(this, Destination.SUPPLY);
     }
     public int getCost() {
         return Math.max(cost.price().get(), 0);
@@ -44,7 +46,11 @@ public class SupplyPile extends ModifiableObservableListBase<Card> {
     public int getToken() {return token;}
     public void setToken(int token) {this.token = token;}
     public boolean hasToken(){return token!=0;}
-
+    public void update(){
+        for(Card card : this){
+            card.setPrice(cost);
+        }
+    }
     public void setCursed(int cursed) {
         Cursed += cursed;
     }

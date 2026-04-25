@@ -10,5 +10,8 @@ public enum Destination {
     DISCARD,
     NATIVE,
     ISLAND,
-    INPLAY
+    INPLAY,
+    ASIDE_ACTIVE,
+    SUPPLY,
+    TRASH
 }

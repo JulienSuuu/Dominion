@@ -8,9 +8,16 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import fr.umontpellier.iut.dominion.Annotation.AfterAllyTrigger;
+import fr.umontpellier.iut.dominion.Annotation.BeforeAllyTrigger;
+import fr.umontpellier.iut.dominion.Annotation.Selection_Mode;
 import fr.umontpellier.iut.dominion.cards.*;
+import fr.umontpellier.iut.dominion.cards.Events.Discard_Type;
+import fr.umontpellier.iut.dominion.cards.Events.Event;
+import fr.umontpellier.iut.dominion.cards.Events.MoveEvent;
+import fr.umontpellier.iut.dominion.cards.Events.OnGainEvent;
 import fr.umontpellier.iut.dominion.cards.component.*;
-import fr.umontpellier.iut.dominion.cards.seaside.SeaSideFactory;
+import fr.umontpellier.iut.dominion.cards.factories.seaside.SeaSideFactory;
 import fr.umontpellier.iut.dominion.gui.Utils;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
@@ -19,22 +26,31 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
 
 /**
  * Un joueur de Dominion
  */
+@Component
+@Scope("prototype")
 public class Player {
 
     //region --VARIABLES--
     /**
      * Nom du joueur
      */
-    private final String name;
-
+    private String name;
+    private int Id;
+    private static int idCounter = 0;
     private final EnumMap<Destination, ObservableList<Card>> cardSet = new EnumMap<>(Destination.class);
-    private final EnumMap<Item, Integer> items = new EnumMap<>(Item.class);
+    private final EnumMap<Item, IntegerProperty> items = new EnumMap<>(Item.class);
     private final Map<String, BooleanProperty> flags = new HashMap<>();
     private final Map<String, IntegerProperty> properties = new HashMap<>();
+    private final List<TriggerComponent.discardHook> discardHooks = new ArrayList<>();
+    private Player self;
 
     /**
      * Bonus ou malus sur le nombre de cartes à piocher
@@ -45,7 +61,7 @@ public class Player {
     /**
      * La partie en cours
      */
-    private final Game game;
+    private Game game;
     private boolean isSecondTurn = false;
     /**
      * Liste des cartes gagnées au tour précédent
@@ -55,7 +71,7 @@ public class Player {
     /**
      * Liste des cartes gagnées au tour en cours
      */
-    private final List<Card> CardGainedCurrentTurn;
+    private List<Card> CardGainedCurrentTurn;
     private final List<Card> mustBeDiscarded = new ArrayList<>();
     private final List<Card> activeEffect = new ArrayList<>();
 
@@ -77,43 +93,44 @@ public class Player {
      * Estate et 7 cartes Copper dans la défausse du joueur puis fait piocher 5
      * cartes en main au joueur.
      *
-     * @param name: le nom du joueur
-     * @param game: le jeu en cours
-     *
      */
-    public Player(String name, Game game) {
+    public Player() {}
+
+    public void init(String name, Game game) {
         this.name = name;
         this.game = game;
+        Id = idCounter++;
 
         CardGainedLastTurn = new ArrayList<>();
         CardGainedCurrentTurn = new ArrayList<>();
 
-        for (Destination d : Destination.values()) {
-            cardSet.put(d, FXCollections.observableArrayList());
-        }
+        EnumSet<Destination> targets = EnumSet.allOf(Destination.class);
+        targets.removeAll(EnumSet.of(Destination.SUPPLY, Destination.TRASH));
+        targets.forEach(d -> cardSet.put(d, FXCollections.observableArrayList()));
 
         for (Item i : Item.values()) {
-            items.put(i, 0);
+            items.put(i, new SimpleIntegerProperty(0));
         }
 
         // Ajoute 3 Estate et 7 Copper (pris dans la réserve du jeu) dans la
         // défausse du joueur
         for (int i = 0; i < 3; i++)
-            getCardFromSupply("Estate").moveTo(get(Destination.DISCARD));
+            getCardFromSupply("Estate").moveTo(get(Destination.DISCARD), Destination.DISCARD);
         for (int i = 0; i < 7; i++)
-            getCardFromSupply("Copper").moveTo(get(Destination.DISCARD));
+            getCardFromSupply("Copper").moveTo(get(Destination.DISCARD), Destination.DISCARD);
 
         // Mélange la défausse, construit la pioche et pioche 5 cartes en main
         Collections.shuffle(get(Destination.DISCARD));
         while (!get(Destination.DISCARD).isEmpty()) {
-            get(Destination.DISCARD).getLast().moveTo(get(Destination.DRAW));
+            get(Destination.DISCARD).getLast().moveTo(get(Destination.DRAW), Destination.DRAW);
         }
         for (int i = 0; i < 5; i++) {
-            get(Destination.DRAW).getLast().moveTo(get(Destination.HAND));
+            get(Destination.DRAW).getLast().moveTo(get(Destination.HAND), Destination.HAND);
         }
 
         listener();
     }
+
     //endregion
 
     //region --GETTERS AND SETTERS --
@@ -129,10 +146,10 @@ public class Player {
     }
 
     public int getMoney() {
-        return items.get(Item.MONEY);
+        return items.get(Item.MONEY).get();
     }
 
-    public int getNumberOfActions() {return items.get(Item.ACTION);}
+    public int getNumberOfActions() {return items.get(Item.ACTION).get();}
 
     public BooleanProperty getFlag(String key) {
         return flags.computeIfAbsent(key, k -> new SimpleBooleanProperty(false));
@@ -161,24 +178,30 @@ public class Player {
         });
     }
 
+    @Autowired
+    public void setSelf(@Lazy Player self) {
+        this.self = self;
+    }
+
     public int getNumberOfBuys() {
-        return  items.get(Item.BUY);
+        return  items.get(Item.BUY).get();
     }
 
     public Game getGame() {
         return game;
     }
 
-    public int getDebt() {return items.get(Item.DEBT);}
+    public int getDebt() {return items.get(Item.DEBT).get();}
 
     public int getPotion() {
-        return items.get(Item.POTION);
+        return items.get(Item.POTION).get();
     }
 
     private List<Card> get(Destination destination) {
         return cardSet.get(destination);
     }
-    public int getValueOf (Item item) {return items.get(item);}
+    public int getValueOf (Item item) {return items.get(item).get();}
+    public IntegerProperty getPropertyOf(Item item) {return items.get(item);}
 
     /**
      * @return une copie de {@link Player#CardGainedLastTurn}
@@ -218,12 +241,20 @@ public class Player {
      * {@code getVictoryValue()}) des cartes
      */
     public int getVictoryPoints() {
-        return getCopyOf(Destination.HAND).stream().mapToInt(card -> card.getVictoryValue(this)).sum() + items.get(Item.VICTORY_TOKEN);
+        return getCopyOf(Destination.HAND).stream().mapToInt(card -> card.getVictoryValue(self)).sum() + items.get(Item.VICTORY_TOKEN).get();
     }
 
 
-    public void increment(Item it, int value){items.put(it, items.get(it) + value);}
-    public void decrement(Item it, int value){items.put(it, items.get(it) - value);}
+    public void increment(Item it, int value){
+        if(it == Item.COFFER && getGame().getCoffers() == 0) return;
+        IntegerProperty prop = items.get(it);
+        prop.set(prop.get() + value);
+        items.put(it,prop);}
+    public void decrement(Item it, int value){
+        IntegerProperty prop = items.get(it);
+        prop.set(prop.get() - value);
+        items.put(it, prop)
+        ;}
 
     public void resetItem() {
         Set<Item> persistent = EnumSet.of(
@@ -234,11 +265,16 @@ public class Player {
         GameStat.reduction.set(0);
         for (Item item : Item.values()) {
             if (!persistent.contains(item)) {
-                items.put(item, 0);
+                IntegerProperty prop = items.get(item);
+                prop.set(0);
+                items.put(item,prop);
             }
         }
     }
 
+    public boolean getStatement(String key){
+        return flags.get(key).get();
+    }
     public Player getController() {
         return controller;
     }
@@ -248,8 +284,16 @@ public class Player {
 
 
     public void updateDrawBonusValue(int value){
-        if(drawBonusNextTurn == -4)return;
+        if(drawBonusNextTurn <= -4)return;
         drawBonusNextTurn += value;
+    }
+
+    public List<TriggerComponent.discardHook> getDiscardHooks() {
+        return discardHooks;
+    }
+
+    public void addDiscardHook(TriggerComponent.discardHook discardHook) {
+        discardHooks.add(discardHook);
     }
 
     public void listener(){
@@ -259,6 +303,7 @@ public class Player {
                         cardSet.get(Destination.INPLAY)
                 )
         );
+
         getProperties(Properties.puddlerReduction).bind(
                 Bindings.createIntegerBinding(
                         () -> {
@@ -268,10 +313,41 @@ public class Player {
                         cardSet.get(Destination.INPLAY)
                 )
         );
+
+        if(game.hasCard("Crossroads"))
+            getFlag(Flags.playedCrossroads).bind(
+                Bindings.createBooleanBinding(
+                        () -> cardSet.get(Destination.INPLAY).stream().anyMatch(c -> c.hasName("Crossroads")),
+                        cardSet.get(Destination.INPLAY)
+                )
+            );
+
+        if(game.hasCard("Fool's Gold"))
+            getFlag(Flags.playedFoolsGold).bind(
+                    Bindings.createBooleanBinding(
+                            () -> cardSet.get(Destination.INPLAY).stream().anyMatch(c -> c.hasName("Fool's Gold")),
+                            cardSet.get(Destination.INPLAY)
+                    )
+            );
+
+        getFlag(Flags.onBuyPhase).bind(
+                Bindings.createBooleanBinding(
+                        () -> {
+                            boolean action = getFlag("Action").get();
+                            boolean treasure = getFlag("Treasure").get();
+                            return !action && !treasure;
+                        },
+                        getFlag("Action"),
+                        getFlag("Treasure")
+                )
+        );
+
+
+
     }
 
     public int getCoins(){
-        return items.get(Item.COIN_TOKEN_SHIP);
+        return items.get(Item.COIN_TOKEN_SHIP).get();
     }
     //endregion
 
@@ -282,14 +358,37 @@ public class Player {
      * @param c la carte à déplacer
      */
     public void moveToHand(Card c) {
-        c.moveTo(get(Destination.HAND));
+        c.moveTo(get(Destination.HAND), Destination.HAND);
     }
 
-    public void discard(Card c){
-        if(c==null) return;
-        Event event = new Event(c, Destination.DISCARD, this );
-        c.as(TriggerComponent.onCardDiscarded.class).ifPresent(t -> t.accept(this, event));
-        gainSilent(c, event.getDest(), false);
+    @AfterAllyTrigger
+    public void discard(Card c, Discard_Type... discard) {
+        if (c == null) return;
+        Discard_Type type = (discard.length > 0) ? discard[0] : Discard_Type.ACTION;
+
+        MoveEvent event = new MoveEvent(c, c.getLocation(), self,  Destination.DISCARD);
+
+        if (type != Discard_Type.CLEANUP) {
+            c.as(TriggerComponent.onCardDiscarded.class)
+                    .ifPresent(t -> t.accept(event, c));
+        }
+
+        self.getDiscardHooks().forEach(hook -> hook.accept(event));
+
+
+        if (c.getLocation() != event.getNextDest()) {
+            moveTo(event.getCard(), event.getNextDest());
+        }
+    }
+
+
+    public void discardAll(Destination dest){
+        List<Card> triggerDiscard = getCopyOf(dest).stream().filter(c -> c.hasComponent(TriggerComponent.onCardDiscarded.class)).toList();
+
+        getCopyOf(dest).forEach(card -> moveTo(card, Destination.DISCARD));
+
+        new ArrayList<>(triggerDiscard).forEach(self::discard);
+
     }
 
     /**
@@ -299,8 +398,10 @@ public class Player {
      * @param dest {@link Destination} destination de la carte
      * @see Player#gainSilent(Card, Destination, boolean)
      */
+
     public void moveTo(Card c, Destination dest){
-        gainSilent(c, dest, false);
+        if(c == null) return;
+        c.moveTo(get(dest), dest);
     }
     //endregion
 
@@ -330,7 +431,7 @@ public class Player {
      */
     public void shuffle(){
         Collections.shuffle(get(Destination.DISCARD));
-        getCopyOf(Destination.DISCARD).forEach(c -> c.moveTo(get(Destination.DRAW)));
+        getCopyOf(Destination.DISCARD).forEach(c -> c.moveTo(get(Destination.DRAW), Destination.DRAW));
     }
 
     /**
@@ -393,22 +494,31 @@ public class Player {
         int discardedCount = 0;
 
         while (discardedCount < target) {
-            Card c = controller.chooseCardFromHand("Défausse encore " + (target - discardedCount) + " carte(s)", false);
-            if (c != null) {
-                discard(c);
-                discardedCount++;
-            } else {
-                break;
-            }
+           Optional<Card> c = chooseCardFromHand("Défausse encore " + (target - discardedCount) + " carte(s)", false);
+           if(c.isPresent()) {
+               Card card = c.get();
+               discardedCount++;
+               self.discard(card);
+           }else{
+               break;
+           }
         }
     }
 
-    public Card discard(){
-        Card c = chooseCardFromHand("Défausse une carte ", true );
-        if(c != null){
-            discard(c);
-           return c;}
+    public void discardTo(int number) {
+        int currentHandSize = get(Destination.HAND).size();
+        if (currentHandSize <= number) return;
+        int amountToDiscard = currentHandSize - number;
+        discardFromHand(amountToDiscard);
+    }
 
+    public Card discard(){
+        Optional<Card> c = chooseCardFromHand("Défausse une carte ", true );
+        if(c.isPresent()) {
+            Card card = c.get();
+            self.discard(card);
+            return card;
+        }
         return null;
     }
 
@@ -436,12 +546,24 @@ public class Player {
      *
      * @param c carte à jouer
      */
+    @AfterAllyTrigger
     public void playCard(Card c) {
-        c.moveTo(get(Destination.INPLAY));
+        c.moveTo(get(Destination.INPLAY), Destination.INPLAY);
         if(c.hasType(CardType.ACTION))increment(Item.ACTION_PLAYED, 1);
-        Event event = new Event(c, null, this);
+        Event event = new Event(c, null, self);
         triggerEvent(TriggerComponent.OnCardPlayed.class, event);
-        c.play(this);
+        c.play(self);
+    }
+
+    @AfterAllyTrigger
+    public void playCard(Card c, int amount){
+        c.moveTo(get(Destination.INPLAY), Destination.INPLAY);
+        for(int i=0; i<amount; i++){
+            if(c.hasType(CardType.ACTION))increment(Item.ACTION_PLAYED, 1);
+            Event event = new Event(c, null, self);
+            triggerEvent(TriggerComponent.OnCardPlayed.class, event);
+            c.play(self);
+        }
     }
 
     /**
@@ -458,7 +580,7 @@ public class Player {
         get(Destination.HAND).stream()
                 .filter(card -> card.getName().equalsIgnoreCase(cardName))
                 .findFirst()
-                .ifPresent(this::playCard);
+                .ifPresent(self::playCard);
     }
     //endregion
 
@@ -472,11 +594,13 @@ public class Player {
      *
      * @param gainedCard carte à gagner (éventuellement {@code null})
      */
-    public void gainTo(Card gainedCard, List<Card> location) {
+    public void gainTo(Card gainedCard, List<Card> location, Destination destination) {
         if(gainedCard == null)return;
-        gainedCard.moveTo(location);
         int i = game.tradeRoute(gainedCard);
         increment(Item.COIN_TOKEN_ROUTE, i);
+        updateNumberOfBought();
+
+        gainedCard.moveTo(location, destination);
     }
 
     /**
@@ -490,25 +614,34 @@ public class Player {
      * @param dest destination de la carte {@link Destination}
      * @see Player#gainTo(Destination, Card)
      */
+    @AfterAllyTrigger
     public void gain(Card card, Destination dest){
         if(card == null)return;
-        CardGainedCurrentTurn.add(card);
 
-        if(card.getFlag("haveSpecialEffect")){
-            card.execute(this);
-        }
+        moveTo(card, dest);
 
-        Event event = new Event(card, dest, this);
+        Event event = new Event(card, dest, self);
+
+        triggerOneCard(TriggerComponent.checkItselfGain.class, event.getCard(), event);
         triggerEvent(TriggerComponent.OnPlayerGain.class, event);
         triggerActiveEffect(TriggerComponent.OnPlayerGain.class, event);
+        game.fireEvent(OnGainEvent.class, new OnGainEvent(event.getCard(), event.getDest(), self));
 
+        CardGainedCurrentTurn.add(event.getCard());
 
         if(controller != this){
-            controller.gainTo(Destination.DISCARD, card);
+            controller.gainTo(event.getDest(), event.getCard());
             return;
         }
-        gainTo(event.getDest(), event.getCard());
 
+        gainTo(event.getDest(), event.getCard());
+    }
+
+
+    public void updateNumberOfBought(){
+        if(!getFlag(Flags.onBuyPhase).get()) return;
+        IntegerProperty prop = getProperties(Properties.Cards_Bought);
+        prop.setValue(prop.getValue() + 1);
     }
 
 
@@ -523,29 +656,31 @@ public class Player {
      *
      *@see Player#gainTo(Destination, Card)
      */
+    @AfterAllyTrigger
     public void gainSilent(Card card, Destination dest, boolean gained) {
+        if(card == null)return;
         if(gained)CardGainedCurrentTurn.add(card);
-
-        if(card.getFlag("haveSpecialEffect")){
-            card.execute(this);
-        }
-
         if(controller != this){
             controller.gainTo(Destination.DISCARD, card);
         }
 
-        gainTo(dest, card);
+        Event event = new Event(card, dest, self);
+        if(gained) triggerOneCard(TriggerComponent.checkItselfGain.class, card, event);
+        game.fireEvent(OnGainEvent.class, new OnGainEvent(event.getCard(), event.getDest(), this));
+        if(gained)gainTo(event.getDest(), card);
+
+        if(event.getDest()==null)return;
+        card.moveTo(get(event.getDest()), event.getDest());
     }
 
     /**
      * Place réellement la carte dans l'emplacement donnée
      * @param dest destination {@link Destination}
      * @param card carte gagnée
-     * @see Player#gainTo(Card, List)
      */
     public void gainTo(Destination dest, Card card){
         if(dest == null)return;
-        gainTo(card, get(dest));
+        gainTo(card, get(dest), dest);
     }
     //endregion
 
@@ -572,8 +707,8 @@ public class Player {
     public String toString() {
         String r = String.format("     -- %s --\n", name);
         r += String.format("Actions: %d     Money: %d     Buys: %d     Draw: %d     Discard: %d\n",
-               items.get(Item.ACTION),
-                items.get(Item.MONEY), items.get(Item.BUY), get(Destination.DRAW).size(), get(Destination.DISCARD).size());
+               items.get(Item.ACTION).get(),
+                items.get(Item.MONEY).get(), items.get(Item.BUY).get(), get(Destination.DRAW).size(), get(Destination.DISCARD).size());
         r += String.format("In play: %s\n", get(Destination.INPLAY).toString());
         r += String.format("Hand: %s\n", get(Destination.HAND).toString());
         return r;
@@ -589,13 +724,13 @@ public class Player {
      */
     public String toJSON() {
         StringJoiner joiner = new StringJoiner(", ");
-        joiner.add(String.format("\"name\": \"%s\"", name));
-        joiner.add(String.format("\"actions\": %d", items.get(Item.ACTION)));
-        joiner.add(String.format("\"money\": %d", items.get(Item.MONEY)));
-        joiner.add(String.format("\"debt\": %d", items.get(Item.DEBT)));
-        joiner.add(String.format("\"potion\": %d", items.get(Item.POTION)));
-        joiner.add(String.format("\"coffre\": %d", items.get(Item.COFFER)));
-        joiner.add(String.format("\"buys\": %d", items.get(Item.BUY)));
+        joiner.add(String.format("\"name\": \"%s\"", getName()));
+        joiner.add(String.format("\"actions\": %d", getValueOf(Item.ACTION)));
+        joiner.add(String.format("\"money\": %d", getValueOf(Item.MONEY)));
+        joiner.add(String.format("\"debt\": %d", getValueOf(Item.DEBT)));
+        joiner.add(String.format("\"potion\": %d", getValueOf(Item.POTION)));
+        joiner.add(String.format("\"coffre\": %d", getValueOf(Item.COFFER)));
+        joiner.add(String.format("\"buys\": %d", getValueOf(Item.BUY)));
         joiner.add(String.format("\"draw\": %s", Utils.toJSON(get(Destination.DRAW))));
         joiner.add(String.format("\"discard\": %s", Utils.toJSON(get(Destination.DISCARD))));
         joiner.add(String.format("\"in_play\": %s", Utils.toJSON(get(Destination.INPLAY))));
@@ -649,7 +784,7 @@ public class Player {
      *         {@code buttons} ou éventuellement {@code ""}, si l'utilisateur a
      *         choisi de passer.
      */
-    public String choose(String instruction, List<String> choices, List<Button> buttons, boolean canPass) {
+    public String choose(String instruction, List<String> choices, List<String> allCards,  List<Button> buttons, boolean canPass) {
         // Ajout des options correspondant aux boutons
         for (Button b : buttons) {
             choices.add("BUTTON:" + b.value());
@@ -664,7 +799,7 @@ public class Player {
         }
         // Lit l'entrée de l'utilisateur jusqu'à obtenir un choix valide
         while (true) {
-            controller.game.prompt(instruction, choices, buttons, getIndex());
+            controller.game.prompt(instruction, choices, allCards,  buttons, getIndex());
             String input = controller.game.readLine();
             if (choices.contains(input)) {
                 return input;
@@ -680,7 +815,7 @@ public class Player {
             choices.add("");
         }
         while (true) {
-            controller.game.prompt(instruction, choices, new ArrayList<>(), getIndex());
+            controller.game.prompt(instruction, choices, new ArrayList<>(), new ArrayList<>(), getIndex());
              return controller.game.readLine();
         }
     }
@@ -719,18 +854,17 @@ public class Player {
      * @return la carte choisie par le joueur ou {@code null} si le joueur a choisi
      *         de passer ou s'il n'avait aucune carte valide dans sa main.
      */
-    public Card chooseCardFromHand(String instruction, Predicate<Card> filter, boolean canPass) {
+    public Optional<Card> chooseCardFromHand(String instruction, Predicate<Card> filter, boolean canPass) {
         // ajout des options correspondant aux cartes de la liste
         List<String> choices = get(Destination.HAND).stream().filter(filter).map(c -> "HAND:" + c.getName())
                 .collect(Collectors.toList());
-        String choice = choose(instruction, choices, new ArrayList<>(), canPass);
+        String choice = choose(instruction, choices, new ArrayList<>(), new ArrayList<>(),  canPass);
         if (choice.startsWith("HAND:")) {
             return get(Destination.HAND).stream()
                     .filter(c -> c.hasName(choice.split(":")[1]))
-                    .findFirst()
-                    .orElse(null);
+                    .findFirst();
         }
-        return null;
+        return Optional.empty();
     }
 
     /**
@@ -741,7 +875,7 @@ public class Player {
      * @param canPass
      * @return a card
      */
-    public Card chooseCardFromHand(String instruction, boolean canPass) {
+    public Optional<Card> chooseCardFromHand(String instruction, boolean canPass) {
         return chooseCardFromHand(instruction, c -> true, canPass);
     }
 
@@ -755,7 +889,20 @@ public class Player {
      * @param canPass     Si le joueur peut passer.
      * @return La carte choisie ou null.
      */
-    public Card chooseCardFromList(String instruction, Predicate<Card> filter, List<Card> list, boolean canPass) {
+    @Selection_Mode
+    public Optional<Card> chooseCardFromList(String instruction, Predicate<Card> filter, List<Card> list, boolean canPass) {
+        List<String >choices = computeChoices(filter, list);
+
+
+        String choice = choose(instruction, choices, choices , new ArrayList<>(),  canPass);
+
+        if (choice != null && choice.startsWith("SELECT_CARD:")) {
+            return Optional.of(getCardFromIndex(list, choice));
+        }
+        return Optional.empty();
+    }
+
+    private List<String> computeChoices(Predicate<Card> filter, List<Card> list) {
         List<String> choices = new ArrayList<>();
 
         for (int i = 0; i < list.size(); i++) {
@@ -764,14 +911,45 @@ public class Player {
                 choices.add("SELECT_CARD:" + i + ":" + c.getName());
             }
         }
+        return choices;
+    }
+    @Selection_Mode
+    public Optional<Card> chooseWhatToDo(String instruction, Card c, boolean canPass) {
+        if(c == null)return Optional.empty();
 
-        String choice = choose(instruction, choices, new ArrayList<>(), canPass);
+        List<String> choices = new ArrayList<>();
+        choices.add("SELECT_CARD:" + 1 + ":" + c.getName());
+
+        String choice = choose(instruction, choices, new ArrayList<>(), new ArrayList<>(), canPass);
 
         if (choice != null && choice.startsWith("SELECT_CARD:")) {
-            int selectedIndex = Integer.parseInt(choice.split(":")[1]);
-            return list.get(selectedIndex);
+            if(c.hasName(choice.split(":")[2])) {
+                return Optional.of(c);
+            }
+
         }
-        return null;
+        return Optional.empty();
+    }
+    @Selection_Mode
+    public String chooseWhatToDo(String instruction, Predicate<Card> filter,  List<Card> list, List<Button> buttons,  boolean canPass) {
+        List<String> all = computeChoices(card -> true, list);
+        List<String>choices = computeChoices(filter, list);
+        String choice = choose(instruction, choices, all, buttons, canPass);
+        if (choice != null && choice.startsWith("SELECT_CARD:")) {
+            return getCardFromIndex(list, choice).getName();
+        }
+        if(choice == null) return "";
+        return choice.split(":")[1];
+    }
+
+    @Selection_Mode
+    public String chooseWhatToDo(String instruction,List<Card> list ,List<Button> buttons, boolean canPass) {
+        return chooseWhatToDo(instruction, card -> false,list, buttons, canPass);
+    }
+
+    public Card getCardFromIndex(List<Card> cards, String choice) {
+        int selectedIndex = Integer.parseInt(choice.split(":")[1]);
+        return cards.get(selectedIndex);
     }
 
     /**
@@ -804,17 +982,17 @@ public class Player {
      *         {@code null} si le joueur a choisi de passer ou s'il n'avait aucune
      *         carte valide dans sa main.
      */
-    public Card chooseCardFromSupply(String instruction, Predicate<Card> filter, boolean canPass) {
+    public Optional<Card> chooseCardFromSupply(String instruction, Predicate<Card> filter, boolean canPass) {
         List<String> choices = game.getAvailableSupplyCards().stream()
                 .filter(filter)
                 .map(c -> "SUPPLY:" + c.getName())
                 .collect(Collectors.toList());
 
-        String choice = choose(instruction, choices, new ArrayList<>(), canPass);
+        String choice = choose(instruction, choices, new ArrayList<>(), new ArrayList<>(), canPass);
         if (choice.startsWith("SUPPLY:")) {
-            return getCardFromSupply(choice.split(":")[1]);
+            return Optional.ofNullable(getCardFromSupply(choice.split(":")[1]));
         }
-        return null;
+        return Optional.empty();
     }
 
     /**
@@ -837,7 +1015,7 @@ public class Player {
         for (Card c : cards)
             buttons.add(new Button(c.getName(), c.getName()));
 
-        String choice = choose(instruction, new ArrayList<>(), buttons, canPass);
+        String choice = choose(instruction, new ArrayList<>(), new ArrayList<>(), buttons, canPass);
         if (choice.startsWith("BUTTON:")) {
             for (Card c : cards) {
                 if (c.hasName(choice.split(":")[1])) {
@@ -862,8 +1040,8 @@ public class Player {
      * @return la valeur du bouton choisi par le joueur ou {@code null} si le joueur
      *         a choisi de passer ou si la liste de boutons était vide.
      */
-    public String chooseStringFromButtons(String instruction, List<Button> buttons, boolean canPass) {
-        String choice = choose(instruction, new ArrayList<>(), buttons, canPass);
+    public String  chooseStringFromButtons(String instruction, List<Button> buttons, boolean canPass) {
+        String choice = choose(instruction, new ArrayList<>(),new ArrayList<>(), buttons, canPass);
         if (choice.startsWith("BUTTON:")) {
             return choice.split(":")[1];
         }
@@ -901,23 +1079,26 @@ public class Player {
      * se termine également automatiquement lorsque le joueur n'a plus d'achat
      * disponible.
      */
-
+    @BeforeAllyTrigger
     public void playTurn() {
-        items.put(Item.ACTION, 1);
-        items.put(Item.BUY, 1);
+        increment(Item.ACTION, 1);
+        increment(Item.BUY, 1);
 
-        boolean canPlayAction = true;
-        boolean canPlayTreasure = true;
+        getFlag("Action").set(true);
+        getFlag("Treasure").set(true);
+        BooleanProperty action = getFlag("Action");
+        BooleanProperty treasure = getFlag("Treasure");
 
         triggerDurationCard();
         triggerStart(TriggerComponent.onStartTurn.class);
+        getCopyOf(Destination.ASIDE_ACTIVE).forEach(self::playCard);
         while (true) {
             List<String> choices = new ArrayList<>();
-            computeChoices(choices, canPlayAction, canPlayTreasure);
+            computeChoices(choices, action.get(), treasure.get());
             List<Button> buttons = computeButtons();
-            String instruction = computeInstruction(canPlayAction, canPlayTreasure);
+            String instruction = computeInstruction(action.get(), treasure.get());
 
-            String playCard = choose(instruction, choices, buttons, true);
+            String playCard = choose(instruction, choices, new ArrayList<>(), buttons, true);
 
             if (playCard.isEmpty()) break;
 
@@ -947,13 +1128,13 @@ public class Player {
 
                 }
                 if (play.hasType(CardType.TREASURE)) {
-                    canPlayAction = false;
+                     action.set(false);
                 }
 
-                playCard(play);
+                self.playCard(play);
 
-                if (items.get(Item.ACTION) == 0) {
-                    canPlayAction = false;
+                if (items.get(Item.ACTION).get() == 0) {
+                    action.set(false);
                 }
             }
 
@@ -961,10 +1142,12 @@ public class Player {
                 Card play = getCardFromSupply(playCard.split(":")[1]);
                 if(play == null) continue;
                 increment(Item.BUY, -1);
-                canPlayAction = false;
-                canPlayTreasure = false;
-                buyCard(play);
-                if (items.get(Item.BUY) == 0) {
+                action.set(false);
+                treasure.set(false);
+
+                self.buyCard(play);
+
+                if (items.get(Item.BUY).get() == 0) {
                     break;
                 }
             }
@@ -972,33 +1155,62 @@ public class Player {
     }
 
     public void repayDebt(){
-        int toRepay = Math.min(items.get(Item.MONEY), items.get(Item.DEBT));
+        int toRepay = Math.min(items.get(Item.MONEY).get(), items.get(Item.DEBT).get());
         decrement(Item.DEBT, toRepay);
         decrement(Item.MONEY, toRepay);
     }
 
     public void useCoffre(){
-        if(items.get(Item.COFFER) > 0){
+        if(items.get(Item.COFFER).get() > 0){
             decrement(Item.COFFER, 1);
-            decrement(Item.MONEY, 1);
-            game.coffers(-1);
+            increment(Item.MONEY, 1);
         }
     }
 
     public boolean canBuy(Card c) {
-        boolean enoughMoney = items.get(Item.MONEY) >= c.getCost();
-        boolean enoughPotion = items.get(Item.POTION) >= c.getPotion();
-        boolean isNotDebted = items.get(Item.DEBT) == 0;
-        boolean available = c.getAvailable().test(this);
+        boolean enoughMoney = items.get(Item.MONEY).get() >= c.getCost();
+        boolean enoughPotion = items.get(Item.POTION).get() >= c.getPotion();
+        boolean isNotDebted = items.get(Item.DEBT).get() == 0;
+        boolean available = c.getAvailable().test(self);
         boolean isNotContraband = !getGame().getNamedCardsThisTurn("contraband").contains(c.getName());
         return enoughMoney && enoughPotion && isNotDebted && available && isNotContraband;
     }
 
-    public void buyCard(Card c) {
-        decrement(Item.MONEY, c.getCost());
-        decrement(Item.POTION, c.getPotion());
-        decrement(Item.DEBT, c.getDebt());
+    public int overPaid(Card c, int potion){
+        int i = 0;
+        if(c.hasType(CardType.OVERPAID) && getMoney() > c.getCost()){
+            String choose = self.chooseWhatToDo("Do you want to overpaid ? ", List.of(c), Button.yesOrNo, true);
+            if("y".equals(choose)) {
+                int start = c.getCost();
+                while(start < getMoney()){
+                    List<Button> buttons = new ArrayList<>();
+                    buttons.add(new Button("Increment", "i"));
+                    buttons.add(new Button(" use Potion", "p"));
 
+                    String howMuch = self.chooseWhatToDo("How much ? Max : " + getValueOf(Item.MONEY),  List.of(c), buttons , true);
+                    if("i".equals(howMuch)) {
+                        start += 1;
+                    }else if("p".equals(howMuch)) {
+                        potion += 1;
+                    }else break;
+                }
+                i = start - c.getCost();
+                c.set("OverpaidNumber", i);
+                c.set("Potion", potion);
+            }
+        }
+        c.as(TriggerComponent.overPaidCard.class).ifPresent(t -> t.accept(self, c));
+        return i;
+    }
+
+    @AfterAllyTrigger
+    public void buyCard(Card c) {
+        if(c==null)return;
+        int potion = 0;
+        int overpaid = overPaid(c, potion);
+        decrement(Item.MONEY, c.getCost() + overpaid);
+        decrement(Item.POTION, c.getPotion() + potion);
+        decrement(Item.DEBT, c.getDebt());
         log(toLog() + " bought " + c.toLog());
         triggerBuy(c);
         gain(c, Destination.DISCARD);
@@ -1007,7 +1219,7 @@ public class Player {
 
     public void triggerBuy(Card c){
         getCopyOf(Destination.INPLAY)
-                .forEach(card -> card.as(TriggerComponent.onBuy.class).ifPresent(d -> d.accept(this, c)));
+                .forEach(card -> card.as(TriggerComponent.onBuy.class).ifPresent(d -> d.accept(self, c)));
 
     }
 
@@ -1027,7 +1239,7 @@ public class Player {
      */
     private void computeChoices(List<String> choices, boolean canPlayAction, boolean canPlayTreasure) {
         for (Card c : get(Destination.HAND)) {
-            if(canPlayAction && c.hasType(CardType.ACTION) && items.get(Item.ACTION) > 0){
+            if(canPlayAction && c.hasType(CardType.ACTION) && items.get(Item.ACTION).get() > 0){
                 choices.add("HAND:" + c.getName());
             }
             if(canPlayTreasure && c.hasType(CardType.TREASURE)) {
@@ -1042,11 +1254,11 @@ public class Player {
 
     private List<Button> computeButtons() {
         List<Button> buttons = new ArrayList<>();
-        if(items.get(Item.DEBT) > 0){
+        if(items.get(Item.DEBT).get() > 0){
             buttons.add(new Button("Rembourser la dette", "REMBOURSER"));
         }
-        if(items.get(Item.COFFER) > 0){
-            buttons.add(new Button("Coffre (" + items.get(Item.COFFER) + ")", "COFFRE"));
+        if(items.get(Item.COFFER).get() > 0){
+            buttons.add(new Button("Coffre (" + items.get(Item.COFFER).get() + ")", "COFFRE"));
         }
         return buttons;
     }
@@ -1081,10 +1293,11 @@ public class Player {
      * - Le joueur pioche les cartes de sa prochaine main (normalement 5 cartes,
      * mais parfois moins selon les effets de certaines cartes)
      */
+    @BeforeAllyTrigger
     public void cleanup() {
         triggerEvent(TriggerComponent.onEndBuy.class);
         resetItem();
-        getCopyOf(Destination.HAND).forEach(c -> {c.moveTo(get(Destination.DISCARD)); c.clear();});
+        getCopyOf(Destination.HAND).forEach(c -> {discard(c, Discard_Type.CLEANUP); c.clear();});
 
         getCopyOf(Destination.INPLAY).stream().filter(c->
                         c.as(DurationComponent.class)
@@ -1092,16 +1305,13 @@ public class Player {
                                 .orElse(true))
                 .toList()
                 .forEach(c ->{
-                    c.moveTo(get(Destination.DISCARD));
-                    if(c.hasName("Charlatan")){
-                        GameStat.charlatanPower.set(GameStat.charlatanPower.getValue() - 1);
-                    }
+                    discard(c, Discard_Type.CLEANUP);
                     c.clear();
                 });
 
         if (this.controller != this) {
             this.setController(this);
-            mustBeDiscarded.forEach(c -> {c.moveTo(get(Destination.DISCARD)); c.clear();});
+            mustBeDiscarded.forEach(c -> {discard(c, Discard_Type.CLEANUP); c.clear();});
         }
 
 
@@ -1112,6 +1322,7 @@ public class Player {
         CardGainedLastTurn = new ArrayList<>(CardGainedCurrentTurn);
         CardGainedCurrentTurn.clear();
         activeEffect.clear();
+        discardHooks.clear();
         resetFlags();
         resetProperties();
     }
@@ -1131,16 +1342,15 @@ public class Player {
     private void triggerDurationCard() {
         getCopyOf(Destination.INPLAY)
                 .forEach(c -> c.as(DurationComponent.class).ifPresent(d ->{
-                    d.execute(this, c);
+                    d.execute(self, c);
                     d.consume();
                 }));
     }
 
     private <T extends TriggerComponent & TriggerEffect> void triggerActiveEffect(Class<T> clazz, Event event){
-        new ArrayList<>(activeEffect).stream().filter(card -> card.canExecute(event, this)).forEach(
-                card -> card.as(clazz).ifPresent(e -> e.execute(this, this, event))
+        new ArrayList<>(activeEffect).stream().filter(card -> card.canExecute(event, self)).forEach(
+                card -> card.as(clazz).ifPresent(e -> e.execute(self, self, event))
         );
-
     }
 
 
@@ -1152,7 +1362,7 @@ public class Player {
      * @param <T> le composant héritant de TriggerComponent et TriggerEffect qui sont des {@link FunctionalInterface}
      */
     public<T extends TriggerComponent & TriggerEffect> void triggerEvent(Class<T> type, Event event){
-        getGame().notifyTrigger(type, this, event);
+        getGame().notifyTrigger(type, self, event);
     }
 
     /**
@@ -1163,10 +1373,8 @@ public class Player {
      */
     public<T extends TriggerComponent & BiConsumer<Player, Card>> void triggerEvent(Class<T> type){
         for(Card c : getCopyOf(Destination.INPLAY)){
-            c.as(type).ifPresent(d -> d.accept(this, c));
+            c.as(type).ifPresent(d -> d.accept(self, c));
         }
-
-
     }
 
     /**
@@ -1188,13 +1396,11 @@ public class Player {
 
             if (validReactions.isEmpty()) break;
 
-            Card chosen = chooseCardFromList("Start turn, you may play a Card?", card -> true, validReactions, true);
+            Optional<Card> chosen = self.chooseCardFromList("Start turn, you may play a Card?", card -> true, validReactions, true);
 
-            if (chosen == null) break;
-
-            alreadyRevealed.add(chosen);
-
-            chosen.as(type).ifPresent(s -> s.accept(this));
+            if (chosen.isEmpty()) break;
+            alreadyRevealed.add(chosen.get());
+            chosen.get().as(type).ifPresent(s -> s.accept(self));
 
         }
     }
@@ -1215,7 +1421,7 @@ public class Player {
 
         if (inPlay) return true;
 
-        return getCopyOf(Destination.HAND).stream().anyMatch(card -> card.hasComponent(type) && card.as(type).map(i -> i.revealed(this, card)).orElse(false));
+        return getCopyOf(Destination.HAND).stream().anyMatch(card -> card.hasComponent(type) && card.as(type).map(i -> i.revealed(self, card)).orElse(false));
     }
 
     /**
@@ -1250,22 +1456,31 @@ public class Player {
                 .flatMap(comp -> comp.canUseExtraTurn().stream())
                 .findFirst()
                 .map(e -> {
-                    e.consume(this);
+                    e.consume(self);
                     isSecondTurn = true;
                     return true;
                 }).orElse(false);
     }
 
+
+    public <T extends TriggerComponent & BiConsumer<Event, Card>> void triggerOneCard(Class<T> clazz, Card c, Event event){
+        if(!c.canExecute(event, self))return;
+        c.as(clazz).ifPresent(t -> t.accept(event, c));
+    }
+
+    @AfterAllyTrigger
     public void moveToTrash(Card c) {
         log(String.format("Trash %s ", c.getName()));
-        //TODO mettre en place le trashTrigger ici
+        Event trash = new Event(c, Destination.TRASH, self);
+        c.as(TriggerComponent.onCardTrashed.class).ifPresent(t -> t.accept(trash, c));
 
         if(controller != this){
-            c.moveTo(get(Destination.ASIDE));
+            c.moveTo(get(Destination.ASIDE), Destination.ASIDE);
             mustBeDiscarded.add(c);
             return;
         }
-        getGame().moveCardToTrash(c);
+        if(trash.getDest() == Destination.TRASH)
+            getGame().moveCardToTrash(c);
     }
     //--endregion
 
@@ -1283,7 +1498,7 @@ public class Player {
                 if (top.equals(selected)) {
                     break;
                 }
-                top.moveTo(tempAside);
+                top.moveTo(tempAside, null);
             }
 
             moveTo(card, Destination.DRAW);
@@ -1298,5 +1513,36 @@ public class Player {
         activeEffect.add(c);
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Player player)) return false;
+        return Objects.equals(getId(), player.getId());
+    }
 
+    public int getId(){
+        return Id;
+    }
+
+
+    public List<Card> getDistinctCards(Destination dest){
+        return getCopyOf(dest).stream()
+                .collect(Collectors.toMap(Card::getName, c -> c, (c1, c2) -> c1))
+                .values()
+                .stream()
+                .toList();
+    }
+
+
+    public void generalCleanUp(){
+        getCopyOf(Destination.INPLAY)
+                .stream()
+                .filter(c -> !c.hasComponent(DurationComponent.class))
+                .forEach(c -> discard(c, Discard_Type.CLEANUP));
+    }
+
+
+    public void shuffling(Destination dest){
+        Collections.shuffle(get(dest));
+    }
 }

@@ -1,17 +1,18 @@
 package fr.umontpellier.iut.dominion.cards;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import fr.umontpellier.iut.dominion.CardType;
-import fr.umontpellier.iut.dominion.Game;
+import fr.umontpellier.iut.dominion.Destination;
 import fr.umontpellier.iut.dominion.Player;
+import fr.umontpellier.iut.dominion.cards.Events.Event;
 import fr.umontpellier.iut.dominion.cards.component.*;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 
 /**
  * Représentation des cartes du jeu Dominion
@@ -24,9 +25,10 @@ public class Card {
     /**
      * Le coût de la carte à l'achat
      */
-    private final Price cost;
+    private Price cost;
 
     private final Set<CardType> types;
+    private Destination loc;
 
     private List<Card> location;
     private BiPredicate<Event, Player> condition = (event, player) ->  true;
@@ -82,6 +84,22 @@ public class Card {
         return type.cast(this.properties.get(property));
     }
 
+    public Number getValue(String property){
+        Object value = this.properties.get(property);
+        if(value instanceof Number){
+            return (Number)value ;
+        }
+        return 0;
+    }
+
+    public String getString(String property){
+        Object value = this.properties.get(property);
+        if(value instanceof String){
+            return (String)value;
+        }
+        return "";
+    }
+
     @SuppressWarnings("unchecked")
     public <K, V> Map<K, V> getMap(String key) {
         Object val = properties.get(key);
@@ -97,21 +115,6 @@ public class Card {
             return (Boolean) val;
         }
         return false;
-    }
-    @SuppressWarnings("unchecked")
-    private <T> Consumer<T> getAction(String key){
-        Object val = properties.get(key);
-        if (val instanceof Consumer) {
-            return (Consumer<T>) val;
-        }
-        return null;
-    }
-
-    public void execute(Player p) {
-        Consumer<Player>  action = getAction("action");
-        if (action != null) {
-            action.accept(p);
-        }
     }
 
     public void clear(){
@@ -168,19 +171,13 @@ public class Card {
         return this.types.contains(type);
     }
 
-    /**
-     * Déplace la carte d'un emplacement (location) vers un autre
-     * <p>
-     * La méthode retire la carte de son emplacement actuel (s'il existe), l'ajoute
-     * à {@code newLocation} et met à jour l'attribut {@code location} de la carte
-     * 
-     * @param newLocation le nouvel emplacement de la carte
-     */
-    public void moveTo(List<Card> newLocation) {
+
+    public void moveTo(List<Card> newLocation, Destination loc) {
         if (location != null) {
             location.remove(this);
         }
         location = newLocation;
+        this.loc = loc;
         newLocation.add(this);
     }
 
@@ -216,7 +213,7 @@ public class Card {
 
 
     public boolean buyCondition(int potion, int debt){
-        return potion == cost.potion()  &&  debt == cost.debt().get();
+        return potion <= cost.potion()  &&  debt <= cost.debt().get();
     }
 
     /**
@@ -255,4 +252,57 @@ public class Card {
     public void removeType(CardType type) {
         types.remove(type);
     }
+
+
+    public static Card treasure(String name, Price cost){
+        return new Card(name, cost, CardType.TREASURE );
+    }
+    public static Card action(String name, Price cost){
+        return new Card(name, cost, CardType.ACTION);
+    }
+    public static Card Victory(String name, Price cost){
+        return new Card(name, cost, CardType.VICTORY);
+    }
+    public static Card duration(String name, Price cost){
+        return new Card(name, cost, CardType.DURATION);
+    }
+
+    public boolean isAtMost(int cost, int potion, int debt){
+        return getCost() <= cost && buyCondition(potion, debt);
+    }
+    public boolean isAtMost(int cost){
+        return isAtMost(cost, 0, 0);
+    }
+
+    public boolean isEqual(int cost, int potion, int debt){
+        return getCost() == cost
+                && getPotion() == potion
+                && getDebt() == debt;
+    }
+
+    public boolean isEqual(int cost){
+        return isEqual(cost, 0, 0);
+    }
+
+    public boolean isEqualWithBonus(Card trashed, int bonusMoney){
+        return getCost() == (trashed.getCost() + bonusMoney)
+                && getPotion() == trashed.getPotion()
+                && getDebt() == trashed.getDebt();
+    }
+
+    public boolean isAtMostWithBonus( Card trashed, int bonusMoney) {
+        return getCost() <= (trashed.getCost() + bonusMoney)
+                && getPotion() <= trashed.getPotion()
+                && getDebt() <= trashed.getDebt();
+    }
+
+    public void setPrice(Price cost){
+        this.cost = cost;
+    }
+
+
+    public Destination getLocation() {
+        return loc;
+    }
+
 }

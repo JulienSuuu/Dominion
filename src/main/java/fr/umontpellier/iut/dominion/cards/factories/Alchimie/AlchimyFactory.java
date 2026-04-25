@@ -1,31 +1,37 @@
-package fr.umontpellier.iut.dominion.cards.Alchimie;
+package fr.umontpellier.iut.dominion.cards.factories.Alchimie;
 
 import fr.umontpellier.iut.dominion.*;
 import fr.umontpellier.iut.dominion.Annotation.Dominion_Card;
+import fr.umontpellier.iut.dominion.Annotation.InSet;
 import fr.umontpellier.iut.dominion.Annotation.PileType;
+import fr.umontpellier.iut.dominion.cards.Bonus;
 import fr.umontpellier.iut.dominion.cards.Card;
 import fr.umontpellier.iut.dominion.cards.CardUtil;
 import fr.umontpellier.iut.dominion.cards.RegistryPrice;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
-public class AlchimyFactory {
-    public static List<Button> yesOrNo = List.of(new Button("Yes", "y"), new Button("No", "n"));
+import static fr.umontpellier.iut.dominion.cards.factories.FactoryUtil.ACTION;
+import static fr.umontpellier.iut.dominion.cards.factories.FactoryUtil.EFFECT;
 
+public class AlchimyFactory {
     @Dominion_Card(extension = "Alchemy")
+    @InSet(value = {"Potion Mixers", "Chemistry Lesson"})
     public static Card Alchemist(){
+        Bonus bonus = Bonus.empty().draw(2).with(Item.ACTION, 1);
         return new Card("Alchemist", RegistryPrice.AlchimyPrice(3, 1))
                 .setup(config -> config
-                        .registerSimpleAction(2, 1, 0, 0)
+                        .registerSimpleAction(bonus)
                         .onEndBuy((player, self) ->{
                                     boolean potionInPlay = player.getCopyOf(Destination.INPLAY)
                                             .stream().anyMatch(card -> card.hasName("Potion"));
 
                                     if(potionInPlay){
                                         CardUtil.executeOrOtherwise(
-                                                () -> player.chooseStringFromButtons("Want to move your Alchemist on top of your deck ?",yesOrNo,true  ),
+                                                () -> player.chooseWhatToDo("Want to move your Alchemist on top of your deck ?", List.of(self), Button.yesOrNo,true),
                                                 "y"::equals,
                                                 choice -> player.moveTo(self, Destination.DRAW),
                                                 () -> {}
@@ -36,11 +42,13 @@ public class AlchimyFactory {
                 );
     }
     @Dominion_Card(extension = "Alchemy")
+    @InSet(value = {"Potion Mixers"})
     public static Card Apothecary() {
+        Bonus play =  Bonus.empty().draw(1).with(Item.ACTION, 1);
         return new Card("Apothecary", RegistryPrice.AlchimyPrice(2, 1), CardType.ACTION)
                 .setup(config -> config
                         .onPlay((player, self) -> {
-                           CardUtil.TriggerEffect(player, 0, 1, 1, 0, "Effect", self);
+                           CardUtil.TriggerEffect(player, EFFECT, self, play);
 
                             List<Card> revealed = CardUtil.getTopCards(player, 4);
 
@@ -49,18 +57,18 @@ public class AlchimyFactory {
                                     .collect(Collectors.toList());
 
                             while (!copperAndPotion.isEmpty()) {
-                                Card chosen = player.chooseCardFromList(
+                                 Optional<Card> chosen = player.chooseCardFromList(
                                         "Select a Copper or Potion to put in your hand (Cancel to leave on deck)",
                                         card -> true,
                                         copperAndPotion,
                                         true
                                 );
 
-                                if (chosen == null) break;
+                                if (chosen.isEmpty()) break;
 
-                                copperAndPotion.remove(chosen);
-                                revealed.remove(chosen);
-                                player.moveTo(chosen, Destination.HAND);
+                                copperAndPotion.remove(chosen.get());
+                                revealed.remove(chosen.get());
+                                player.moveTo(chosen.get(), Destination.HAND);
                             }
 
 
@@ -70,49 +78,53 @@ public class AlchimyFactory {
                                     break;
                                 }
 
-                                Card toDeck = player.chooseCardFromList(
+                                Optional<Card> toDeck = player.chooseCardFromList(
                                         "Choose the order to put back on deck (Last chosen = Top)",
                                         card -> true,
                                         revealed,
                                         false
                                 );
 
-                                if (toDeck != null) {
-                                    revealed.remove(toDeck);
-                                    player.moveTo(toDeck, Destination.DRAW);
+                                if (toDeck.isPresent()) {
+                                    revealed.remove(toDeck.get());
+                                    player.moveTo(toDeck.get(), Destination.DRAW);
                                 }
                             }
                         })
                 );
     }
     @Dominion_Card(extension = "Alchemy")
+    @InSet(value = {"Forbidden Arts"})
     public static Card Apprentice(){
+        Bonus  play =  Bonus.empty().with(Item.ACTION, 1);
         return new Card("Apprentice", RegistryPrice.DominionPrice(5), CardType.ACTION)
                 .setup(config -> config
                         .onPlay((player, self) -> {
-                            CardUtil.TriggerEffect(player, 0, 1, 0, 0, "Effect", self);
-                            CardUtil.executeIfSelected(
-                                    () -> player.chooseCardFromHand("Choose a card to trash", false),
-                                    card -> {
-                                        player.moveToTrash(card);
-                                        int cost =  card.getCost();
-                                        int potion = card.getPotion();
-                                        player.draw(cost + (potion > 0? 2:0));
+                            CardUtil.TriggerEffect(player,EFFECT, self, play);
+                             player.chooseCardFromHand("Choose a card to trash", false)
+                                     .ifPresent(card -> {
+                                         player.moveToTrash(card);
+                                         int cost =  card.getCost();
+                                         int potion = card.getPotion();
+                                         player.draw(cost + (potion > 0? 2:0));
                                     });
                         })
                 );
     }
     @Dominion_Card(extension = "Alchemy")
+    @InSet(value = {"Forbidden Arts"})
     public static Card Familiar(){
+        Bonus play =  Bonus.empty().with(Item.ACTION, 1).draw(1);
         return new Card("Familiar", RegistryPrice.AlchimyPrice(3, 1), CardType.ACTION, CardType.ATTACK)
                 .setup(config -> config
                         .onPlay((player, self) -> {
-                            CardUtil.TriggerEffect(player, 0, 1, 1, 0, "Effect", self);
+                            CardUtil.TriggerEffect(player,EFFECT, self, play);
                             player.getGame().processGain(player, self, Destination.DISCARD, "Curse");
                         })
                 );
     }
     @Dominion_Card(extension = "Alchemy")
+    @InSet(value = {"Potion Mixers", "Chemistry Lesson"})
     public static Card Golem(){
         return new Card("Golem", RegistryPrice.AlchimyPrice(4, 1), CardType.ACTION)
                 .setup(config -> config
@@ -127,18 +139,17 @@ public class AlchimyFactory {
                                 {
                                     if (c.hasType(CardType.ACTION) && !c.hasName("Golem")) {
                                     numberOfAction++;
-                                    c.moveTo(revealed);
+                                    c.moveTo(revealed, null);
                                     }
-                                    else  c.moveTo(discard);
+                                    else  c.moveTo(discard, null);
                                 }
                             } while (c != null && numberOfAction<2);
 
                             while (!revealed.isEmpty()) {
-                                CardUtil.executeIfSelected(
-                                        () -> player.chooseCardFromList("Play those card in any order", card -> true, revealed, false),
-                                        card -> {
-                                            player.playCard(card);
-                                            revealed.remove(card);
+                                 player.chooseCardFromList("Play those card in any order", card -> true, revealed, false)
+                                         .ifPresent(card -> {
+                                             player.playCard(card);
+                                             revealed.remove(card);
                                         }
                                 );
                             }
@@ -148,26 +159,24 @@ public class AlchimyFactory {
                 );
     }
     @Dominion_Card(extension = "Alchemy")
+    @InSet(value = {"Potion Mixers"})
     public static Card Herbalist(){
+        Bonus  play =  Bonus.empty().with(Item.BUY,1).with(Item.MONEY, 1);
         return new Card("Herbalist", RegistryPrice.AlchimyPrice(2, 0), CardType.ACTION)
                 .setup(config -> config
-                        .onPlay((player, self) -> {
-                            CardUtil.TriggerEffect(player, 1, 0, 0, 1, "Effect", self);
-                        })
+                        .onPlay((player, self) -> CardUtil.TriggerEffect(player,EFFECT, self, play))
                         .onEndBuy((player, self) -> {
                             List<Card> treasuresInPlay = player.getCopyOf(Destination.INPLAY).stream()
                                     .filter(c -> c.hasType(CardType.TREASURE))
                                     .toList();
 
                             if (!treasuresInPlay.isEmpty()) {
-                                CardUtil.executeIfSelected(
-                                        () -> player.chooseCardFromList(
+                                player.chooseCardFromList(
                                                 "Herbalist: Choose a Treasure to put on top of your deck",
                                                 c -> true,
                                                 treasuresInPlay,
                                                 true
-                                        ),
-                                        treasure -> player.moveTo(treasure, Destination.DRAW)
+                                        ).ifPresent(treasure -> player.moveTo(treasure, Destination.DRAW)
                                 );
                             }
 
@@ -176,6 +185,7 @@ public class AlchimyFactory {
                 );
     }
     @Dominion_Card(extension = "Alchemy")
+    @InSet(value = {"Chemistry Lesson"})
     public static Card Philosopher_Stone() {
         return new Card("Philosopher's Stone", RegistryPrice.AlchimyPrice(3, 1), CardType.TREASURE)
                 .setup(config -> config
@@ -188,12 +198,14 @@ public class AlchimyFactory {
                             int moneyGain = total / 5;
 
                             if (moneyGain > 0) {
-                                CardUtil.TriggerEffect(player, moneyGain, 0, 0, 0, "Effect", self);
+                                Bonus bonus = Bonus.empty().with(Item.MONEY, moneyGain);
+                                CardUtil.TriggerEffect(player, ACTION, self, bonus);
                             }
                         })
                 );
     }
     @Dominion_Card(extension = "Alchemy")
+    @InSet(value = {"Forbidden Arts"})
     public static Card Possession() {
         return new Card("Possession", RegistryPrice.AlchimyPrice(6, 1), CardType.ACTION)
                 .setup(config ->
@@ -205,10 +217,11 @@ public class AlchimyFactory {
     }
     @Dominion_Card(extension = "Alchemy")
     public static Card Scrying_Pool(){
+        Bonus bonus = Bonus.empty().with(Item.ACTION, 1);
         return new Card("Scrying Pool", RegistryPrice.AlchimyPrice(2, 1), CardType.ACTION, CardType.ATTACK)
                 .setup(config -> config
                         .onPlay((player, self) -> {
-                            CardUtil.TriggerEffect(player, 0, 1, 0, 0, "Effect", self);
+                            CardUtil.TriggerEffect(player,EFFECT, self, bonus);
                             player.getGame().processGlobalEffect(
                                     player,
                                     user -> {
@@ -217,8 +230,9 @@ public class AlchimyFactory {
                                             player.log( user.getName() + " reveal " + c.getName());
 
                                             List<Button> choices = List.of(new Button("Discard", "d"), new Button("Keep", "k"));
-                                            String choice = player.getController().chooseStringFromButtons(
+                                            String choice = player.chooseWhatToDo(
                                                     "Discard " + c.getName() + " from " + user.getName() + " ?",
+                                                    List.of(c),
                                                     choices,
                                                     false
                                             );
@@ -235,7 +249,7 @@ public class AlchimyFactory {
                                 Card c = player.getCardFromDeck();
                                 if(c == null)break;
                                 if(!c.hasType(CardType.ACTION))break;
-                                c.moveTo(revealed);
+                                c.moveTo(revealed, null);
                             }
 
                             revealed.forEach(card -> player.moveTo(card, Destination.HAND));
@@ -244,29 +258,29 @@ public class AlchimyFactory {
                 );
     }
     @Dominion_Card(extension = "Alchemy")
+    @InSet(value = {"Potion Mixers"})
     public static Card Transmute(){
         return new Card("Transmute", RegistryPrice.AlchimyPrice(0, 1), CardType.ACTION)
                 .setup(config -> config
-                        .onPlay((player, self) -> {
-                            CardUtil.executeIfSelected(
-                                    () -> player.chooseCardFromHand("Choose a card to trash", false),
-                                    card -> {
-                                        player.moveToTrash(card);
-                                        if(card.hasType(CardType.ACTION)) CardUtil.gainFromSupply(player, "Duchy", Destination.DISCARD, false);
-                                        if(card.hasType(CardType.TREASURE))CardUtil.gainFromSupply(player, "Transmute", Destination.DISCARD, false);
-                                        if(card.hasType(CardType.VICTORY))CardUtil.gainFromSupply(player, "Gold", Destination.DISCARD, false);
-                                    }
-                            );
-                        })
+                        .onPlay((player, self) -> player.chooseCardFromHand("Choose a card to trash", false)
+                                .ifPresent(card -> {
+                                    player.moveToTrash(card);
+                                    if(card.hasType(CardType.ACTION)) CardUtil.gainFromSupply(player, "Duchy", Destination.DISCARD, false);
+                                    if(card.hasType(CardType.TREASURE))CardUtil.gainFromSupply(player, "Transmute", Destination.DISCARD, false);
+                                    if(card.hasType(CardType.VICTORY))CardUtil.gainFromSupply(player, "Gold", Destination.DISCARD, false);
+                                }
+                        ))
                 );
     }
     @Dominion_Card(extension = "Alchemy")
+    @InSet(value = {"Forbidden Arts", "Chemistry Lesson"})
     public static Card University(){
+        Bonus bonus = Bonus.empty().with(Item.ACTION, 2);
         return new Card("University", RegistryPrice.AlchimyPrice(2, 1), CardType.ACTION)
                 .setup(config -> config
                         .onPlay((player, self) -> {
-                            CardUtil.TriggerEffect(player, 0, 2, 0, 0, "Effect", self);
-                            CardUtil.gainFromSupply(player, "Choose an Action card from supply cost up max", card -> card.getCost() <= 5 && card.hasType(CardType.ACTION), Destination.DISCARD, false);
+                            CardUtil.TriggerEffect(player,EFFECT, self, bonus);
+                            CardUtil.gainFromSupply(player, "Choose an Action card from supply cost up max", card -> card.isAtMost(5) && card.hasType(CardType.ACTION), Destination.DISCARD, false);
                         })
                 );
     }

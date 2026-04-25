@@ -7,5 +7,8 @@ package fr.umontpellier.iut.dominion;
  * Action/Attaque ou Action/Réaction
  */
 public enum CardType {
-    TREASURE, ACTION, VICTORY, CURSE, REACTION, ATTACK, DURATION
+    TREASURE, ACTION, VICTORY, CURSE, REACTION, ATTACK, DURATION, OVERPAID, REWARDS;
+
+    public static final CardType[] ActionAndAttack = new CardType[]{ACTION, ATTACK};
+
 }

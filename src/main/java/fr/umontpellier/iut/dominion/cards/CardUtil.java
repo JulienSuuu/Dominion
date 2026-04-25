@@ -24,6 +24,7 @@ public class CardUtil {
      * @param name le nom de l'effet ( Effect ou Duration )
      * @param c la carte de l'effet
      */
+    @Deprecated
     public static void TriggerEffect(Player p, int money, int action, int card, int buy, String name, Card c) {
         StringBuilder builder = new StringBuilder(String.format("%s %s : ", name, c.getName().toUpperCase()));
         List<String> bonuses = new ArrayList<>();
@@ -51,14 +52,54 @@ public class CardUtil {
         p.log(builder.toString());
     }
 
+    public static void TriggerEffect(Player p, String effectName, Card c, Bonus bonus) {
+        List<String> logs = new ArrayList<>();
+
+        if (bonus.cardsToDraw() > 0) {
+            p.draw(bonus.cardsToDraw());
+            logs.add("+" + bonus.cardsToDraw() + " Card(s)");
+        }
+
+        bonus.items().forEach((item, qty) -> {
+            if (qty > 0) {
+                p.increment(item, qty);
+                logs.add("+" + qty + " " + item.name());
+
+            }
+
+        });
+
+        p.log(effectName + " " + c.getName().toUpperCase() + " : " + String.join(", ", logs));
+    }
+
+
+    public static Card gainMultiplyCardFromSupply(Player p, String cardName, Destination dest, int numberOfCard) {
+        Card c = null;
+        for(int index = 0; index < numberOfCard; index++) {
+            c = gainFromSupply(p, cardName, dest, false);
+            if(c == null)break;
+        }
+        return c;
+    }
+
+
     public static Card gainFromSupply(Player p,String message, Predicate<Card> filter, Destination dest, boolean silent) {
-        Card supplyCard = p.chooseCardFromSupply(message, filter, false);
-        return gainIfPresent(p, supplyCard, dest, silent);
+        Optional<Card> supplyCard = p.chooseCardFromSupply(message, filter, false);
+        return supplyCard.map(card -> gainIfPresent(p, card, dest, silent)).orElse(null);
     }
 
     public static Card gainFromSupply(Player p, String name, Destination dest, boolean silent) {
         Card supplyCard = p.getCardFromSupply(name);
         return gainIfPresent(p, supplyCard, dest, silent);
+    }
+
+    public static Card gainIfPresent(Player p, Card target, Destination dest, boolean silent) {
+        if (target != null) {
+            if (silent) p.gainSilent(target, dest, true);
+            else p.gain(target, dest);
+            p.log( p.toLog() + " gained " + target.toLog());
+        }
+        return target;
     }
 
     public static List<Card> getTopCards(Player p, int count) {
@@ -86,14 +127,6 @@ public class CardUtil {
     private static List<Card> getCards(Player p, int count) {
         if (p.getCopyOf(DRAW).size() < count) p.shuffle();
         return p.getCopyOf(DRAW);
-    }
-
-    public static Card gainIfPresent(Player p, Card target, Destination dest, boolean silent) {
-        if (target != null) {
-            if (silent) p.gainSilent(target, dest, true);
-            else p.gain(target, dest);
-        }
-        return target;
     }
 
     public static Card moveIfPresent(Player p, Card target, Destination dest) {
@@ -126,8 +159,7 @@ public class CardUtil {
     }
 
     public static void executeAmbassador(Player p, Card self){
-        CardUtil.executeIfSelected(
-                () -> p.chooseCardFromHand("Dévoile une carte", false),
+        p.chooseCardFromHand("Dévoile une carte", false).ifPresent(
                 revealed -> {
                     p.log(p.getName() + " dévoile " + revealed.getName());
                     handleReplacements(p, revealed, 2);
@@ -138,9 +170,10 @@ public class CardUtil {
 
     private static void handleReplacements(Player p, Card revealed, int max){
         for (int i = 0; i < max; i++) {
-            Card toReturn = p.chooseCardFromHand("Remettre en réserve (max 2)", revealed::hasSameNameAs, true);
-            if (toReturn == null) break;
-            p.getGame().replaceCardInSupply(toReturn, revealed);
+            Optional<Card> c = p.chooseCardFromHand("Remettre en réserve (max " + max + ")", revealed::hasSameNameAs, true);
+            if (c.isEmpty()) break;
+            Card card = c.get();
+            p.getGame().replaceCardInSupply(card, revealed);
         }
     }
 

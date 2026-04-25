@@ -18,7 +18,8 @@ public class RegistryPrice {
 
     public static Price ProsperityPrice(int coins){return new Price(create(coins), 0, createDebt(0));}
 
-
+    public static Price Cornucopia(int coins){return new Price(create(coins), 0, createDebt(0));}
+    public static Price Hinterlands(int coins){return new Price(create(coins), 0, createDebt(0));}
 
     private static IntegerProperty create(int i){
         return new SimpleIntegerProperty(i);

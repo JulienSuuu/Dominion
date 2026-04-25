@@ -1,23 +1,19 @@
-package fr.umontpellier.iut.dominion.cards;
+package fr.umontpellier.iut.dominion.cards.factories;
 
 import fr.umontpellier.iut.dominion.Annotation.Dominion_Card;
 import fr.umontpellier.iut.dominion.Annotation.PileType;
 import fr.umontpellier.iut.dominion.CardType;
-import fr.umontpellier.iut.dominion.Flags;
 import fr.umontpellier.iut.dominion.Item;
-import fr.umontpellier.iut.dominion.Player;
+import fr.umontpellier.iut.dominion.cards.*;
 import fr.umontpellier.iut.dominion.cards.component.OnPlayComponent;
 import fr.umontpellier.iut.dominion.cards.component.ScoreComponent;
-
-import java.util.function.Consumer;
 
 public class CommonFactory {
 
     public static Card createTreasure(String name, int cost, int value) {
+        Bonus bonus =  Bonus.empty().with(Item.MONEY, value);
         Card c =  new Card(name, RegistryPrice.SeasidePrice(cost), CardType.TREASURE);
-        c.addComponent(OnPlayComponent.class, (player, card) ->{
-            CardUtil.TriggerEffect(player, value, 0, 0, 0, "Effect", c);
-        });
+        c.addComponent(OnPlayComponent.class, (player, card) -> CardUtil.TriggerEffect(player, FactoryUtil.EFFECT, card, bonus));
         return c;
     }
 
@@ -30,7 +26,7 @@ public class CommonFactory {
     public static Card createCurseCard(String name, int cost, int value){
         Card c =   new Card(name, RegistryPrice.SeasidePrice(cost), CardType.CURSE);
         c.addComponent(ScoreComponent.class, player -> value);
-        c.addComponent(OnPlayComponent.class, (player, card) ->{player.increment(Item.MONEY, GameStat.charlatanPower.getValue() > 0 ? 1 : 0 );});
+        c.addComponent(OnPlayComponent.class, (player, card) -> player.increment(Item.MONEY, c.hasType(CardType.TREASURE) ? 1 : 0));
         return c;
     }
 

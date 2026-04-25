@@ -1,12 +1,13 @@
 package fr.umontpellier.iut.dominion.cards;
 
 import fr.umontpellier.iut.dominion.Player;
+import fr.umontpellier.iut.dominion.cards.Events.Event;
 import fr.umontpellier.iut.dominion.cards.component.*;
+import fr.umontpellier.iut.dominion.cards.factories.FactoryUtil;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
-import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 public class CardConfigurator {
@@ -71,20 +72,19 @@ public class CardConfigurator {
         return this;
     }
 
-    public CardConfigurator registerSimpleComponent( int cardsNow, int actsNow, int buysNow, int coinsNow,
-                                               int cardsNext, int actsNext, int buysNext, int coinsNext) {
-        registerSimpleAction( cardsNow, actsNow, buysNow, coinsNow);
-        registerSimpleDuration( cardsNext, actsNext, buysNext, coinsNext);
+    public CardConfigurator registerSimpleDurationAndPlay(Bonus playBonus, Bonus durationBonus) {
+        registerSimpleAction( playBonus);
+        registerSimpleDuration( playBonus);
         return this;
     }
 
-    public CardConfigurator registerSimpleAction( int cardsNow, int actsNow, int buysNow, int coinsNow ){
-        card.addComponent(OnPlayComponent.class, (p, c) -> CardUtil.TriggerEffect(p, coinsNow, actsNow, cardsNow, buysNow, "Effect", c));
+    public CardConfigurator registerSimpleAction(Bonus playBonus){
+        card.addComponent(OnPlayComponent.class, (p, c) -> CardUtil.TriggerEffect(p, FactoryUtil.EFFECT, c, playBonus));
         return this;
     }
 
-    public CardConfigurator registerSimpleDuration( int cardsNext, int actsNext, int buysNext, int coinsNext) {
-        card.addComponent(new DurationComponent((p,c) -> CardUtil.TriggerEffect(p, coinsNext, actsNext, cardsNext, buysNext, "Duration", c)));
+    public CardConfigurator registerSimpleDuration(Bonus durationBonus) {
+        card.addComponent(new DurationComponent((p,c) -> CardUtil.TriggerEffect(p, FactoryUtil.EFFECT, c, durationBonus)));
         return this;
     }
 
@@ -105,6 +105,27 @@ public class CardConfigurator {
 
     public CardConfigurator onBuy(TriggerComponent.onBuy effect) {
         card.addComponent(TriggerComponent.onBuy.class, effect);
+        return this;
+    }
+
+    public CardConfigurator overpaid(TriggerComponent.overPaidCard effect) {
+        card.addComponent(TriggerComponent.overPaidCard.class, effect);
+        return this;
+    }
+
+
+    public CardConfigurator checkGain(TriggerComponent.checkItselfGain effect) {
+        card.addComponent(TriggerComponent.checkItselfGain.class, effect);
+        return this;
+    }
+
+    public CardConfigurator checkBuy(TriggerComponent.checkItSelfBuy effect) {
+        card.addComponent(TriggerComponent.checkItSelfBuy.class, effect);
+        return this;
+    }
+
+    public CardConfigurator onTrash(TriggerComponent.onCardTrashed effect) {
+        card.addComponent(TriggerComponent.onCardTrashed.class, effect);
         return this;
     }
 
