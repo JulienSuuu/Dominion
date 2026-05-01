@@ -396,13 +396,28 @@ function Player({ data, is_active, is_turn_player, instruction, choices, buttons
                         <span>Buys: ${data.buys}</span>
                     </div>
 
-                        <div class="stat-group deck">
-                    <span>
-                    Draw: ${data.draw.length}
-                    </span>
-                        <span>
-            Discard: ${data.discard.length}
-        </span>
+                    <div class="stat-group deck">
+                        <div class="card-pile" id="draw-pile">
+                            <div class="pile-label">Draw: ${data.draw.length}</div>
+                            <div class="cards-container">
+                                ${Array(Math.min(data.draw.length, 5)).fill(0).map((_, i) => html`<img
+                                        key=${`draw-${i}`}
+                                        src="images/Cardback.png"
+                                        class="card-back animate-card"
+                                        style="bottom: ${i * 2}px; left: ${i * 2}px; transition-delay: ${i * 50}ms;"
+                                />`)}
+                            </div>
+                        </div>
+
+                        <div class="card-pile" id="discard-pile">
+                            <div class="pile-label">Discard: ${data.discard.length}</div>
+                            <div class="cards-container">
+                                ${data.discard.length > 0
+                                        ? html`<img src="images/Cardback.png" class="card-back" />`
+                                        : html`<div class="empty-slot"></div>`
+                                }
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -466,16 +481,24 @@ function SelectionOverlay({ instruction, cards, choices, buttons, onSelect, mode
 
 
 function ListOfCards({ cards, classes, messageType }) {
-    if (!cards || cards.length === 0) {
-        return html`<div class=${classes.join(" ")}></div>`;
+    // 1. On s'assure que cards est un tableau et on filtre les valeurs nulles
+    const validCards = Array.isArray(cards) ? cards.filter(c => c !== null) : [];
+
+    if (validCards.length === 0) {
+        // Sécurité sur classes au cas où il serait undefined
+        const emptyClass = Array.isArray(classes) ? classes.join(" ") : (classes || "");
+        return html`<div class=${emptyClass}></div>`;
     }
+
     const classList = Array.isArray(classes) ? classes : [classes];
-    const total = cards.length;
+    const total = validCards.length;
     const isHand = classList.includes("hand") || classList.includes("hand-basic");
+
     return html`
         <div class=${classList.join(" ")} style="--total: ${total}">
-            ${cards.map((card, i) => {
-                const isDuplicate = card === cards[i + 1];
+            ${validCards.map((card, i) => {
+                const nextCard = validCards[i + 1];
+                const isDuplicate = nextCard && card === nextCard;
 
                 return html`
                     <${Card}
@@ -483,7 +506,7 @@ function ListOfCards({ cards, classes, messageType }) {
                             name=${card}
                             classes=${isDuplicate ? ['duplicate'] : []}
                             messageType=${messageType}
-                            style=${isHand ? { "--index": i } : null}
+                            style=${isHand ? { "--index": i } : {}}
                     />`;
             })}
         </div>`;
