@@ -1,6 +1,13 @@
 const { h, render } = preact;
 const { useState, useEffect, useRef } = preactHooks;
 const html = htm.bind(h);
+const adventureTokenKeys = [
+    'card_reduction_token', 'estate_token', 'one_action_token',
+    'one_buy_token', 'one_card_token', 'one_money_token', 'trashing_token'
+];
+
+
+
 
 const socket = new WebSocket("ws://localhost:3232");
 function sendMessage(message) {
@@ -25,7 +32,9 @@ function Main() {
         presets: {},
         selectedCards: null,
         aside: {},
+        events: {},
         options: {}
+
 
     });
 
@@ -47,10 +56,12 @@ function Main() {
 
                     supply: hasGame ? data.game.supply : prevState.supply,
                     aside: hasGame? data.game.aside : prevState.aside,
+                    events: hasGame? data.game.events : prevState.events,
                     players: hasGame ? data.game.players : prevState.players,
                     turn_player: hasGame ? data.game.turn_player : prevState.turn_player,
                     size: hasGame ? data.game.size : prevState.size,
                     log: hasGame ? data.game.log : prevState.log,
+
 
                     active_player: data.active_player !== undefined ? data.active_player : prevState.active_player,
                     instruction: data.instruction || prevState.instruction,
@@ -108,7 +119,7 @@ function Main() {
 
     if (!state.supply) {
         return html`
-            <div id="main" class="hub-layout">
+            <div id="hub" class="hub-layout">
                 <div class="hub-parchment">
                     <h1>Configuration du Royaume</h1>
 
@@ -223,7 +234,7 @@ function Main() {
 
             <div id="game">
                 <div id="aside-supply-zone">
-                    ${state.aside && Object.keys(state.aside).length > 0 && Object.entries(state.aside).map(([category, piles]) => html`
+                    ${state.aside && Object.keys(state.aside).length > 0 && Object.entries(state.aside).filter(([category]) => category.toUpperCase() !== 'Event').map(([category, piles]) => html`
                         <div class="aside-group">
                             <div class="aside-header">${category.toUpperCase()}</div>
                             <div class="aside-row">
@@ -235,8 +246,8 @@ function Main() {
                                             cost=${pile.cost} 
                                             potion=${pile.potion} 
                                             debt=${pile.debt}
-                                            messageType=${category.toUpperCase() === 'EVENTS' ? 'BUY_EVENT' : 'NONE'}
-                                            classes=${['half', category.toUpperCase() === 'EVENTS' ? 'event-style' : '']}
+                                            messageType=${category.toUpperCase() === 'NONE'}
+                                            classes=${['half', category.toUpperCase() === '']}
                                             overlay=${pile.number === 0}
                                     />
                                 `)}
@@ -244,6 +255,8 @@ function Main() {
                         </div>
                     `)}
                 </div>
+                
+                
                 
                 <div id="supply">
                     <div id="kingdom_supply">
@@ -258,7 +271,8 @@ function Main() {
                                         classes=${['half']}
                                         messageType="SUPPLY"
                                         overlay=${pile.number === 0}
-                                />`
+                                        players=${state.players}
+            />`
         )}
                     </div>
                     <div id="common_supply">
@@ -272,6 +286,7 @@ function Main() {
                                         debt=${pile.debt}
                                         messageType="SUPPLY"
                                         overlay=${pile.number === 0}
+                                        players=${state.players}
                                 />`
         )}
                     </div>
@@ -291,15 +306,39 @@ function Main() {
                                 buttons=${is_active ? state.buttons : []}
                                 game_over=${state.instruction === "Game over"}
                                 mode=${state.mode}
+                                state=${state}
                         />`;
+            
         })}
                 </div>
             </div>
 
-            <div id="side">
-                <${Log} log=${state.log} />
+            <div id="events-sidebar">
+                ${state.events && html`
+                    <div class="aside-group">
+                        <div class="aside-header">EVENTS</div>
+                        <div class="aside-row">
+                            ${state.events.map(pile => html`
+                                <${Card} 
+                                        key=${pile.card} 
+                                        name=${pile.card} 
+                                        number=${pile.number} 
+                                        cost=${pile.cost} 
+                                        potion=${pile.potion} 
+                                        debt=${pile.debt}
+                                        messageType='EVENT'
+                                        classes=${['event-style']}
+                                        overlay=${pile.number === 0}
+                                />
+                            `)}
+                        </div>
+                    </div>
+                `}
             </div>
+            <${Log} log=${state.log} />
+            
         </div>`;
+
 }
 
 function CardHub({ name, isSelected, onClick }) {
@@ -326,7 +365,7 @@ function CardHub({ name, isSelected, onClick }) {
             onClick=${onClick}
             onMouseEnter=${handleMouseEnter}
             onMouseLeave=${handleMouseLeave}
-        >
+        > 
             ${isSelected && html`
                 <div class="selected-check">
                     <span>✓</span>
@@ -335,8 +374,24 @@ function CardHub({ name, isSelected, onClick }) {
         </div>`;
 }
 
-function Card({ name, number, cost, potion, debt, classes, messageType, overlay, style }) {
+function Card({ name, number, cost, potion, debt, classes, messageType, overlay, style, players = {} }) {
     const short_name = name ? name.replace(/[^A-Za-z]/g, '') : '';
+
+    const playerList = Object.values(players || {});
+
+    let tokensOnThisCard = [];
+    playerList.forEach(p => {
+        const supplyTokens = p.tokens?.supplyTokens || {};
+        Object.keys(supplyTokens).forEach(key => {
+            if (supplyTokens[key] === name) {
+                tokensOnThisCard.push({
+                    key: key,
+                    color: p.color,
+                    pid: p.id
+                });
+            }
+        });
+    });
 
     const handleMouseEnter = () => {
         if (!name) return;
@@ -344,12 +399,14 @@ function Card({ name, number, cost, potion, debt, classes, messageType, overlay,
         if (zoomEl){
             zoomEl.style.backgroundImage = `url(cards/${short_name}.jpg)`;
             zoomEl.classList.add('active');
+            if(messageType === 'EVENT') zoomEl.classList.add('event');
         }
     };
 
     const handleMouseLeave = () => {
         const zoomEl = document.getElementById('zoom');
         if (zoomEl) zoomEl.classList.remove('active');
+        if (zoomEl) zoomEl.classList.remove('event');
     };
 
     const combinedStyle = {
@@ -360,11 +417,24 @@ function Card({ name, number, cost, potion, debt, classes, messageType, overlay,
     return html`
         <div
                 class="${['card', ...(classes || [])].join(' ')}"
+                data-name="${name}"
                 style=${combinedStyle}
                 onMouseEnter=${handleMouseEnter}
                 onMouseLeave=${handleMouseLeave}
                 onClick=${name && messageType ? () => sendMessage(`${messageType}:${name}`) : null}
         >
+            <div class="token-anchor">
+                ${tokensOnThisCard.map(t => html`
+                    <${Token}
+                            key=${`card-${t.key}-${t.pid}`}
+                            id="token-${t.key}-${t.pid}"
+                            name=${t.key}
+                            playerColor=${t.color}
+                            classes=${["adventure-token", "anchored"]}
+                    />
+                `)}
+            </div>
+
             <div class="card-footer">
                 ${cost > 0 ? html`<div class="cost">${cost}</div>` : null}
                 ${potion > 0 ? html`<div class="potion"></div>` : null}
@@ -376,16 +446,234 @@ function Card({ name, number, cost, potion, debt, classes, messageType, overlay,
         </div>`;
 }
 
-function Player({ data, is_active, is_turn_player, instruction, choices, buttons, game_over, mode }) {
+function Token({ name, id, classes, playerColor, style, data = {} }) {
+    const short_name = name ? name.replace(/[^A-Za-z]/g, '') : '';
+    const currentTarget = data.tokens?.supplyTokens?.[key];
+    style = currentTarget ? { visibility: 'hidden', pointerEvents: 'none' } : {};
+
+    const handleMouseEnter = () => {
+        if (!name) return;
+        const zoomEl = document.getElementById('zoom');
+        if (zoomEl) {
+
+            zoomEl.style.backgroundImage = `url(images/${short_name}.png)`;
+            zoomEl.classList.add('active');
+            zoomEl.classList.add('zoom-token');
+        }
+    };
+
+    const handleMouseLeave = () => {
+        const zoomEl = document.getElementById('zoom');
+        if (zoomEl) {
+            zoomEl.classList.remove('active');
+            zoomEl.classList.remove('zoom-token');
+        }
+    };
+
+    const combinedStyle = {
+        ...(style || {}),
+        backgroundImage: name ? `url(images/${short_name}.png)` : null,
+        borderColor: playerColor
+    };
+
+    return html`
+        <div
+            id=${id}
+            class="${['token', ...(classes || [])].join(' ')}"
+            style=${combinedStyle}
+            onMouseEnter=${handleMouseEnter}
+            onMouseLeave=${handleMouseLeave}
+            onClick=${(e) => {
+                if (e && e.stopPropagation) e.stopPropagation();
+
+                if (name) sendMessage(`TOKEN:${name}`);
+            }}        >
+        </div>`;
+}
+
+function Player({ data, is_active, is_turn_player, instruction, choices, buttons, game_over, mode, state}) {
     const classes = ["player", is_active ? "active" : "", is_turn_player ? "turn" : ""].join(" ");
     const sortedHand = [...data.hand].sort();
+
+    const { supplyTokens, playerTokens } = data.tokens || { supplyTokens: {}, playerTokens: {} };
+
+    useEffect(() => {
+        if (typeof updateAdventureTokens === 'function') {
+            requestAnimationFrame(() => updateAdventureTokens(data));
+        }
+    }, [data]);
+
+
+    if (!is_active) {
+        return html`
+                
+            ${['card_reduction_token', 'estate_token', 'one_action_token',
+                    'one_buy_token', 'one_card_token', 'one_money_token', 'trashing_token']
+                        .filter(key => {
+                            const isPlaced = data.tokens?.supplyTokens?.[key];
+                            if (data.id !== state.active_player.id) return false;
+                            return isPlaced;
+                        })
+                        .map(key => html`
+        <${Token} 
+            key=${`tavern-${key}-${data.id}`} 
+            id="token-${key}-${data.id}" 
+            name=${key} 
+            playerColor=${data.color} 
+            classes=${["adventure-token"]}
+            data = ${data}
+        />`)}
+            
+            <div class="${classes} opponent-hud" id="player-info-${data.id}">
+                <div class="hud-header">
+                    <div class="name">${data.name}</div>
+                    <div class="stat-group resources">
+                        <div class="money-wrapper">
+                            <span class="coins" id="player-money-display-${data.id}">🟡 ${data.money}</span>
+                            <div id="token-minus-coin-${data.id}" class="token square minus-coin" style="display:none"></div>
+                        </div>
+                        <span>⬡ ${data.debt}</span>
+                        <span>⚗️ ${data.potion}</span>
+                        <span>💰 ${data.coffre}</span>
+                    </div>
+                </div>
+
+                <div class="data stats-container mini">
+                    <div class="stat-group deck mini-deck">
+                        <div class="card-pile" id="draw-pile-${data.id}">
+                            <div id="token-minus-card-${data.id}" class="token square minus-card" style="display:none"></div>
+                            <div class="pile-label">Draw: ${data.draw.length}</div>
+                            <div class="cards-container">
+                                ${Array(Math.min(data.draw.length, 5)).fill(0).map((_, i) => html`
+                                    <img src="images/Cardback.png" class="card-back" style="bottom: ${i}px; left: ${i}px;" />
+                                `)}
+                            </div>
+                        </div>
+
+                        <div class="card-pile">
+                            <div class="pile-label">Discard: ${data.discard.length}</div>
+                            <div class="cards-container">
+                                ${data.discard.length > 0
+                                        ? html`<img src="images/Cardback.png" class="card-back" />`
+                                        : html`<div class="empty-slot"></div>`}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            
+            
+            <div class="opponent-deck">
+                <div class="opponent-hand-preview">
+                    <div class="hand-label">Opponent hand(${data.hand.length})</div>
+                    <div class="hand-mini">
+                        ${data.hand.map(card => html`
+                        <${Card}
+                                name=${card}
+                                classes=${["mini-card", "dynamic-card"]}
+                                messageType= "None"
+                        />
+                    `)}
+                    </div>
+                </div>
+
+                <div class="opponent-inplay-preview">
+                    <div class="hand-label"> Opponent In Play (${data.in_play.length})</div>
+                    <div class="inplay-mini">
+                        ${data.in_play.map(card => html`
+                        <${Card} 
+                                name=${card} 
+                                classes=${["mini-card", "dynamic-card", "in-play-style"]} 
+                                messageType= "None"
+                        />
+                    `)}
+                    </div>
+                </div>
+                
+                
+            </div>
+        `;
+    }
+
+
+
+
+
     return html`
+        <div id="interaction-container">
+            ${instruction ? html`
+                    <div class="instruction">
+                        <div>${instruction}</div>
+                        <div class="buttons">
+                            ${buttons.map((button, index) => html`
+                                <button key=${index} onClick=${() => sendMessage("BUTTON:" + button.value)}>
+                                    ${button.label}
+                                </button>
+                            `)}
+                            <button
+                                    onClick=${() => sendMessage("")}
+                                    disabled=${!choices.includes("")}
+                            >
+                                Pass
+                            </button>
+                        </div>
+                    </div>
+                ` : null}
+        </div>
+        
+        ${data.tavern != null && html`
+        <div id="tavern-area" style="box-shadow: inset 0 0 0 5px ${data.color}; border-bottom: 15px solid ${data.color};">
+            <div class="side-label" style="color: #f1d299; font-variant: small-caps; font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid #f1d299; width: 100%; text-align: center;">
+                Tavern
+            </div>
+            <div class="tavern-cards-container">
+                ${data.tavern && data.tavern.map(card => html`
+                    <${Card} 
+                        name=${card} 
+                        classes=${["tavern-card"]} 
+                        messageType="TAVERN" 
+                    />
+                `)}
+            </div>
+        </div>
+    `}
+        <div id="adventure-tokens-container-${data.id}" class="adventure-tokens-grid">
+            ${['card_reduction_token', 'estate_token', 'one_action_token',
+                'one_buy_token', 'one_card_token', 'one_money_token', 'trashing_token']
+                    .filter(key => {
+                        const supplyTokens = data.tokens?.supplyTokens || {};
+                        const isPlaced = supplyTokens[key];
+                        return !isPlaced;
+                    })
+                    .map(key => html`
+                        <${Token}
+                                key=${`tavern-${key}-${data.id}`}
+                                id="token-${key}-${data.id}"
+                                name=${key}
+                                playerColor=${data.color}
+                                classes=${["adventure-token"]}
+                        />
+                    `)}
+        </div>
         <div class=${classes}>
-            <div class="player_info">
+
+            <div id="player-info-${data.id}" class="player_info">
                 <div class="name">${data.name}</div>
+            ${data.tokens != null && html`    
+                <div class="journey-container">
+                    <div id="token-journey-${data.id}"
+                         class="token round"
+                         data-side=${playerTokens["JourneyToken"] ? 'sun' : 'moon'} </div>
+                </div>
+                `}
                 <div class="data stats-container">
                     <div class="stat-group resources">
-                        <span class="coins">🟡 ${data.money}</span>
+                        <div class="money-wrapper">
+                            <span class="coins" id="player-money-display-${data.id}">🟡 ${data.money}</span>
+                            <div id="token-minus-coin-${data.id}" class="token square minus-coin" style="display:none"></div>
+                        </div>
+                        
                         <span class="${data.debt > 0 ? 'debt-active' : ''}"> ⬡ ${data.debt}</span>
                         <span class="potions">⚗️ ${data.potion}</span>
                         <span class="coffers">💰 ${data.coffre}</span>
@@ -397,7 +685,8 @@ function Player({ data, is_active, is_turn_player, instruction, choices, buttons
                     </div>
 
                     <div class="stat-group deck">
-                        <div class="card-pile" id="draw-pile">
+                        <div class="card-pile" id="draw-pile-${data.id}">
+                            <div id="token-minus-card-${data.id}" class="token square minus-card" style="display:none"></div>
                             <div class="pile-label">Draw: ${data.draw.length}</div>
                             <div class="cards-container">
                                 ${Array(Math.min(data.draw.length, 5)).fill(0).map((_, i) => html`<img
@@ -408,6 +697,7 @@ function Player({ data, is_active, is_turn_player, instruction, choices, buttons
                                 />`)}
                             </div>
                         </div>
+                        
 
                         <div class="card-pile" id="discard-pile">
                             <div class="pile-label">Discard: ${data.discard.length}</div>
@@ -422,29 +712,69 @@ function Player({ data, is_active, is_turn_player, instruction, choices, buttons
                 </div>
             </div>
 
-            <div id="interaction-container">
-                ${instruction ? html`
-        <div class="instruction">
-            <div>${instruction}</div>
-            <div class="buttons">
-                ${buttons.map((button, index) => html`
-                    <button key=${index} onClick=${() => sendMessage("BUTTON:" + button.value)}>
-                        ${button.label}
-                    </button>
-                `)}
-                <button 
-                    onClick=${() => sendMessage("")} 
-                    disabled=${!choices.includes("")}
-                >
-                    Pass
-                </button>
-            </div>
-        </div>
-    ` : null}
-            </div>
             ${!game_over && html`<${ListOfCards} classes=${["in_play"]} cards=${data.in_play} />`}
-            <${ListOfCards} classes=${!game_over && is_active ? "hand" : "hand-basic"} cards=${sortedHand} messageType=${is_active ? "HAND" : null}/>
+
+            <${ListOfCards}
+                    classes=${!game_over && is_active ? "hand" : "hand-basic"}
+                    cards=${sortedHand}
+                    messageType=${is_active ? "HAND" : null}
+            />
         </div>`;
+}
+
+function updateAdventureTokens(playerData) {
+    if (!playerData.tokens) return;
+
+    const pid = playerData.id;
+    const playerColor = playerData.color;
+    const pTokens = playerData.tokens.playerTokens;
+
+    const taxCard = document.getElementById(`token-minus-card-${pid}`);
+    if (taxCard) {
+        if (pTokens["MinusOneCardToken"] || pTokens["Tax Card Token"]) {
+            const anchor = document.getElementById(`draw-pile-${pid}`);
+            moveTokenTo(taxCard, anchor, playerColor);
+        } else {
+            taxCard.style.display = "none";
+        }
+    }
+
+    // Idem pour la pièce
+    const taxCoin = document.getElementById(`token-minus-coin-${pid}`);
+    if (taxCoin) {
+        if (pTokens["MinusOneCoinToken"] || pTokens["Tax token"]) {
+            const anchor = document.getElementById(`player-money-display-${pid}`);
+            moveTokenTo(taxCoin, anchor, playerColor);
+        } else {
+            taxCoin.style.display = "none";
+        }
+    }
+
+    const journeyEl = document.getElementById(`token-journey-${pid}`);
+    if (journeyEl && pTokens["JourneyToken"] !== undefined) {
+        journeyEl.dataset.side = pTokens["JourneyToken"] ? 'sun' : 'moon';
+        journeyEl.style.borderColor = playerColor;
+        journeyEl.style.display = "block";
+    }
+}
+
+
+
+function moveTokenTo(el, target, color) {
+    if (!el || !target) return;
+
+    el.style.position = "fixed";
+    el.style.zIndex = "10000";
+    el.style.display = "block";
+
+    const targetRect = target.getBoundingClientRect();
+
+    const x = targetRect.left + (targetRect.width / 2) - 12;
+    const y = targetRect.top + (targetRect.height / 2) - 12;
+
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+    el.style.borderColor = color;
 }
 
 function SelectionOverlay({ instruction, cards, choices, buttons, onSelect, mode}) {
