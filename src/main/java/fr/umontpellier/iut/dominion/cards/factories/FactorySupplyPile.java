@@ -12,7 +12,8 @@ import fr.umontpellier.iut.dominion.Annotation.ExtraSet;
 import fr.umontpellier.iut.dominion.Annotation.InSet;
 import fr.umontpellier.iut.dominion.Annotation.PileType;
 import fr.umontpellier.iut.dominion.CardType;
-import fr.umontpellier.iut.dominion.SupplyPile;
+import fr.umontpellier.iut.dominion.Supply.MixedSupplyPile;
+import fr.umontpellier.iut.dominion.Supply.SupplyPile;
 import fr.umontpellier.iut.dominion.cards.Card;
 import org.reflections.Reflections;
 import org.reflections.scanners.Scanners;
@@ -30,29 +31,25 @@ public class FactorySupplyPile {
         Alchemy,
         Prosperity,
         Cornucopia_Guilds,
-        Hinterlands
+        Hinterlands,
+        Dark_Ages,
+        Adventures
     }
 
     public static Map<String, List<String>> getCardsByExtension() {
         return cardToExpansion.entrySet()
                 .stream()
-                .filter(entry -> !entry.getValue().equalsIgnoreCase("Base") && !rewards.contains(entry.getKey()))
+                .filter(entry -> !entry.getValue().equalsIgnoreCase("Base") && mixedCards.values().stream().noneMatch(list -> list.contains(entry.getKey().getName())))
                 .collect(Collectors.groupingBy(
                         Map.Entry::getValue,
-                        () -> new TreeMap<>(Comparator.comparingInt(name -> {
+                        () -> new TreeMap<>(Comparator.comparingInt(ext -> {
                             try {
-                                return order.valueOf(name).ordinal();
-                            } catch (IllegalArgumentException e) {
+                                return order.valueOf(ext).ordinal();
+                            } catch (Exception e) {
                                 return 99;
                             }
                         })),
-                        Collectors.mapping(
-                                Map.Entry::getKey,
-                                Collectors.collectingAndThen(Collectors.toList(), list -> {
-                                    list.sort(Comparator.naturalOrder());
-                                    return list;
-                                })
-                        )
+                        Collectors.mapping(entry -> entry.getKey().getName(), Collectors.toList())
                 ));
     }
 
@@ -96,15 +93,46 @@ public class FactorySupplyPile {
         public static PileConfig event(Supplier<Card> supplier) {return  new PileConfig(supplier, n -> 1);}
 
         public static PileConfig mixed(Supplier<Card> supplier) {return new PileConfig(supplier, n -> 1);}
+
+        public static PileConfig ruins(Supplier<Card> supplier) {return new PileConfig(supplier, n -> 5);}
+
+        public static PileConfig rats(Supplier<Card> supplier) {return new PileConfig(supplier, n -> 20);}
     }
 
-    private static final Map<String, String> cardToExpansion = new HashMap<>();
+    private static final Map<Card, String> cardToExpansion = new TreeMap<>(Comparator.comparing(Card::getCost).thenComparing(Card::getName));
+    private static final Map<String, String> nameToExpansion = new HashMap<>();
     private static final Map<String, PileConfig> PILE_CONFIGS = new HashMap<>();
-    private static final Map<String, Map<String, List<String>>> preSets = new LinkedHashMap<>();
-    private static final List<String > rewards = new ArrayList<>();
+    private static final Map<String, Card> registery = new HashMap<>();
+    private static final Map<String, Map<String, List<String>>> preSets = new TreeMap<>((s1, s2) -> {
+        List<Integer> ranks1 = Arrays.stream(s1.split(" & "))
+                .map(ext -> {
+                    try { return order.valueOf(ext).ordinal(); }
+                    catch (Exception e) { return 99; }
+                })
+                .sorted()
+                .toList();
+
+        List<Integer> ranks2 = Arrays.stream(s2.split(" & "))
+                .map(ext -> {
+                    try { return order.valueOf(ext).ordinal(); }
+                    catch (Exception e) { return 99; }
+                })
+                .sorted()
+                .toList();
+
+        int size = Math.min(ranks1.size(), ranks2.size());
+        for (int i = 0; i < size; i++) {
+            int cmp = Integer.compare(ranks1.get(i), ranks2.get(i));
+            if (cmp != 0) return cmp;
+        }
+
+        return Integer.compare(ranks1.size(), ranks2.size());
+    });
+    private static final Map<CardType, List<String>> mixedCards = new EnumMap<>(CardType.class);
     private static final Map<String, List<String>> tempSetCards = new LinkedHashMap<>();
     private static final Map<String, Set<String>> tempSetExpansions = new LinkedHashMap<>();
     private static final Map<String, String> tempSetExtra = new LinkedHashMap<>();
+    private static final Map<CardType, PileConfig> Templates = new EnumMap<>(CardType.class);
 
     public static void loadAllCards(){
         System.out.println("--- DÉBUT DU SCAN DES CARTES ---");
@@ -114,6 +142,7 @@ public class FactorySupplyPile {
         for (Method method : methods) {
 
             try {
+
                 Dominion_Card card = method.getAnnotation(Dominion_Card.class);
                 InSet inSet = method.getAnnotation(InSet.class);
                 ExtraSet extraSet = method.getAnnotation(ExtraSet.class);
@@ -131,13 +160,19 @@ public class FactorySupplyPile {
 
                 PileConfig pileConfig = createPileConfig(card.pileType(), supplier);
 
-
-                if(sample.hasType(CardType.REWARDS)){
-                    rewards.add(name);
+                CardType special = sample.getSpecialType();
+                if(special != null && !sample.hasType(CardType.TEMPLATE) ){
+                    mixedCards.computeIfAbsent(special, s -> new ArrayList<>()).add(sample.getName());
                 }
 
                 PILE_CONFIGS.put(name, pileConfig);
-                cardToExpansion.put(name, card.extension());
+                registery.put(name, sample);
+
+                if(sample.hasType(CardType.TEMPLATE)) Templates.put(sample.getSpecialType(), pileConfig);
+
+                cardToExpansion.put(sample, card.extension());
+                nameToExpansion.put(name, card.extension());
+
                 if (inSet != null) {
                     for (String setName : inSet.value()) {
                         tempSetCards.computeIfAbsent(setName, k -> new ArrayList<>()).add(name);
@@ -219,6 +254,17 @@ public class FactorySupplyPile {
         return new SupplyPile(config.cardSupplier(), config.countFunction().apply(numberOfPlayers));
     }
 
+    public static SupplyPile createMixedSupplyPile(List<String> cardNames) {
+        List<Supplier<Card>> suppliers = cardNames.stream()
+                .map(name -> PILE_CONFIGS.get(name).cardSupplier)
+                .filter(Objects::nonNull)
+                .toList();
+        PileConfig config = PILE_CONFIGS.get(cardNames.getFirst());
+
+        Card template = Templates.getOrDefault(suppliers.getFirst().get().getSpecialType(), config).cardSupplier().get();
+        return new MixedSupplyPile(suppliers, config.countFunction().apply(1), template);
+    }
+
     private static PileConfig createPileConfig(PileType type, Supplier<Card> s) {
         return switch (type) {
             case COPPER -> PileConfig.copper(s);
@@ -230,16 +276,19 @@ public class FactorySupplyPile {
             case POTION -> PileConfig.potion(s);
             case PLATINUM -> PileConfig.platinum(s);
             case CURSE -> PileConfig.curse(s);
-            case REWARDS -> PileConfig.rewards(s);
+            case MIXED -> PileConfig.mixed(s);
             case EVENT -> PileConfig.event(s);
+            case RUINS -> PileConfig.ruins(s);
+            case RATS -> PileConfig.rats(s);
         };
     }
 
     public static boolean isExpansionRequired(List<String> chosenNames, String expansionName) {
         return chosenNames.stream()
-                .map(cardToExpansion::get)
+                .map(nameToExpansion::get)
                 .filter(Objects::nonNull)
                 .anyMatch(exp -> exp.equals(expansionName));
+
     }
 
     public static Map<String, List<String>> getFerrymanOptions(List<String> kingdom) {
@@ -252,16 +301,25 @@ public class FactorySupplyPile {
 
 
     private static Map<String, List<String>> getGroupedOptions(List<String> kingdom, Predicate<Integer> costPredicate) {
-        Set<String> base = cardToExpansion.entrySet().stream()
+        Set<String> baseCards = cardToExpansion.entrySet().stream()
                 .filter(e -> e.getValue().equalsIgnoreCase("Base"))
-                .map(Map.Entry::getKey)
+                .map(e -> e.getKey().getName())
                 .collect(Collectors.toSet());
 
         return PILE_CONFIGS.entrySet().stream()
-                .filter(entry -> !kingdom.contains(entry.getKey()) && !base.contains(entry.getKey()) && !rewards.contains(entry.getKey()))
+                .filter(entry -> !kingdom.contains(entry.getKey())
+                        && !baseCards.contains(entry.getKey())
+                        && mixedCards.values().stream()
+                        .noneMatch(list -> list.contains(entry.getKey())))
                 .filter(entry -> costPredicate.test(entry.getValue().cardSupplier.get().getCost()))
+
                 .collect(Collectors.groupingBy(
-                        entry -> cardToExpansion.get(entry.getKey()),
+                        name -> cardToExpansion.entrySet().stream()
+                                .filter(e -> e.getKey().getName().equals(name.getKey()))
+                                .map(Map.Entry::getValue)
+                                .findFirst()
+                                .orElse("Unknown"),
+
                         () -> new TreeMap<>(Comparator.comparingInt(name -> {
                             try { return order.valueOf(name).ordinal(); }
                             catch (Exception e) { return 99; }
@@ -271,8 +329,27 @@ public class FactorySupplyPile {
     }
 
 
-    public static List<String> getRewards() {
-        return rewards;
+    public static List<String> getMixedCards(CardType type) {
+        return mixedCards.get(type);
+    }
+
+    /**
+     * Calcule si une extension est assez représentée pour activer ses mécaniques spéciales.
+     * @param kingdom Liste des noms des 10 cartes du royaume.
+     * @param targetExtension Le nom de l'extension (ex: "Dark Ages").
+     * @param threshold Le nombre de cartes minimum (souvent 1, ou aléatoire basé sur le nombre).
+     */
+    public static boolean shouldEnableSpecialty(List<String> kingdom, String targetExtension, int threshold) {
+        long count = kingdom.stream()
+                .map(nameToExpansion::get)
+                .filter(ext -> ext != null && ext.equalsIgnoreCase(targetExtension))
+                .count();
+
+        return count >= threshold;
+    }
+
+    public static Card createCard(String name){
+        return  registery.getOrDefault(name, null);
     }
 
 

@@ -59,13 +59,12 @@ public class CommonFactory {
             return CommonFactory.createTreasure("Platinum", 9, 5);
         }
 
-
         @Dominion_Card( pileType = PileType.ESTATE)
         public static Card Estate() {
             return CommonFactory.createVictoryCard("Estate", 2, 1);
         }
 
-        @Dominion_Card( pileType = PileType.VICTORY) // Utilise la règle Duché/Province
+        @Dominion_Card( pileType = PileType.VICTORY)
         public static Card Duchy() {
             return CommonFactory.createVictoryCard("Duchy", 5, 3);
         }
@@ -79,8 +78,6 @@ public class CommonFactory {
         public static Card Colony() {
             return CommonFactory.createVictoryCard("Colony", 11, 10);
         }
-
-        // --- CARTES SPÉCIALES ---
 
         @Dominion_Card( pileType = PileType.CURSE)
         public static Card Curse() {

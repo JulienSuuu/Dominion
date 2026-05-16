@@ -16,7 +16,6 @@ public class GameGUI extends Game implements Runnable {
     private final UiStateService uiStateService;
     private final ApplicationContext context;
 
-    // Spring injecte tout ce dont il a besoin ici
     public GameGUI(UiStateService uiStateService, ApplicationContext context) {
         super(context,  uiStateService);
         this.uiStateService = uiStateService;

@@ -3,9 +3,8 @@ package fr.umontpellier.iut.dominion.cards.factories.Hinterlands;
 import fr.umontpellier.iut.dominion.Button;
 import fr.umontpellier.iut.dominion.Destination;
 import fr.umontpellier.iut.dominion.Game;
-import fr.umontpellier.iut.dominion.Player;
+import fr.umontpellier.iut.dominion.Player.Player;
 import fr.umontpellier.iut.dominion.cards.Card;
-import fr.umontpellier.iut.dominion.cards.CardUtil;
 import fr.umontpellier.iut.dominion.cards.Events.OnGainEvent;
 
 import java.util.List;

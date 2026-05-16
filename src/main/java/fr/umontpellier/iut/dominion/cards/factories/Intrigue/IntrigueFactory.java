@@ -4,6 +4,7 @@ import fr.umontpellier.iut.dominion.*;
 import fr.umontpellier.iut.dominion.Annotation.Dominion_Card;
 import fr.umontpellier.iut.dominion.Annotation.InSet;
 import fr.umontpellier.iut.dominion.Annotation.PileType;
+import fr.umontpellier.iut.dominion.Player.Player;
 import fr.umontpellier.iut.dominion.cards.*;
 
 import java.util.*;
@@ -24,7 +25,7 @@ public class IntrigueFactory {
                                 CardUtil.TriggerEffect(player, EFFECT, self, play);
                                  player.chooseCardFromHand("You may choose an Estate to discard ", c -> c.hasName("Estate"), true)
                                          .ifPresentOrElse(card -> {
-                                            player.moveTo(card, Destination.DISCARD);
+                                            player.discard(card);
                                             player.increment(Item.MONEY, 4);
                                             player.log("Action %s : %s discard an Estate".formatted(self.getName().toUpperCase(), player.toLog()));
                                             }
@@ -127,12 +128,12 @@ public class IntrigueFactory {
                             play.with(Item.ACTION, value);
                             CardUtil.TriggerEffect(player, EFFECT, self, play);
                         })
-                        .onCardPlayed((owner, victim, event) -> {
+                        .onCardPlayed((event, owner) -> {
                             owner.log("reveals Diplomat");
                             owner.draw(2);
                             owner.discardFromHand(3);
                         })
-                        .onCondition((event, player) -> {
+                        .cardPlayedCondition((event, player) -> {
                             List <Card> hand = player.getCopyOf(Destination.HAND);
                             return event.getCard().hasType(CardType.ATTACK)
                                     && hand.contains(config.get())
@@ -189,7 +190,7 @@ public class IntrigueFactory {
                             String choice = player.chooseStringFromButtons("Choose, trash an Action from supply or take one from trash", List.of(new Button("Trash card", "Trash"), new Button("Gained", "gained")), false);
                             if("Trash".equals(choice)) {
                                 player.chooseCardFromSupply("Trash an Action card from the supply", card -> card.hasType(CardType.ACTION), false)
-                                        .ifPresent(player::moveToTrash);
+                                        .ifPresent(player::trash);
 
                             }
                             else if("gained".equals(choice)) {
@@ -231,7 +232,7 @@ public class IntrigueFactory {
                             );
 
                              player.chooseCardFromHand("You may trash a card from your hand", true)
-                                     .ifPresent(player::moveToTrash);
+                                     .ifPresent(player::trash);
 
                         })
                 );
@@ -276,8 +277,8 @@ public class IntrigueFactory {
                                     () -> player.chooseStringFromButtons("You may trash Mining Village to gain 2 Money", yesOrNo, true),
                                     "y"::equals,
                                     choice ->  {
-                                        player.moveToTrash(self);
-                                        CardUtil.TriggerEffect(player, "Trash Awards", self, trashAwards);
+                                        if(player.trash(self))
+                                            CardUtil.TriggerEffect(player, "Trash Awards", self, trashAwards);
                                     },
                                     ()->{}
                             );
@@ -403,7 +404,7 @@ public class IntrigueFactory {
                         .onPlay((player, self) ->
                             player.chooseCardFromHand("Trash a card", false)
                                     .ifPresent(c -> {
-                                        player.moveToTrash(c);
+                                        player.trash(c);
                                         int cost = c.getCost() + 2;
                                         Card gained = CardUtil.gainFromSupply(player, "Choose a card cost up to " + cost, card -> card.isAtMostWithBonus(c, 2), Destination.DISCARD, false);
                                         if(gained!=null){
@@ -462,7 +463,7 @@ public class IntrigueFactory {
                                 case "trash" -> {
                                     for(int i =0; i < 2; i++){
                                         player.chooseCardFromHand("Choose a card to trash", false)
-                                                .ifPresent(player::moveToTrash);
+                                                .ifPresent(player::trash);
                                     }
                                 }
                                 default -> {}
@@ -484,7 +485,7 @@ public class IntrigueFactory {
                                     vi -> {
                                         Card toTrash = vi.getCardFromDeck();
                                         if(toTrash!=null){
-                                            vi.moveToTrash(toTrash);
+                                            vi.trash(toTrash);
                                             Optional<Card> toGained = player.chooseCardFromSupply("You can choose a card that cost the same as the card your oppenent trashed (" + toTrash.getCost() + ")", card -> card.getCost() == toTrash.getCost(), false);
                                             toGained.ifPresent(card -> vi.gain(card, Destination.DISCARD));
                                         }
@@ -523,7 +524,7 @@ public class IntrigueFactory {
 
                                 for(i = 0; i<2 && self.getFlag("continu"); i++  ){
                                     player.chooseCardFromHand("Choose " + (2 - i) + " to trash to gain a silver", true)
-                                             .ifPresentOrElse(player::moveToTrash, () -> self.set("continu", false)
+                                             .ifPresentOrElse(player::trash, () -> self.set("continu", false)
                                     );
                                 }
 
@@ -543,7 +544,7 @@ public class IntrigueFactory {
                             CardUtil.TriggerEffect(player, EFFECT, self, ActionAndCard);
                              player.chooseCardFromHand("Choose a card to trash", false)
                                      .ifPresent(card -> {
-                                        player.moveToTrash(card);
+                                        player.trash(card);
                                         CardUtil.gainFromSupply(player, "Choose a card costing exactly 1$ more that " + card + "(" + card.getCost() + 1 + "$ )", gained -> gained.isEqualWithBonus(card, 1) , Destination.HAND, false);
                                     }
                             );
@@ -574,10 +575,10 @@ public class IntrigueFactory {
         return new Card("Coppersmith", RegistryPrice.IntriguePrice(4), CardType.ACTION)
                 .setup(config -> config
                         .onPlay((player, self) -> {
-                            int i = self.getOrDefault("increment", Integer.class);
+                            int i = self.getValue("increment").intValue();
                             self.set("increment", i + 1);})
-                        .onCardPlayed( (owner, victim, event) ->owner.increment(Item.MONEY, config.get().get("increment", Integer.class)))
-                        .onCondition((event, player) -> player == event.getPlayer() && event.getCard().hasName("Copper"))
+                        .onCardPlayed( (event, owner) ->owner.increment(Item.MONEY, config.get().getValue("increment").intValue()))
+                        .cardPlayedCondition((event, player) -> player == event.getPlayer() && event.getCard().hasName("Copper"))
                 );
     }
     @Dominion_Card(extension = "Intrigue", pileType = PileType.VICTORY)
@@ -609,7 +610,7 @@ public class IntrigueFactory {
                                     }
                                         if(c!= null && c.getCost() >= 3){
                                             player.log( vi.getName() + "Revealed Card : " + aside);
-                                            player.moveToTrash(c);
+                                            player.trash(c);
                                             Card finalCard = c;
                                             CardUtil.gainFromSupply(player, "Choose an card cost up (" + (c.getCost() - 2) +")", card -> card.isAtMostWithBonus(finalCard, -2), Destination.DISCARD, false);
                                         }
@@ -661,8 +662,8 @@ public class IntrigueFactory {
                                     );
                                 }
                         })
-                        .onCardPlayed((owner, actor, playedCard) -> {
-                            config.get().set("last_ID", playedCard.getId());
+                        .onCardPlayed((event, owner) -> {
+                            config.get().set("last_ID", event.getId());
                             owner.chooseCardFromHand("Reveal Secret_Chamber", card -> card.hasName("SecretChamber"), true)
                                     .ifPresent(card -> {
                                         owner.draw(2);
@@ -673,7 +674,7 @@ public class IntrigueFactory {
                                     }
                             );
                         })
-                        .onCondition((event, player) -> event.getCard().hasType(CardType.ATTACK) && player != event.getPlayer() && !config.get().getValue("last_ID").equals(event.getId()))
+                        .cardPlayedCondition((event, player) -> event.getCard().hasType(CardType.ATTACK) && player != event.getPlayer() && !config.get().getValue("last_ID").equals(event.getId()))
                 );
     }
     @Dominion_Card(extension = "Intrigue")

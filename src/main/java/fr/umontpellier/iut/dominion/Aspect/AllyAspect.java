@@ -1,6 +1,6 @@
 package fr.umontpellier.iut.dominion.Aspect;
 
-import fr.umontpellier.iut.dominion.Player;
+import fr.umontpellier.iut.dominion.Player.Player;
 import fr.umontpellier.iut.dominion.cards.Card;
 import fr.umontpellier.iut.dominion.cards.factories.Ally.AllyLogic;
 import fr.umontpellier.iut.dominion.cards.factories.Ally.AllyLogicRegistry;
@@ -9,8 +9,6 @@ import org.aspectj.lang.annotation.AfterReturning;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
 import org.springframework.stereotype.Component;
-
-import java.lang.reflect.Method;
 
 
 @Aspect

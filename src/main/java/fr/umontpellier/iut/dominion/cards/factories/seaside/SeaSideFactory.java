@@ -3,19 +3,19 @@ package fr.umontpellier.iut.dominion.cards.factories.seaside;
 import fr.umontpellier.iut.dominion.*;
 import fr.umontpellier.iut.dominion.Annotation.Dominion_Card;
 import fr.umontpellier.iut.dominion.Annotation.InSet;
-import fr.umontpellier.iut.dominion.cards.Bonus;
-import fr.umontpellier.iut.dominion.cards.Card;
-import fr.umontpellier.iut.dominion.cards.CardUtil;
-import fr.umontpellier.iut.dominion.cards.RegistryPrice;
+import fr.umontpellier.iut.dominion.Player.Player;
+import fr.umontpellier.iut.dominion.cards.*;
+import fr.umontpellier.iut.dominion.cards.component.DurationComponent;
+import fr.umontpellier.iut.dominion.cards.component.OnPlayComponent;
 import fr.umontpellier.iut.dominion.cards.component.TriggerComponent;
 import fr.umontpellier.iut.dominion.cards.factories.FactoryUtil;
 
-import javax.swing.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.IntStream;
 
+import static fr.umontpellier.iut.dominion.cards.CardConfigurator.empty;
 import static fr.umontpellier.iut.dominion.cards.factories.FactoryUtil.*;
 
 public class SeaSideFactory {
@@ -29,7 +29,7 @@ public class SeaSideFactory {
     public static Card Astrolabe(){
         Bonus same = Bonus.empty().with(Item.BUY, 1).with(Item.MONEY, 1);
         return new Card("Astrolabe", RegistryPrice.SeasidePrice(3), CardType.TREASURE, CardType.DURATION).
-                setup(config -> config.registerSimpleDurationAndPlay(same, same));
+                setup(config -> config.registerSimplePlayAndDuration(same, same));
     }
     @Dominion_Card(extension = "Seaside")
     public static Card Bazaar(){
@@ -41,37 +41,41 @@ public class SeaSideFactory {
     public static Card Blockade(){
         return new Card("Blockade", RegistryPrice.SeasidePrice(4), CardType.ACTION, CardType.DURATION, CardType.ATTACK)
                 .setup(config -> config
-
-                        .onPlay((p, self) ->{
-
-                            self.set("Players", p.getGame().scanImmunity(p));
-                            p.chooseCardFromSupply("Choississez une carte qui coûte au maximum 4 de pièces", buy -> buy.isAtMost(4), false )
-                                    .ifPresent(blocked -> {
-                                        self.set("Blocked", CardUtil.gainIfPresent(p, blocked, Destination.ASIDE, true));
-                                        p.log(String.format("%s bloquée", blocked.getName().toUpperCase()));
-                                    });
-                        })
-
-                        .onDurationWithTrigger(
-                                (player, self )-> CardUtil.moveTo(player, () -> self.get("Blocked", Card.class), c -> self.set("Blocked", c), Destination.HAND),
-                                card -> card.get("Blocked", Card.class) == null
+                        .onPlay(empty(OnPlayComponent.class)
+                                .first((player, self) -> self.set("Players", player.getGame().scanImmunity(player)))
+                                .then((player, self) ->
+                                    player.chooseCardFromSupply("Choississez une carte qui coûte au maximum 4 de pièces", buy -> buy.isAtMost(4), false )
+                                            .ifPresent(blocked -> {
+                                                self.getCollection("Blocked").add( CardUtil.gainIfPresent(player, blocked, Destination.ASIDE, true));
+                                                player.log(String.format("%s bloquée", blocked.getName().toUpperCase()));
+                                            })
+                                )
                         )
+                        .onDurationWithTrigger(
+                                empty(DurationComponent.duration.class)
+                                        .lookingAt((player, card) -> card.<Card>getCollection("Blocked"))
+                                        .thenWith((player, list) -> {
+                                            if(list.isEmpty())return;
+                                            list.forEach(card -> player.moveTo(card, Destination.HAND));
+                                            list.clear();
+                                        })
+                                        .end(),
+                                self -> Optional.ofNullable(self.getCollection("Blocked")).map(c -> !c.isEmpty()).orElse(false)
+                        )
+                        .afterGain(empty(TriggerComponent.AfterPlayerGain.class)
+                                .lookingAt((event, player) -> event.getPlayer())
+                                .thenDo(victim -> victim.gain(victim.getCardFromSupply("Curse"), Destination.DISCARD))
+                                .end()
+                        )
+                        .afterGainCondition((event, player) -> {
+                             Collection<Card> blocked = config.get().getCollection("Blocked");
 
-                        .onGain((owner, victim, c) -> {
-                                if(c.getCard().hasName("Curse")){
-                                    Card curse;
-                                    while((curse = victim.getCardFromSupply("Curse"))!= null){
-                                        victim.moveTo(curse, Destination.DISCARD);
-                                    }
-                                }
-
-                                victim.gain(victim.getCardFromSupply("Curse"), Destination.DISCARD);
-                                owner.log(String.format("TRIGGER %s : %s gagne une malédiction ", c.getCard().getName().toUpperCase(), victim.getName()));
-                        })
-                        .onCondition((event, player) ->
-                                config.get().get("Blocked", Card.class) != null
-                                        && event.getCard().hasSameNameAs(config.get().get("Blocked", Card.class))
-                                        && event.getPlayer()!= player
+                             if(blocked == null || blocked.isEmpty())return false;
+                             return  blocked.stream().anyMatch(card -> card.hasForLocation(Destination.ASIDE))
+                                     && blocked.stream().anyMatch(card -> event.getCard().hasSameNameAs(card))
+                                     && event.getPlayer() != player
+                                     && event.getPlayer().isActive();
+                        }
                         ));
     }
 
@@ -81,7 +85,7 @@ public class SeaSideFactory {
         Bonus play = Bonus.empty().with(Item.ACTION, 1).draw(1);
         Bonus d =  Bonus.empty().draw(1);
         return new Card("Caravan", RegistryPrice.SeasidePrice(4), CardType.ACTION, CardType.DURATION)
-                .setup(config -> config.registerSimpleDurationAndPlay(play, d));
+                .setup(config -> config.registerSimplePlayAndDuration(play, d));
     }
 
     @Dominion_Card(extension = "Seaside")
@@ -96,8 +100,8 @@ public class SeaSideFactory {
                             CardUtil.TriggerEffect(p, FactoryUtil.EFFECT, self, play);
                             self.set("Players", p.getGame().scanImmunity(p));
                         })
-                        .onCardPlayed((owner, actor, playedCard) -> {
-
+                        .onCardPlayed((event, owner) -> {
+                            Player actor = event.getPlayer();
                             int currentTurn = owner.getGame().getTurnNumber();
                             Map<Player, Integer> history = config.get().getMap("attackHistory");
                                 if (history == null) {
@@ -108,14 +112,14 @@ public class SeaSideFactory {
                                 if (history.getOrDefault(actor, -1) != currentTurn) {
                                     if (owner.getGame().isImmune(config.get(), actor)) return;
 
-                                    actor.moveToTrash(playedCard.getCard());
+                                    actor.trash(event.getCard());
                                     history.put(actor, currentTurn);
 
                                     owner.log(String.format("TRIGGER %s : %s écarte %s ",
-                                            config.get().getName().toUpperCase(), actor.getName(), playedCard.getCard().getName().toUpperCase()));
+                                            config.get().getName().toUpperCase(), actor.getName(), event.getCard().getName().toUpperCase()));
                                 }
                         })
-                        .onCondition(((event, player) -> player != event.getPlayer() && (event.getCard().hasName("Silver") || event.getCard().hasName("Gold"))))
+                        .cardPlayedCondition(((event, player) -> player != event.getPlayer() && (event.getCard().hasName("Silver") || event.getCard().hasName("Gold"))))
                 );
     }
 
@@ -157,10 +161,11 @@ public class SeaSideFactory {
                             Runnable logic = () ->
                                     p.chooseCardFromSupply("Choisissez une pile de la réserve à maudir", Objects::nonNull, false)
                                             .ifPresent(card ->{
-                                                p.moveToTrash(self);
-                                                p.getGame().setToken(card.getName());
-                                                p.log(String.format("Curse %s : %s a été maudit", self.getName().toUpperCase(), card.getName().toUpperCase()));
-                                    }
+                                                if(p.trash(self)){
+                                                    p.getGame().setToken(card.getName());
+                                                    p.log(String.format("Curse %s : %s a été maudit", self.getName().toUpperCase(), card.getName().toUpperCase()));
+                                                }
+                                            }
                             );
 
                             CardUtil.TriggerEffect(p, "Effect", self, play);
@@ -222,7 +227,7 @@ public class SeaSideFactory {
         Bonus duration = Bonus.empty().with(Item.ACTION, 1).with(Item.MONEY, 1);
 
         return new Card("Fishing Village", RegistryPrice.SeasidePrice(3), CardType.ACTION, CardType.DURATION)
-                .setup(config -> config.registerSimpleDurationAndPlay(play, duration));
+                .setup(config -> config.registerSimplePlayAndDuration(play, duration));
     }
 
     /**
@@ -239,7 +244,7 @@ public class SeaSideFactory {
         return new Card("Ghost Ship", RegistryPrice.SeasidePrice(5), CardType.ACTION, CardType.ATTACK).setup(
                 config -> config.onPlay((p, c) -> {
                     CardUtil.TriggerEffect(p, EFFECT, c, play);
-                    p.getGame().processMoveTo(p, c,  Destination.DRAW, 3, false);
+                    p.getGame().processHandDown(p, c,  Destination.DRAW, 3, false);
                 })
         );
     }
@@ -257,23 +262,31 @@ public class SeaSideFactory {
 
         Bonus play = Bonus.empty().with(Item.ACTION, 1).draw(1);
 
-        return new Card("Haven", RegistryPrice.SeasidePrice(2), CardType.ACTION, CardType.DURATION).setup(
-                config -> config
+        return new Card("Haven", RegistryPrice.SeasidePrice(2), CardType.ACTION, CardType.DURATION)
+                .setup(config -> config
                         .onPlay((p, self ) ->{
                             CardUtil.TriggerEffect(p, EFFECT, self, play);
                             p.chooseCardFromHand("Choissisez une carte de votre main", false )
                                     .ifPresent(card -> {
-                                        self.set("Hidden",CardUtil.moveIfPresent(p, card, Destination.ASIDE));
+                                        self.getCollection("Hidden").add(CardUtil.moveIfPresent(p, card, Destination.ASIDE));
                                         p.log(String.format("Action %s : %s cache %s", self.getName().toUpperCase(), p.getName(), card.getName().toUpperCase()));
                                     });
                         })
-
                         .onDurationWithTrigger(
                                 (player, self) -> {
-                                    player.log(String.format("Duration %s : %s récupère %s qui été cachée", self.getName().toUpperCase(), player.getName(), self.get("Hidden", Card.class).getName().toUpperCase()));
-                                    CardUtil.moveTo(player, () -> self.get("Hidden", Card.class), c -> self.set("Hidden", c), Destination.HAND);
+                                    Collection<Card> stock = self.getCollection("Hidden");
+                                    if (stock == null || stock.isEmpty()) return;
+                                    stock.forEach(c -> {
+                                        CardUtil.moveTo(player, () -> c, card -> {}, Destination.HAND);
+                                        player.log(String.format("Duration %s : %s récupère %s",
+                                                self.getName().toUpperCase(), player.getName(), c.getName().toUpperCase()));
+                                    });
+                                    stock.clear();
                                 },
-                                card -> card.get("Hidden", Card.class) == null
+                                self -> {
+                                    Collection<Card> c = self.getCollection("Hidden");
+                                    return !c.isEmpty();
+                                }
                         ));
     }
 
@@ -315,7 +328,7 @@ public class SeaSideFactory {
         return new Card("Lighthouse", RegistryPrice.SeasidePrice(2), CardType.ACTION, CardType.DURATION)
                 .setup(
                 config -> config
-                        .registerSimpleDurationAndPlay(play, duration)
+                        .registerSimplePlayAndDuration(play, duration)
                         .immunity(new TriggerComponent.Immunity() {
                             @Override
                             public boolean immune(Card self) {
@@ -346,7 +359,7 @@ public class SeaSideFactory {
                             List<Card> view = CardUtil.getTopCards(p, 3);
                             p.chooseCardFromList("Choississez une carte à écarter", card -> true, view, false)
                                     .ifPresent(card -> {
-                                        p.moveToTrash(card);
+                                        p.trash(card);
                                         view.remove(card);
                                     });
 
@@ -374,7 +387,7 @@ public class SeaSideFactory {
     public static Card MerchantShip(){
         Bonus same = Bonus.empty().with(Item.MONEY, 2);
         return new Card("Merchant Ship", RegistryPrice.SeasidePrice(5), CardType.ACTION, CardType.DURATION).setup(
-                config -> config.registerSimpleDurationAndPlay(same, same));
+                config -> config.registerSimplePlayAndDuration(same, same));
     }
     /**
      * Carte Singe (Monkey)
@@ -392,8 +405,8 @@ public class SeaSideFactory {
         return new Card("Monkey", RegistryPrice.SeasidePrice(3), CardType.ACTION, CardType.DURATION).setup(
                 config -> config
                         .registerSimpleDuration(play)
-                        .onGain((owner, victim, c) -> owner.draw(1))
-                        .onCondition((event, player) -> player.getGame().onTheRight(player, event.getPlayer()) && activate.test(config.get()))
+                        .afterGain((event, owner) -> owner.draw(1))
+                        .afterGainCondition((event, player) -> player.getGame().onTheRight(player, event.getPlayer()) && activate.test(config.get()))
         );
     }
     /**
@@ -521,22 +534,19 @@ public class SeaSideFactory {
         return new Card("Pirate", RegistryPrice.SeasidePrice(5), CardType.ACTION, CardType.DURATION, CardType.REACTION)
                 .setup(config -> config
                     .onDuration((p, self) -> CardUtil.executeIfSelected(
-                            () -> CardUtil.gainFromSupply(
-                                    p,
-                                    "Choississez un trésor (maximum 6 pièces) ",
+                            () -> CardUtil.gainFromSupply(p, "Choississez un trésor (maximum 6 pièces) ",
                                     card -> card.hasType(CardType.TREASURE)&& card.isAtMost(6),
                                     Destination.HAND,
                                     false ),
                             card ->  p.log(String.format("Action %s : %s récupère %s coutant %d pièces", self.getName().toUpperCase(), p.getName(), card.getName().toUpperCase(), card.getCost()))
                             ))
-                    .onGain((owner, victim, c) -> owner.chooseCardFromHand("Veux tu jouer ton pirate ?", card -> card.hasSameNameAs(config.get()), true).ifPresent(
+                    .afterGain((event, owner) -> owner.chooseCardFromHand("Veux tu jouer ton pirate ?", card -> card.hasSameNameAs(config.get()), true).ifPresent(
                                 card -> {
                                     owner.playCard(config.get());
                                     owner.log(String.format("Reaction %s", config.get().getName().toUpperCase()));
                                 }))
-                    .onCondition(
-                            (event, player) -> event.getCard().hasType(CardType.TREASURE) && player.getCopyOf(Destination.HAND).contains(config.get())
-                    )
+                    .afterGainCondition(
+                            (event, player) -> event.getCard().hasType(CardType.TREASURE))
                 );
     }
     /**
@@ -597,16 +607,13 @@ public class SeaSideFactory {
 
         return new Card("Sailor", RegistryPrice.SeasidePrice(4), CardType.ACTION, CardType.DURATION)
                 .setup(config -> config
-                        .onPlay((player, self) -> {
-                            CardUtil.TriggerEffect(player, EFFECT, self, play);
-                            self.set("used", false);
-                        })
+                        .registerSimpleAction(play)
                         .onDuration((p, self) ->{
                             CardUtil.TriggerEffect(p, DURATION, self, dura);
                             p.chooseCardFromHand("Choisie une carte à écarter", true)
-                                    .ifPresent(p::moveToTrash);
+                                    .ifPresent(p::trash);
                         })
-                        .onGain((owner, victim, c) -> {
+                        .onGain((c, owner) -> {
                                 List<Button> buttons = new ArrayList<>();
                                 buttons.add(new Button("play", "y"));
                                 buttons.add(new Button("skip", "n"));
@@ -615,19 +622,21 @@ public class SeaSideFactory {
                                         choice -> "y".equals(choice) || c.getCard().hasName(choice),
                                         choice -> {
                                             owner.playCard(c.getCard());
+                                            c.setDest(Destination.INPLAY);
+                                            linkedCard(config.get(),  c.getCard());
                                             config.get().set("used", true);
                                         },
                                         () -> {}
                                 );
                         })
-                        .onCondition((event, player) ->
+                        .duringGainCondition((event, player) ->
                                 event.getCard().hasType(CardType.DURATION)
                                         && player == event.getPlayer()
                                         && !config.get().getFlag("used")
-                                        && !player.getCopyOf(Destination.INPLAY).contains(event.getCard())
                                         && activate.test(config.get())
-
+                                        && event.notMoved()
                         )
+                        .stayInPlayCondition(checkLink.or(checkDuration))
                 );
     }
 
@@ -647,7 +656,7 @@ public class SeaSideFactory {
                             CardUtil.TriggerEffect(p, EFFECT, self, play);
                             p.chooseCardFromHand("Choisis une carte à écarter", false)
                                     .ifPresent(card -> {
-                                        p.moveToTrash(card);
+                                        p.trash(card);
                                         p.increment(Item.MONEY, card.getCost());
                                     });
                         })
@@ -754,19 +763,17 @@ public class SeaSideFactory {
 
                             if (p.getCopyOf(Destination.HAND).isEmpty()) {
                                 p.log(p.getName() + " joue un Tactician mais n'a rien à défausser.");
-                                self.set("activated", false);
+                                self.set("activated", true);
                                 return;
                             }
                             p.getCopyOf(Destination.HAND).forEach(p::discard);
 
                             p.log(String.format("TACTICIAN : %s défausse sa main pour activer le bonus du tour prochain", p.getName()));
 
-                            self.set("activated", true);
-                        })
-                        .onDurationWithTrigger((player, self) -> {
-                            CardUtil.TriggerEffect(player, DURATION, self, duration);
                             self.set("activated", false);
-                        }, self -> !self.getFlag("activated"))
+                        })
+                        .onDurationWithTrigger((player, self) -> CardUtil.TriggerEffect(player, DURATION, self, duration),
+                                self -> self.getFlag("activated"))
                 );
     }
 
@@ -800,16 +807,17 @@ public class SeaSideFactory {
         return new Card("Treasure Map", RegistryPrice.SeasidePrice(4), CardType.ACTION)
                 .setup(config -> config
                         .onPlay((p, self) -> {
-                            p.moveToTrash(self);
+                            if(p.trash(self)){
 
-                            Card other = p.getCopyOf(Destination.HAND).stream().filter(self::hasSameNameAs).findFirst().orElse(null);
-                            if (other != null) {
-                                p.moveToTrash(other);
+                                Card other = p.getCopyOf(Destination.HAND).stream().filter(self::hasSameNameAs).findFirst().orElse(null);
+                                if (other != null) {
+                                    p.trash(other);
 
-                                IntStream.range(0,4)
-                                        .mapToObj(c -> p.getCardFromSupply("Gold"))
-                                        .filter(Objects::nonNull)
-                                        .forEach(gold -> p.gain(gold, Destination.DRAW));
+                                    IntStream.range(0,4)
+                                            .mapToObj(c -> p.getCardFromSupply("Gold"))
+                                            .filter(Objects::nonNull)
+                                            .forEach(gold -> p.gain(gold, Destination.DRAW));
+                                    }
                             }
                         })
                 );
@@ -876,6 +884,6 @@ public class SeaSideFactory {
     public static Card Wharf(){
         Bonus same = Bonus.empty().draw(2).with(Item.BUY, 1);
         return new Card("Wharf", RegistryPrice.SeasidePrice(5), CardType.ACTION, CardType.DURATION)
-                .setup(config -> config.registerSimpleDurationAndPlay(same, same));
+                .setup(config -> config.registerSimplePlayAndDuration(same, same));
     }
 }

@@ -1,6 +1,6 @@
 package fr.umontpellier.iut.dominion.cards.factories.Ally;
 
-import fr.umontpellier.iut.dominion.Player;
+import fr.umontpellier.iut.dominion.Player.Player;
 
 import java.util.HashMap;
 import java.util.Map;

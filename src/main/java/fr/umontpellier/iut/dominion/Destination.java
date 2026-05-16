@@ -13,5 +13,6 @@ public enum Destination {
     INPLAY,
     ASIDE_ACTIVE,
     SUPPLY,
-    TRASH
+    TRASH,
+    TAVERN
 }

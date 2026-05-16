@@ -4,10 +4,11 @@ import java.util.*;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import fr.umontpellier.iut.dominion.CardType;
 import fr.umontpellier.iut.dominion.Destination;
-import fr.umontpellier.iut.dominion.Player;
+import fr.umontpellier.iut.dominion.Player.Player;
 import fr.umontpellier.iut.dominion.cards.Events.Event;
 import fr.umontpellier.iut.dominion.cards.component.*;
 import javafx.beans.binding.Bindings;
@@ -25,17 +26,21 @@ public class Card {
     /**
      * Le coût de la carte à l'achat
      */
-    private Price cost;
+    private final Price cost;
 
     private final Set<CardType> types;
     private Destination loc;
 
     private List<Card> location;
-    private BiPredicate<Event, Player> condition = (event, player) ->  true;
+    private final Map<Class<? extends TriggerComponent>, BiPredicate<Event, Player>> conditions = new HashMap<>();
     private Predicate<Player> available = (player) -> true;
-    private int price;
+    private final IntegerProperty price = new SimpleIntegerProperty(0);
     private final Map<Class<? extends CardComponent>, CardComponent> components;
-    private final Map<String,Object > properties;
+    private final Map<String,Object > properties = new HashMap<>();
+
+    public Map<String,Object> getProperties() {
+        return properties;
+    }
 
     /**
      * Constructeur simple
@@ -49,17 +54,33 @@ public class Card {
         this.cost = cost;
         this.types = new HashSet<>();
         this.components = new HashMap<>();
-        this.properties = new HashMap<>();
         Collections.addAll(this.types, types);
-        price = cost.price().get();
+        price.set(cost.price().get());
         cost.price().bind(Bindings.createIntegerBinding(
-                () -> price -GameStat.reduction.get(),
-                GameStat.reduction));
+                () -> price.get() - GameStat.reduction.get(),
+                GameStat.reduction, price));
     }
 
 
-    public int basiquePrice() {
-        return price;
+    public Card copy() {
+        Card copy = new Card(name, cost, types.toArray(new CardType[0]));
+
+        copy.components.putAll(components);
+
+        copy.set("unable", true);
+
+        copy.location = new ArrayList<>();
+        copy.loc = null;
+
+        copy.available = available;
+        copy.conditions.putAll(conditions);
+
+        return copy;
+    }
+
+
+    public int basicPrice() {
+        return price.get();
     }
 
 
@@ -73,15 +94,13 @@ public class Card {
         return this;
     }
 
-    public void set(String property, Object value){
+    public <T> T set(String property, T value) {
         this.properties.put(property, value);
+        return value;
     }
 
-    public <T> T getOrDefault(String property, Class<T> type) {
-        return type.cast(this.properties.getOrDefault(property,0));
-    }
-    public <T> T get(String property, Class<T> type){
-        return type.cast(this.properties.get(property));
+    public <T> Optional<T> get(String property, Class<T> type){
+        return Optional.ofNullable(type.cast(this.properties.get(property)));
     }
 
     public Number getValue(String property){
@@ -109,6 +128,11 @@ public class Card {
         return null;
     }
 
+    @SuppressWarnings("unchecked")
+    public <T> Collection<T> getCollection(String key) {
+        return (Collection<T>) properties.computeIfAbsent(key, k -> new ArrayList<T>());
+    }
+
     public boolean getFlag(String key) {
         Object val = properties.get(key);
         if (val instanceof Boolean) {
@@ -126,14 +150,17 @@ public class Card {
         return this;
     }
 
-    public void setCondition(BiPredicate<Event, Player> condition) {
-        this.condition = condition;
-    }
-    public void setAvailable(Predicate<Player> available) {this.available = available;}
 
-    public boolean canExecute(Event event, Player player) {
-        return condition.test(event, player);
+    public <T extends TriggerComponent> void addCondition(BiPredicate<Event, Player> condition, Class<T> clazz){conditions.put(clazz, condition);}
+
+    public Card setAvailable(Predicate<Player> available) {
+        this.available = available;
+        return this;
     }
+
+    public<T extends CardComponent> boolean canExecute(Event event, Player player, Class<T> clazz) {
+        return conditions.getOrDefault(clazz, (event1, player1) -> true).test(event, player);}
+
     public Predicate<Player> getAvailable() {return this.available;}
 
     public IntegerProperty getCostProperty() {
@@ -159,8 +186,9 @@ public class Card {
         return this.name.equals(c.getName());
     }
 
-    public void addType(CardType type) {
+    public Card addType(CardType type) {
         this.types.add(type);
+        return this;
     }
 
     /**
@@ -207,9 +235,9 @@ public class Card {
      * @param p joueur qui exécute l'effet de la carte
      */
     public void play(Player p) {
-        as(OnPlayComponent.class).ifPresent(o -> o.accept(p, this));
-        as(DurationComponent.class).ifPresent(d -> d.activeDuration(this));
-    };
+        getComponent(OnPlayComponent.class).ifPresent(o -> o.accept(p, this));
+        getComponent(DurationComponent.class).ifPresent(d -> d.activeDuration(this));
+    }
 
 
     public boolean buyCondition(int potion, int debt){
@@ -224,7 +252,7 @@ public class Card {
      * Toutes les cartes qui ne sont pas de type Victoire ont une valeur de
      * 0 (la méthode devra donc être redéfinie pour les cartes Victoire)
      */
-    public int getVictoryValue(Player player) {return as(ScoreComponent.class).map(s -> s.giveScore(player)).orElse(0);}
+    public int getVictoryValue(Player player) {return getComponent(ScoreComponent.class).map(s -> s.giveScore(player)).orElse(0);}
 
 
     /**
@@ -233,7 +261,7 @@ public class Card {
      * @return un Optional
      * @param <C> le type de la classe à renvoyé
      */
-    public <C extends CardComponent> Optional<C> as(Class<C> clazz) {
+    public <C extends CardComponent> Optional<C> getComponent(Class<C> clazz) {
         return Optional.ofNullable(components.get(clazz)).map(clazz::cast);
     }
 
@@ -247,6 +275,10 @@ public class Card {
 
     public Price getPrice() {
         return cost;
+    }
+    public Card setPrice(int cost) {
+        price.set(cost);
+        return this;
     }
 
     public void removeType(CardType type) {
@@ -296,13 +328,27 @@ public class Card {
                 && getDebt() <= trashed.getDebt();
     }
 
-    public void setPrice(Price cost){
-        this.cost = cost;
+    public boolean isBetween(int lower, int upper) {
+        return getCost() >= lower && getCost() <= upper && buyCondition(0,0);
     }
 
+    public CardType getSpecialType(){
+        Set<CardType> available = Arrays.stream(CardType.values()).filter(CardType::isSpecial).collect(Collectors.toSet());
+        return types.stream().filter(available::contains).findFirst().orElse(null);
+    }
+
+    public static Card event(String name, Price price){
+        return new Card(name, price, CardType.EVENT);
+    }
 
     public Destination getLocation() {
         return loc;
     }
-
+    public<T extends CardComponent> void removeComponent(Class<T> clazz) {
+        components.remove(clazz);
+    }
+    public boolean hasForLocation(Destination dest) {
+        return loc == dest;
+    }
+    public Set<CardType> getTypes() {return types;}
 }

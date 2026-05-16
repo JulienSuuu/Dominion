@@ -1,6 +1,6 @@
 package fr.umontpellier.iut.dominion.cards.component;
 
-import fr.umontpellier.iut.dominion.Player;
+import fr.umontpellier.iut.dominion.Player.Player;
 
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;

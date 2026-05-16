@@ -1,21 +1,24 @@
 package fr.umontpellier.iut.dominion;
 
 import java.util.*;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import fr.umontpellier.iut.dominion.Player.Player;
+import fr.umontpellier.iut.dominion.Supply.SupplyPile;
 import fr.umontpellier.iut.dominion.cards.*;
 import fr.umontpellier.iut.dominion.cards.Events.Event;
 import fr.umontpellier.iut.dominion.cards.Events.OnGainEvent;
 import fr.umontpellier.iut.dominion.cards.component.CardSelector;
 import fr.umontpellier.iut.dominion.cards.component.EventLink;
 import fr.umontpellier.iut.dominion.cards.component.TriggerComponent;
-import fr.umontpellier.iut.dominion.cards.component.TriggerEffect;
-import fr.umontpellier.iut.dominion.cards.factories.Ally.AllyLogicRegistry;
+import fr.umontpellier.iut.dominion.cards.factories.Adventures.AdventuresFactory;
 import fr.umontpellier.iut.dominion.cards.factories.Cornucopia_Guilds.CornucopiaRules;
 import fr.umontpellier.iut.dominion.cards.factories.FactorySupplyPile;
+import fr.umontpellier.iut.dominion.cards.factories.FactoryUtil;
 import fr.umontpellier.iut.dominion.cards.factories.Hinterlands.HinterlandsRules;
 import fr.umontpellier.iut.dominion.gui.UiStateService;
 import fr.umontpellier.iut.dominion.gui.Utils;
@@ -27,6 +30,7 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
@@ -50,6 +54,10 @@ public class Game {
     private final ObjectProperty<Player> currentTurnPlayerProperty = new SimpleObjectProperty<>(null);
     private final Map<String, ObservableList<String>> namedCard = new HashMap<>();
     private final Map<Class<? extends Event>, List<EventLink>> eventHandlers = new HashMap<>();
+    private final List<String> kingdomsList = new ArrayList<>();
+    private final Map<String, Boolean> expansionsAvailable = new HashMap<>();
+    private final List<SupplyPile> events = new ArrayList<>();
+
     private final Map<String, Boolean> hasCards = new HashMap<>();
     private String Banes = "";
     /**
@@ -108,9 +116,25 @@ public class Game {
             Banes = extras.get("Banes")[0];
         }
 
+        this.kingdomsList.addAll(Arrays.stream(kingdomPiles).toList());
+
         for(String name : kingdomList) {
+            if(name.equals("Knights"))continue;
             allPilesForSupply.add(FactorySupplyPile.createSupplyPile(name, nbPlayers));
         }
+
+        if(FactorySupplyPile.isExpansionRequired(kingdomList, FactoryUtil.DA)){
+            SupplyPile ruins = FactorySupplyPile.createMixedSupplyPile(FactorySupplyPile.getMixedCards(CardType.RUINS));
+            Collections.shuffle(ruins);
+            allPilesForSupply.add(ruins);
+        }
+
+        if(kingdomList.contains("Knights")){
+            SupplyPile knight = FactorySupplyPile.createMixedSupplyPile(FactorySupplyPile.getMixedCards(CardType.KNIGHT));
+            Collections.shuffle(knight);
+            allPilesForSupply.add(knight);
+        }
+
 
 
         allPilesForSupply.sort(new PileComparator());
@@ -150,32 +174,58 @@ public class Game {
             });
         }
 
+        boolean required = FactorySupplyPile.shouldEnableSpecialty(kingdomList, FactoryUtil.DA, 5);
+
+
+
         List<SupplyPile> all = new ArrayList<>(allPilesForSupply);
         asideSupplyPiles.values().forEach(all::addAll);
         all.forEach((supplyPile) -> {
             hasCards.put(supplyPile.getName(), true);
         });
 
+        if(hasCard("Peasant")){
+            AdventuresFactory.getTraveller("Peasant").forEach(
+                    t -> asideSupplyPiles.computeIfAbsent("Peasant upgrade", k -> new ArrayList<>()).add(FactorySupplyPile.createSupplyPile(t, nbPlayers))
+            );
+        }
+
+        if(hasCard("Page")){
+            AdventuresFactory.getTraveller("Page").forEach(
+                    t -> asideSupplyPiles.computeIfAbsent("Page upgrade", k -> new ArrayList<>()).add(FactorySupplyPile.createSupplyPile(t, nbPlayers))
+            );
+        }
+
+
         if(hasCard("Joust")) {
-            FactorySupplyPile.getRewards().forEach(reward ->
+            FactorySupplyPile.getMixedCards(CardType.REWARDS).forEach(reward ->
                     asideSupplyPiles.computeIfAbsent("Rewards", k -> new ArrayList<>()).add(FactorySupplyPile.createSupplyPile(reward, nbPlayers)));
-      }
+        }
 
-      if(hasCard("Footpad")) {
+        if(hasCard("Bandit Camp") || hasCard("Marauder") || hasCard("Pillage"))asideSupplyPiles.computeIfAbsent("Dark Ages", k -> new ArrayList<>()).add(FactorySupplyPile.createSupplyPile("Spoils", nbPlayers));
+        if(hasCard("Urchin"))asideSupplyPiles.computeIfAbsent("Dark Ages", k -> new ArrayList<>()).add(FactorySupplyPile.createSupplyPile("Mercenary", nbPlayers));
+        if(hasCard("Hermit"))asideSupplyPiles.computeIfAbsent("Dark Ages", k -> new ArrayList<>()).add(FactorySupplyPile.createSupplyPile("Madman", nbPlayers));
+
+        if(hasCard("Footpad")) {
           addListener(OnGainEvent.class, cornucopia::footpadPassive);
-      }
+        }
 
-      if(hasCard("Duchess")){
+        if(hasCard("Duchess")){
           addListener(OnGainEvent.class, hinterland::DuchessPassive);
-      }
+        }
+
+//        List<String> event = FactorySupplyPile.getMixedCards(CardType.EVENT);
+//        Collections.shuffle(event);
+//        event.subList(0,1).forEach(c -> events.add(FactorySupplyPile.createSupplyPile(c, nbPlayers)));
+
+        events.add(FactorySupplyPile.createSupplyPile("Ferry", nbPlayers));
 
         players = FXCollections.observableArrayList();
         for (String playerName : playerNames) {
             Player p = context.getBean(Player.class);
-
-            p.init(playerName, this);
-            players.add(p);
             p.setSelf(p);
+            p.init(playerName, this, required);
+            players.add(p);
         }
 
         Player firstPlayer = players.getFirst();
@@ -183,7 +233,7 @@ public class Game {
         this.currentTurnPlayer = firstPlayer;
         this.currentTurnPlayerProperty.set(firstPlayer);
 
-        GameStat.initialize(supplyPiles,currentTurnPlayerProperty);
+        GameStat.initialize(supplyPiles,currentTurnPlayerProperty, players);
         listener();
         specialEffectFromCard();
     }
@@ -210,6 +260,14 @@ public class Game {
         if(containBaker){
             players.forEach(player -> {
                 player.increment(Item.COFFER, 1);});
+        }
+        boolean containTradeRoute = hasCard("Trade Route");
+        if(containTradeRoute){
+            supplyPiles.values().forEach(s -> {
+                if(s.getLast().hasType(CardType.VICTORY) && !s.getLast().hasType(CardType.KNIGHT)){
+                    s.setToken(1);
+                }
+            });
         }
     }
 
@@ -276,8 +334,32 @@ public class Game {
                 .map(SupplyPile::getLast).toList();
     }
 
+    public List<Card> getEventCard(){
+        return events.stream().filter(s ->!s.isEmpty()).map(SupplyPile::getLast).toList();
+    }
+
     public List<Card> getAvailableAsidePilesCard(String name){
+        if(!asideSupplyPiles.containsKey(name))return new ArrayList<>();
         return asideSupplyPiles.get(name).stream().filter(s -> !s.isEmpty()).map(SupplyPile::getLast).toList();
+    }
+
+    public Card getAvailableAsideCard(String nameCard, String key){
+        for(Card card : getAvailableAsidePilesCard(key)){
+            if(card.getName().equals(nameCard)){
+                return card;
+            }
+        }
+        return null;
+    }
+
+    public Card getSpecificAsideCard(String nameCard, String key){
+        if(!asideSupplyPiles.containsKey(key))return null;
+        for(SupplyPile pile : asideSupplyPiles.get(key)){
+            for (Card card : pile){
+                if(card.hasName(nameCard))return card;
+            }
+        }
+        return null;
     }
 
     /**
@@ -333,6 +415,7 @@ public class Game {
     private int getSizeOfcommun() {
         return sizeOfcommun;
     }
+    private List<SupplyPile> getEventsPiles() {return events;}
     private List<String> logLine(){
         return logLines;
     }
@@ -356,6 +439,8 @@ public class Game {
         String asideJoiner = getCategorizedAsideJson(getAsideSupplyPiles());
         joiner.add("\"supply\": [" + kingdomJoiner + "]");
         joiner.add("\"aside\": " + asideJoiner);
+        StringJoiner eventJoiner = getStringJoiner(getEventsPiles());
+        joiner.add("\"events\": [ " + eventJoiner + "]");
         joiner.add("\"size\": " + getSizeOfcommun());
         StringJoiner playersJoiner = new StringJoiner(", ");
         for (Player p : getPlayers()) {
@@ -426,7 +511,15 @@ public class Game {
      */
     public Card getCardFromSupply(String cardName) {
         SupplyPile pile = supplyPiles.get(cardName);
-        if (pile == null) return null;
+
+        if (pile == null) {
+            pile = supplyPiles.values().stream()
+                    .filter(p -> p.getName().equals(cardName))
+                    .findFirst()
+                    .orElse(null);
+        }
+
+        if (pile == null || pile.isEmpty()) return null;
         return pile.getLast();
     }
 
@@ -454,23 +547,18 @@ public class Game {
         }
     }
 
-    public <T extends TriggerComponent & TriggerEffect> void notifyTrigger(Class<T> triggerType, Player actor, Event event) {
+    public <T extends TriggerComponent & BiConsumer<Event, Player>> void notifyTrigger(Class<T> triggerType, Player actor, Event event) {
         List<Player> orderedPlayers = getPlayersStartingFrom(actor);
 
         for (Player p : orderedPlayers) {
             p.getCopyOf(Destination.INPLAY).stream()
-                    .filter(c ->( !c.hasType(CardType.REACTION) &&  c.canExecute(event, p) && c.hasComponent(triggerType)))
+                    .filter(c ->( !c.hasType(CardType.REACTION) &&  c.canExecute(event, p, triggerType) && c.hasComponent(triggerType)))
                     .forEach(c ->processTrigger(c, triggerType, p, actor, event));
 
             Set<Card> alreadyRevealed = new HashSet<>();
 
             while (true) {
-                List<Card> validReactions = p.getCopyOf(Destination.HAND).stream()
-                        .filter(c -> c.hasType(CardType.REACTION)
-                                && c.canExecute(event, p)
-                                && c.hasComponent(triggerType)
-                                && !alreadyRevealed.contains(c))
-                        .toList();
+                List<Card> validReactions = p.getValidReactions(triggerType, event, alreadyRevealed);
 
                 if (validReactions.isEmpty()) break;
 
@@ -485,20 +573,20 @@ public class Game {
         }
     }
 
-    private <T extends TriggerComponent & TriggerEffect> void processTrigger(Card c, Class<T> type, Player owner, Player actor, Event event) {
+    private <T extends TriggerComponent & BiConsumer<Event, Player>> void processTrigger(Card c, Class<T> type, Player owner, Player actor, Event event) {
         if (isImmune(c, actor)) return;
         if(event.getDest() == null || event.getCard() == null)return;
-        c.as(type).ifPresent(trigger -> trigger.execute(owner, actor, event));
+        c.getComponent(type).ifPresent(trigger -> trigger.accept(event, owner));
     }
 
     public boolean isImmune(Card c, Player actor) {
         if(!c.hasType(CardType.ATTACK))return false;
 
-        if(c.get("Players", Set.class) != null){
-            return c.get("Players", Set.class).contains(actor);
+        if(c.get("Players", Set.class).isPresent()){
+            return c.get("Players", Set.class).get().contains(actor);
         }
 
-        return actor.immunity(TriggerComponent.Immunity.class);
+        return actor.immunity(TriggerComponent.Immunity.class, c);
     }
 
     public void processGain(Player p, Card c, Destination dest, String nameCard){
@@ -509,13 +597,13 @@ public class Game {
         );
     }
 
-    public void processMoveTo( Player p, Card c, Destination dest, int number, boolean discard){
+    public void processHandDown(Player p, Card c, Destination dest, int toReach, boolean mayDiscard){
 
         Consumer<Player> logic = victim -> {
-            while(victim.getCopyOf(Destination.HAND).size() > number){
-                victim.chooseCardFromHand("Défausse encore " + (victim.getCopyOf(Destination.HAND).size() - number) + " carte(s)", false)
+            while(victim.getCopyOf(Destination.HAND).size() > toReach){
+                victim.chooseCardFromHand("Défausse encore " + (victim.getCopyOf(Destination.HAND).size() - toReach) + " carte(s)", false)
                         .ifPresent( card -> {
-                            if(discard) victim.discard(card);
+                            if(mayDiscard) victim.discard(card);
                             else victim.moveTo(card, dest);
                             p.log(String.format("Attack %s : %s met en %s %s", c.getName().toUpperCase(), victim.getName(), dest.name().toLowerCase(), card.getName().toUpperCase()));
                         }
@@ -539,7 +627,7 @@ public class Game {
                     Card chosen = null;
                     if (!targets.isEmpty()) {
                         chosen = selector.select(attacker, victim, targets);
-                        victim.moveToTrash(chosen);
+                        victim.trash(chosen);
                     }
 
                     Card finalChosen = chosen;
@@ -764,8 +852,19 @@ public class Game {
 
     public boolean replaceCardInSupply(Card card, Card revealed){
         if(!card.hasSameNameAs(revealed)) return false;
+        return replaceCardInSupply(card);
+    }
+
+    public boolean replaceCardInAsideSupply(Card card, String nameSupply){
+        SupplyPile pile = asideSupplyPiles.get(nameSupply).stream().filter(p -> p.verifyName(card.getName())).findFirst().orElse(null);
+        if(pile == null || pile.contains(card)) return false;
+        pile.setCard(card);
+        return true;
+    }
+
+    public boolean replaceCardInSupply(Card card){
         SupplyPile pile = supplyPiles.get(card.getName());
-        if(pile == null) return false;
+        if(pile == null || pile.contains(card)) return false;
         pile.setCard(card);
         return true;
     }
@@ -775,7 +874,7 @@ public class Game {
     }
 
     public Set<Player> scanImmunity(Player p) {
-        return getPlayersStartingFrom(p).stream().filter(s -> s != p && s.immunity(TriggerComponent.Immunity.class)).collect(Collectors.toSet());
+        return getPlayersStartingFrom(p).stream().filter(s -> s != p && s.immunity(TriggerComponent.Immunity.class, null)).collect(Collectors.toSet());
     }
 
     public ObservableList<String> getNamedCardsThisTurn(String key) {
@@ -791,6 +890,7 @@ public class Game {
         return i;
     }
 
+
     public int getCoffers(){
         return coffers.get();
     }
@@ -800,8 +900,46 @@ public class Game {
     }
     public String getBanes(){return Banes;}
 
-
     public boolean hasCard(String cardName){
         return hasCards.getOrDefault(cardName, false);
+    }
+    public boolean hasExpansion(String expansionName, int threshold) {
+        if (!expansionsAvailable.getOrDefault(expansionName, false)) {
+            boolean shouldEnable = FactorySupplyPile.shouldEnableSpecialty(kingdomsList, expansionName, threshold);
+            if (shouldEnable) {
+                expansionsAvailable.put(expansionName, true);
+            }
+        }
+
+        return expansionsAvailable.getOrDefault(expansionName, false);
+    }
+    public boolean hasType(CardType cardType, int threshold){
+        return supplyPiles.values().stream().filter(p -> p.hasType(cardType)).limit(threshold).count() == threshold;
+    }
+
+
+    public boolean verifyPileToken(String toCheck, String CardName){
+        SupplyPile pile = supplyPiles.get(toCheck);
+        if(pile == null){
+            pile = supplyPiles.values()
+                    .stream()
+                    .filter(p -> p.verifyName(toCheck))
+                    .findFirst()
+                    .orElse(null);
+
+        }
+        if(pile == null) return false;
+        return pile.verifyName(CardName);
+    }
+
+    public List<Card> getActionSupplyCards(){
+        return supplyPiles
+                .values().stream().filter(s -> s.hasType(CardType.ACTION) && !s.isEmpty())
+                .map(List::getLast).toList();
+
+    }
+
+    public Card getEvent(String name){
+        return events.stream().filter(s -> s.verifyName(name)).map(SupplyPile::getLast).findFirst().orElse(null);
     }
 }

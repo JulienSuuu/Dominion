@@ -21,6 +21,14 @@ public class RegistryPrice {
     public static Price Cornucopia(int coins){return new Price(create(coins), 0, createDebt(0));}
     public static Price Hinterlands(int coins){return new Price(create(coins), 0, createDebt(0));}
 
+    public static Price DarkAges(int coins){return new Price(create(coins), 0, createDebt(0));}
+
+    public static Price Adventure(int coins){return new Price(create(coins), 0, createDebt(0));}
+
+
+    public static Price Empires(int coins, int debt){return new Price(create(coins), 0, createDebt(debt));}
+
+
     private static IntegerProperty create(int i){
         return new SimpleIntegerProperty(i);
     }

@@ -1,6 +1,10 @@
 package fr.umontpellier.iut.dominion.cards.factories.Hinterlands;
 
 import fr.umontpellier.iut.dominion.*;
+import fr.umontpellier.iut.dominion.Annotation.Dominion_Card;
+import fr.umontpellier.iut.dominion.Annotation.InSet;
+import fr.umontpellier.iut.dominion.Annotation.PileType;
+import fr.umontpellier.iut.dominion.Player.Player;
 import fr.umontpellier.iut.dominion.cards.*;
 import fr.umontpellier.iut.dominion.cards.Events.Event;
 import javafx.beans.property.IntegerProperty;
@@ -14,25 +18,30 @@ import java.util.stream.Collectors;
 import static fr.umontpellier.iut.dominion.cards.factories.FactoryUtil.*;
 
 public class HinterlandsFactory {
+
+
+    @Dominion_Card(extension = "Hinterlands")
     public static Card Berserker(){
         return new Card("Berserker", RegistryPrice.Hinterlands(5), CardType.ActionAndAttack)
                 .setup(config -> config
                         .onPlay((player, self) ->{
                             CardUtil.gainFromSupply(player, "Choose a card costing less than " + self.getCost(), card -> card.isAtMostWithBonus(self, -1), Destination.DISCARD, false);
-                            player.getGame().processMoveTo(player ,self, Destination.DISCARD, 3, true);
+                            player.getGame().processHandDown(player ,self, Destination.DISCARD, 3, true);
                         })
                         .checkGain((event, self) ->{
                             Player player = event.getPlayer();
                             player.playCard(self);
-                            event.setDest(null);
+                            event.setDest(Destination.INPLAY);
                         })
-                        .onCondition((event, player) -> {
+                        .itselfGainCondition((event, player) -> {
                             List<Card> inplay = player.getCopyOf(Destination.INPLAY);
                             return inplay.stream().anyMatch(c -> c.hasType(CardType.ACTION)) && event.getDest() == Destination.DISCARD;
                         })
                 );
     }
 
+    @Dominion_Card(extension = "Hinterlands")
+    @InSet(value = {"Bargains"})
     public static Card Border_Village(){
         Bonus card_Action = Bonus.empty().draw(1).with(Item.ACTION, 2);
         return Card.action("Border Village", RegistryPrice.Hinterlands(6))
@@ -40,11 +49,12 @@ public class HinterlandsFactory {
                         .registerSimpleAction(card_Action)
                         .checkGain((event, self) ->{
                             Player player = event.getPlayer();
-                            CardUtil.gainFromSupply(player, "Choose a Card costing less than " + self.getCost(), card -> buyCondition.test(self, card), Destination.DISCARD, false);
+                            CardUtil.gainFromSupply(player, "Choose a Card costing less than " + self.getCost(), card -> lessThan.test(self, card), Destination.DISCARD, false);
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Hinterlands")
+    @InSet(value = {"Introduction"})
     public static Card Cartographer(){
         Bonus card_Action = Bonus.empty().draw(1).with(Item.ACTION, 1);
         return Card.action("Cartographer", RegistryPrice.Hinterlands(5))
@@ -80,7 +90,8 @@ public class HinterlandsFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Hinterlands")
+    @InSet(value = {"Bargains"})
     public static Card Cauldron(){
         Bonus buy_Money = Bonus.empty().with(Item.BUY, 1).with(Item.MONEY, 2);
         return new Card("Cauldron", RegistryPrice.Hinterlands(5), CardType.TREASURE, CardType.ATTACK)
@@ -89,20 +100,18 @@ public class HinterlandsFactory {
                             CardUtil.TriggerEffect(player, EFFECT, self, buy_Money);
                             config.get().set("NumberAction", 0);
                         })
-                        .onGain((owner, victim, event) -> owner.getGame().processGain(owner, config.get(), Destination.DISCARD, "Curse"))
-                        .onCondition((event, player) ->{
+                        .afterGain((event, owner) -> owner.getGame().processGain(owner, config.get(), Destination.DISCARD, "Curse"))
+                        .afterGainCondition((event, player) ->{
                             if(event.getPlayer() != player || !event.getCard().hasType(CardType.ACTION)) return false;
 
                             int number = config.get().getValue("NumberAction").intValue();
-                            if(event.getCard().hasType(CardType.ACTION)){
-                                number++;
-                                config.get().set("NumberAction", number);
-                            }
+                            config.get().set("NumberAction", ++number);
                             return number == 3;
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Hinterlands")
+    @InSet(value = {"Introduction"})
     public static Card Crossroads(){
         return Card.action("Crossroads", RegistryPrice.Hinterlands(2))
                 .setup(config -> config
@@ -117,42 +126,44 @@ public class HinterlandsFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Hinterlands")
+    @InSet(value = {"Introduction"})
     public static Card Develop(){
         return Card.action("Develop", RegistryPrice.Hinterlands(3))
                 .setup(config -> config
                         .onPlay((player, self) ->{
                             player.chooseCardFromHand("Trash a card from you hand", true)
                                     .ifPresent(card -> {
-                                        player.moveToTrash(card);
+                                        player.trash(card);
                                         CardUtil.gainFromSupply(player, "Choose a card costing exactly " + (card.getCost() + 1), c -> c.isEqualWithBonus(card, 1),  Destination.DRAW, false);
                                         CardUtil.gainFromSupply(player, "Choose a card costing exactly " + (card.getCost() -1), c -> c.isEqualWithBonus(card, -1),  Destination.DRAW, false);
                                     });
                         })
                 );
     }
-
-    public static Card Farmlands(){
-        return Card.Victory("Farmlands", RegistryPrice.Hinterlands(6))
+    @Dominion_Card(extension = "Hinterlands", pileType = PileType.VICTORY)
+    public static Card Farmland(){
+        return Card.Victory("Farmland", RegistryPrice.Hinterlands(6))
                 .setup(config -> config
                         .score(player -> 2)
                         .checkGain((event, self) ->{
                             Player player = event.getPlayer();
                             player.chooseCardFromHand("Trash a card from you hand", true)
                                     .ifPresent(card -> {
-                                        player.moveToTrash(card);
+                                        player.trash(card);
                                         CardUtil.gainFromSupply(player,
                                                 "Choose a card costing exactly " + (card.getCost()+2) + " and not a FarmLands",
-                                                c -> c.getCost() == card.getCost()+2 && card.hasSameNameAs(self), Destination.DISCARD, false);
+                                                c -> c.isEqualWithBonus(card, 2) && card.hasSameNameAs(self), Destination.DISCARD, false);
                                     });
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Hinterlands")
+    @InSet(value = {"Bargains"})
     public static Card Fools_Gold(){
         Bonus basicMoney = Bonus.empty().with(Item.MONEY, 1);
         Bonus fullMoney = Bonus.empty().with(Item.MONEY, 4);
-        return new Card("Fool's Gold", RegistryPrice.Hinterlands(2))
+        return new Card("Fool's Gold", RegistryPrice.Hinterlands(2), CardType.TREASURE, CardType.REACTION)
                 .setup(config -> config
                         .onPlay((player, self) ->{
                             Bonus toUse = basicMoney;
@@ -161,20 +172,20 @@ public class HinterlandsFactory {
                             }
                             CardUtil.TriggerEffect(player, EFFECT, self, toUse);
                         })
-                        .onGain((owner, victim, event) -> {
+                        .afterGain((event, owner) -> {
                             String choice = owner.chooseWhatToDo("Do you want to trash this for a Gold ?", List.of(config.get()), Button.yesOrNo, true);
                             if("y".equals(choice)) {
-                                owner.moveToTrash(config.get());
+                                owner.trash(config.get());
                                 CardUtil.gainFromSupply(owner, "Gold", Destination.DRAW, false);
                             }
                         })
-                        .onCondition((event, player) ->
+                        .afterGainCondition((event, player) ->
                                 event.getCard().hasName("Province") &&
                                 event.getPlayer() != player)
 
                 );
     }
-
+    @Dominion_Card(extension = "Hinterlands")
     public static Card Guard_Dog(){
         Bonus cards = Bonus.empty().draw(2);
         return new Card("Guard Dog", RegistryPrice.Hinterlands(3), CardType.ACTION, CardType.REACTION)
@@ -185,16 +196,17 @@ public class HinterlandsFactory {
                                     CardUtil.TriggerEffect(player, ACTION ,self, cards);
                                 }
                         })
-                        .onCardPlayed((owner, victim, event) -> {
-                            String choice  = owner.chooseWhatToDo("Do you want to play this cards ? ",  List.of(config.get()), Button.yesOrNo, true);
+                        .onCardPlayed((event, owner) -> {
+                            String choice  = owner.chooseWhatToDo("Do you want to play this card ? ",  List.of(config.get()), Button.yesOrNo, true);
                             if("y".equals(choice)) {
                                 owner.playCard(config.get());
                             }
                         })
-                        .onCondition((event, player) -> event.getCard().hasType(CardType.ATTACK) && event.getPlayer() != player)
+                        .cardPlayedCondition((event, player) -> event.getCard().hasType(CardType.ATTACK) && event.getPlayer() != player)
                 );
     }
-
+    @Dominion_Card(extension = "Hinterlands")
+    @InSet(value = {"Bargains"})
     public static Card Haggler(){
         Bonus money = Bonus.empty().with(Item.MONEY, 2);
         return Card.action("Haggler", RegistryPrice.Hinterlands(5))
@@ -203,12 +215,13 @@ public class HinterlandsFactory {
                         .onBuy((owner, c) -> CardUtil.gainFromSupply(
                                 owner,
                                 "Gain a card costing less than " + c.getCost() + " and a Non victory",
-                                card ->!card.hasType(CardType.VICTORY) && buyCondition.test(c, card),
+                                card ->!card.hasType(CardType.VICTORY) && lessThan.test(c, card),
                                 Destination.DISCARD,
                                 false ))
                 );
     }
-
+    @Dominion_Card(extension = "Hinterlands")
+    @InSet(value = {"Bargains"})
     public static Card Highway(){
         Bonus card_Action =  Bonus.empty().with(Item.ACTION, 1).draw(1);
         return Card.action("Highway", RegistryPrice.Hinterlands(5))
@@ -220,7 +233,7 @@ public class HinterlandsFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Hinterlands")
     public static Card Inn(){
         Bonus card_Action =  Bonus.empty().with(Item.ACTION, 2).draw(2);
         return Card.action("Inn", RegistryPrice.Hinterlands(5))
@@ -238,7 +251,7 @@ public class HinterlandsFactory {
                             self.set("continue", true);
                             List<Card> toKeep = new ArrayList<>();
                             while(self.getFlag("continue") && discard.stream().anyMatch(c -> c.hasType(CardType.ACTION))){
-                               player.chooseCardFromList("Choose any Action from your discard to put in your deck ( shuffleling )", card -> card.hasType(CardType.ACTION), discard, true)
+                               player.chooseCardFromList("Choose any Action from your discard to put in your deck ", card -> card.hasType(CardType.ACTION), discard, true)
                                        .ifPresentOrElse(card -> card.moveTo(toKeep, null),
                                                () -> self.set("continue", false)
                                        );
@@ -247,7 +260,7 @@ public class HinterlandsFactory {
                             if(toKeep.isEmpty())return;
                             player.log("Reveals" + toKeep);
                             if(toKeep.contains(self)){
-                                event.setDest(null);
+                                event.setDest(Destination.DRAW);
                             }
 
                             new ArrayList<>(toKeep).forEach(card -> player.moveTo(card, Destination.DRAW));
@@ -256,7 +269,8 @@ public class HinterlandsFactory {
                 );
     }
 
-
+    @Dominion_Card(extension = "Hinterlands")
+    @InSet(value = {"Introduction"})
     public static Card Jack_of_All_Trades(){
         return Card.action("Jack of All Trades", RegistryPrice.Hinterlands(4))
                 .setup(config -> config
@@ -275,11 +289,12 @@ public class HinterlandsFactory {
                             }
 
                             player.chooseCardFromHand("Trash a non treasure from your hand ( optional )", card -> !card.hasType(CardType.TREASURE) , true)
-                                    .ifPresent(player::moveToTrash);
+                                    .ifPresent(player::trash);
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Hinterlands")
+    @InSet(value = {"Introduction"})
     public static Card Margrave(){
         Bonus cards_buy =  Bonus.empty().with(Item.BUY, 1).draw(3);
         return new  Card("Margrave", RegistryPrice.Hinterlands(5), CardType.ActionAndAttack)
@@ -292,7 +307,8 @@ public class HinterlandsFactory {
                             });
                         }));
     }
-
+    @Dominion_Card(extension = "Hinterlands")
+    @InSet(value = {"Introduction"})
     public static Card Nomads(){
         Bonus buy_Money = Bonus.empty().with(Item.BUY, 1).with(Item.MONEY,2);
         Bonus gainOrTrash = Bonus.empty().with(Item.MONEY,2);
@@ -300,10 +316,11 @@ public class HinterlandsFactory {
                 .setup(config -> config
                         .registerSimpleAction(buy_Money)
                         .checkGain((event, self) -> CardUtil.TriggerEffect(event.getPlayer(), GAIN_ACTION ,self, gainOrTrash))
-                        .onTrash((event, self) -> CardUtil.TriggerEffect(event.getPlayer(), TRASHED_ACTION, self, gainOrTrash))
+                        .checkItselfTrash((event, self) -> CardUtil.TriggerEffect(event.getPlayer(), TRASHED_ACTION, self, gainOrTrash))
                 );
     }
-
+    @Dominion_Card(extension = "Hinterlands")
+    @InSet(value = {"Introduction"})
     public static Card Oasis(){
         Bonus card_action_money =  Bonus.empty().with(Item.ACTION, 1).with(Item.MONEY, 1).draw(1);
         return  Card.action("Oasis", RegistryPrice.Hinterlands(3))
@@ -314,7 +331,8 @@ public class HinterlandsFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Hinterlands")
+    @InSet(value = {"Bargains"})
     public static Card Scheme() {
         Bonus card_Action = Bonus.empty().with(Item.ACTION, 1).draw(1);
         return Card.action("Scheme", RegistryPrice.Hinterlands(3))
@@ -336,7 +354,7 @@ public class HinterlandsFactory {
                                         String choice = p.chooseWhatToDo("Scheme: Put " + c.getName() + " on top of your deck?",
                                                 List.of(c), Button.yesOrNo, true);
                                         if ("y".equals(choice)) {
-                                            event.setNextDest(Destination.DRAW);
+                                            event.setDest(Destination.DRAW);
                                             check.setValue(check.get() - 1);
                                         }
                                     }
@@ -345,13 +363,14 @@ public class HinterlandsFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Hinterlands")
+    @InSet(value = {"Bargains"})
     public static Card Souk(){
         return Card.action("Souk", RegistryPrice.Hinterlands(5))
                 .setup(config -> config
                         .onPlay((player, self) ->{
                             int number = player.getCopyOf(Destination.HAND).size();
-                            int money = Math.min(0, 7-number);
+                            int money = Math.max(0, 7-number);
                             Bonus bonus = Bonus.empty().with(Item.BUY, 1).with(Item.MONEY, money);
                             CardUtil.TriggerEffect(player, EFFECT, self,bonus);
                         })
@@ -359,12 +378,13 @@ public class HinterlandsFactory {
                             Player p = event.getPlayer();
                             for(int i = 0; i<2; i++){
                                 p.chooseCardFromHand("You can trash " + (2-i) + " cards (optional)", true )
-                                        .ifPresent(p::moveToTrash);
+                                        .ifPresent(p::trash);
                             }
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Hinterlands")
+    @InSet(value = {"Introduction"})
     public static Card Spice_Merchant(){
         Bonus c1 = Bonus.empty().with(Item.ACTION, 1).draw(2);
         Bonus c2 = Bonus.empty().with(Item.BUY, 1).with(Item.MONEY, 2);
@@ -373,7 +393,7 @@ public class HinterlandsFactory {
                         .onPlay((player, self) ->{
                             player.chooseCardFromHand("You may trash a card from you hand", true)
                                     .ifPresent(card -> {
-                                        player.moveToTrash(card);
+                                        player.trash(card);
 
                                        String choice = player.chooseWhatToDo("Choose: +2Card and +1Action or +1Buy and 2$ ", List.of(self), List.of(new Button("2 Card & 1 action", "c1"), new Button("1 buy & 2$", "c2")), false  );
                                        switch (choice) {
@@ -385,7 +405,8 @@ public class HinterlandsFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Hinterlands")
+    @InSet(value = {"Introduction"})
     public static Card Stables(){
         Bonus action = Bonus.empty().with(Item.ACTION, 1).draw(3);
         return Card.action("Stables", RegistryPrice.Hinterlands(5))
@@ -399,21 +420,22 @@ public class HinterlandsFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Hinterlands")
+    @InSet(value = {"Bargains"})
     public static Card Trader(){
         return new Card("Trader", RegistryPrice.Hinterlands(4), CardType.ACTION, CardType.REACTION)
                 .setup(config -> config
                         .onPlay((player, self) ->{
                             player.chooseCardFromHand("You may trash a card from you hand to gain Silver(s)", true)
                                     .ifPresent(card -> {
-                                        player.moveToTrash(card);
+                                        player.trash(card);
                                         for (int i = 0; i< card.getCost(); i++){
                                             Card c = CardUtil.gainFromSupply(player, "Silver", Destination.DISCARD, false);
                                             if(c == null)break;
                                         }
                                     });
                         })
-                        .onGain((owner, victim, event) -> {
+                        .onGain((event, owner) -> {
                             Card toGained = event.getCard();
                             String choice = owner.chooseWhatToDo("Do you want to transform this card in Silver ?", List.of(toGained), Button.yesOrNo, true);
                             if("y".equals(choice)) {
@@ -421,21 +443,26 @@ public class HinterlandsFactory {
                                 if(c!= null){
                                     toGained = c;
                                     event.setCard(toGained);
+                                    event.setDest(Destination.DISCARD);
                                 }
                             }
                         })
-                        .onCondition((event, player) -> event.getPlayer() == player && ( event.getCard().getLocation() == Destination.SUPPLY || event.getCard().getLocation() == Destination.TRASH ) )
+                        .duringGainCondition((event, player) ->
+                                event.getPlayer() == player
+                                        && (event.getCard().getLocation() == Destination.SUPPLY || event.getCard().getLocation() == Destination.TRASH )
+                                        && event.notMoved())
                 );
     }
-
+    @Dominion_Card(extension = "Hinterlands")
+    @InSet(value = {"Bargains"})
     public static Card Trail(){
         BiConsumer<Event, Card> playSelf = (event, self) -> {
             Player player = event.getPlayer();
             String choice = player.chooseWhatToDo("Do you want to play this card ?", List.of(self), Button.yesOrNo, true);
             if("y".equals(choice)) {
+                player.log("Reveals " + self.toLog());
                 player.playCard(self);
                 event.setDest(Destination.INPLAY);
-                event.setNextDest(null);
             }
         };
 
@@ -444,15 +471,16 @@ public class HinterlandsFactory {
                 .setup(config -> config
                         .registerSimpleAction(card_action)
                         .checkGain(playSelf::accept)
-                        .onDiscard(playSelf::accept)
-                        .onTrash(playSelf::accept)
+                        .checkItselfDiscard(playSelf::accept)
+                        .itselfDiscardCondition((event, player) -> event.isActionDiscard())
+                        .checkItselfTrash(playSelf::accept)
                 );
     }
-
+    @Dominion_Card(extension = "Hinterlands")
     public static Card Tunnel(){
         return new Card("Tunnel", RegistryPrice.Hinterlands(3), CardType.VICTORY, CardType.REACTION)
                 .setup(config -> config
-                        .onDiscard((event, self) -> {
+                        .checkItselfDiscard((event, self) -> {
                             Player player = event.getPlayer();
                             String choice = player.chooseWhatToDo("Do you want to reveal this card for a gold ?", List.of(self), Button.yesOrNo, true);
                             if("y".equals(choice)) {
@@ -460,11 +488,13 @@ public class HinterlandsFactory {
                                 CardUtil.gainFromSupply(player, "Gold", Destination.DISCARD, false);
                             }
                         })
+                        .itselfDiscardCondition((event, player) -> event.isActionDiscard())
                         .score(player -> 2)
 
                 );
     }
-
+    @Dominion_Card(extension = "Hinterlands")
+    @InSet(value = {"Introduction"})
     public static Card Weaver(){
         return new Card("Weaver", RegistryPrice.Hinterlands(4), CardType.ACTION, CardType.REACTION)
                 .setup(config -> config
@@ -478,17 +508,19 @@ public class HinterlandsFactory {
                                 CardUtil.gainFromSupply(player, "Choose a card costing up to 4$", card -> card.isAtMost(4), Destination.DISCARD, false);
                             }
                         })
-                        .onDiscard((event, self) -> {
+                        .checkItselfDiscard((event, self) -> {
                             Player player = event.getPlayer();
                             String choice = player.chooseWhatToDo("Do you want to play this ?", List.of(self), Button.yesOrNo, true);
                             if("y".equals(choice)) {
                                 player.playCard(self);
-                                event.setNextDest(null);
+                                event.setDest(Destination.INPLAY);
                             }
                         })
+                        .itselfDiscardCondition((event, player) -> event.isActionDiscard())
                 );
     }
-
+    @Dominion_Card(extension = "Hinterlands")
+    @InSet(value = {"Bargains"})
     public static Card Wheelwright(){
         Bonus action_Card = Bonus.empty().with(Item.ACTION, 1).draw(1);
         return Card.action("Wheelwright", RegistryPrice.Hinterlands(5))
@@ -503,10 +535,10 @@ public class HinterlandsFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Hinterlands")
     public static Card Witch_Hut(){
         Bonus cards = Bonus.empty().draw(4);
-        return new Card("Witch Hut", RegistryPrice.Hinterlands(5), CardType.ActionAndAttack)
+        return new Card("Witchs Hut", RegistryPrice.Hinterlands(5), CardType.ActionAndAttack)
                 .setup(config -> config
                         .onPlay((player, self) -> {
                             CardUtil.TriggerEffect(player, EFFECT, self, cards);
@@ -521,7 +553,7 @@ public class HinterlandsFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Hinterlands")
     public static Card Cache(){
         Bonus money = Bonus.empty().with(Item.MONEY, 3);
         return Card.treasure("Cache", RegistryPrice.Hinterlands(5))
@@ -533,13 +565,12 @@ public class HinterlandsFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Hinterlands")
     public static Card Duchess(){
         Bonus money = Bonus.empty().with(Item.MONEY, 2);
         return Card.action("Duchess", RegistryPrice.Hinterlands(2))
                 .setup(config -> config
                         .onPlay((player, self) -> {
-
                             CardUtil.TriggerEffect(player, EFFECT, self, money);
                             player.getGame().processGlobalEffect(player, p ->
                                 Optional.ofNullable(p.getCardFromDeck())
@@ -554,7 +585,7 @@ public class HinterlandsFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Hinterlands")
     public static Card Embassy(){
         Bonus card = Bonus.empty().draw(5);
         return Card.action("Embassy", RegistryPrice.Hinterlands(5))
@@ -571,7 +602,7 @@ public class HinterlandsFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Hinterlands")
     public static Card Ill_Gotten_Gains(){
         Bonus money = Bonus.empty().with(Item.MONEY, 1);
         return Card.treasure("Ill Gotten Gains", RegistryPrice.Hinterlands(5))
@@ -591,7 +622,7 @@ public class HinterlandsFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Hinterlands")
     public static Card Mandarin(){
         Bonus money = Bonus.empty().with(Item.MONEY, 3);
         return  Card.action("Mandarin", RegistryPrice.Hinterlands(5))
@@ -614,16 +645,16 @@ public class HinterlandsFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Hinterlands")
     public static Card Nomad_Camp(){
         Bonus buy_money = Bonus.empty().with(Item.BUY, 1).with(Item.MONEY, 2);
         return Card.action("Nomad Camp", RegistryPrice.Hinterlands(4))
                 .setup(config -> config
                         .registerSimpleAction(buy_money)
-                        .checkGain((event, self) ->event.setNextDest(Destination.DRAW))
+                        .checkGain((event, self) ->event.setDest(Destination.DRAW))
                 );
     }
-
+    @Dominion_Card(extension = "Hinterlands")
     public static Card Oracle(){
         return Card.action("Oracle", RegistryPrice.Hinterlands(3))
                 .setup(config -> config
@@ -640,7 +671,7 @@ public class HinterlandsFactory {
                         })
                 );
     }
-
+    @Dominion_Card(extension = "Hinterlands", pileType = PileType.VICTORY)
     public static Card SilkRoad(){
         return Card.Victory("Silk Road", RegistryPrice.Hinterlands(4))
                 .setup(config -> config

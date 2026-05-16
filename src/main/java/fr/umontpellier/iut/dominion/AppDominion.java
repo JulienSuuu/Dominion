@@ -21,8 +21,6 @@ import java.util.stream.Collectors;
 @EnableAspectJAutoProxy
 public class AppDominion implements CommandLineRunner {
 
-    // On garde les listes en static pour qu'elles soient accessibles
-    // par les WebSockets (qui sont souvent instanciés par Tyrus, pas Spring)
     private final static ArrayList<Session> clients = new ArrayList<>();
     private static String gameState;
     private static AppDominion instance;
@@ -289,5 +287,9 @@ public class AppDominion implements CommandLineRunner {
         synchronized (clients) {
             clients.remove(session);
         }
+    }
+
+    public static Game getGame() {
+        return instance.game;
     }
 }

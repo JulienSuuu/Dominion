@@ -5,16 +5,16 @@ import fr.umontpellier.iut.dominion.Annotation.Dominion_Card;
 import fr.umontpellier.iut.dominion.Annotation.ExtraSet;
 import fr.umontpellier.iut.dominion.Annotation.InSet;
 import fr.umontpellier.iut.dominion.Annotation.PileType;
+import fr.umontpellier.iut.dominion.Player.Player;
 import fr.umontpellier.iut.dominion.Properties;
 import fr.umontpellier.iut.dominion.cards.*;
-import fr.umontpellier.iut.dominion.cards.Events.Event;
-import fr.umontpellier.iut.dominion.cards.factories.FactoryUtil;
+import fr.umontpellier.iut.dominion.cards.component.OnPlayComponent;
 import javafx.beans.property.IntegerProperty;
 
 import java.util.*;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import static fr.umontpellier.iut.dominion.cards.CardConfigurator.run;
 import static fr.umontpellier.iut.dominion.cards.factories.FactoryUtil.*;
 
 public class Cornucopia_GuildsFactory {
@@ -24,6 +24,7 @@ public class Cornucopia_GuildsFactory {
         return Card.action("Advisor", RegistryPrice.Cornucopia(4))
                 .setup(config -> config
                         .onPlay((player, self) -> {
+                            CardUtil.TriggerEffect(player, EFFECT, self, action);
                             Player left = player.getGame().onTheLeft(player);
                             List<Card> view = CardUtil.getTopCards(player, 3);
                             if(view.isEmpty())return;
@@ -62,7 +63,7 @@ public class Cornucopia_GuildsFactory {
                         CardUtil.TriggerEffect(player, EFFECT, self, coffers);
                         player.chooseCardFromHand("Trash a card from your hand ( optional )", true)
                                 .ifPresent(card -> {
-                                    player.moveToTrash(card);
+                                    player.trash(card);
                                     int toUse = card.getCost();
                                     while(true){
                                         int finalUse = toUse;
@@ -187,7 +188,7 @@ public class Cornucopia_GuildsFactory {
                 .setup(config -> config
                                 .onPlay((player, self) -> {
                                     CardUtil.TriggerEffect(player, EFFECT, self, coffers);
-                                    player.getGame().processMoveTo(player, self, Destination.DISCARD, 3, true );
+                                    player.getGame().processHandDown(player, self, Destination.DISCARD, 3, true );
                                 })
                         );
 
@@ -224,6 +225,7 @@ public class Cornucopia_GuildsFactory {
                             player.log("Reveals " + c.toLog());
                             if(c.hasType(CardType.ACTION)){
                                 player.playCard(c);
+                                linkedCard(self, c);
                             }
                         })
                         .overpaid((player, self) ->{
@@ -235,6 +237,7 @@ public class Cornucopia_GuildsFactory {
                             }
 
                         })
+                        .stayInPlayCondition(checkLink)
 
                 );
     }
@@ -246,10 +249,10 @@ public class Cornucopia_GuildsFactory {
                         .onPlay((player, self) -> {
                             int number = player.getDistinctCards(Destination.INPLAY).size();
                             List<Card> card = player.getGame().getAvailableSupplyCards().stream().filter(c -> c.isAtMost(number)).toList();
-                            player.chooseCardFromList("Choose a card from ths List", c -> true, card, false)
+                            player.chooseCardFromList("Choose a card from this List", c -> true, card, false)
                                     .ifPresent(selectedCard -> {
                                         if(selectedCard.hasType(CardType.VICTORY)){
-                                            player.moveToTrash(self);
+                                            player.trash(self);
                                         }
                                         CardUtil.gainFromSupply(player, selectedCard.getName(), Destination.DISCARD, false);
                                     });
@@ -271,21 +274,10 @@ public class Cornucopia_GuildsFactory {
                                     .map(Card::getName)
                                     .collect(Collectors.toSet());
 
-                            List<Card> toDiscard = new ArrayList<>();
-                            Card c;
-                            do{
-                                c = player.getCardFromDeck();
-                                if(c == null)break;
-                                if(namesInHand.contains(c.getName()))break;
-                                c.moveTo(toDiscard, null);
-                            }while (true);
-
-                            player.log("Hunting Party: Found " + (c != null ? c.getName() : "nothing") +
-                                    ", discarded " + toDiscard);
-
-                            player.moveTo(c, Destination.HAND);
-
-                            new ArrayList<>(toDiscard).forEach(d -> player.moveTo(d, Destination.DISCARD));
+                            player.revealsUntil(
+                                    card -> namesInHand.contains(card.getName()),
+                                    card -> player.moveTo(card, Destination.HAND)
+                            );
 
                         })
                 );
@@ -298,7 +290,7 @@ public class Cornucopia_GuildsFactory {
                         .onPlay((player, self) -> {
                             CardUtil.TriggerEffect(player, EFFECT, self, Action);
                             player.chooseCardFromHand("You may trash a card from your hand", true)
-                                    .ifPresent(player::moveToTrash);
+                                    .ifPresent(player::trash);
                         })
                         .overpaid((player, self) -> {
                             int number = self.getValue("OverpaidNumber").intValue();
@@ -367,9 +359,7 @@ public class Cornucopia_GuildsFactory {
                             player.chooseCardFromHand("You may set Aside a Province", card -> card.hasName("Province"), true)
                                     .ifPresent(card ->{
                                         player.moveTo(card, Destination.ASIDE);
-                                        self.set("Aside", card);
-
-
+                                        self.getCollection("Aside").add(card);
 
                                         List<Card> rewards = player.getGame().getAvailableAsidePilesCard("Rewards");
                                         if(rewards == null)return;
@@ -379,9 +369,10 @@ public class Cornucopia_GuildsFactory {
                                         ;});
                         })
                         .onEndBuy((player, self) ->{
-                            Card c = self.get("Aside", Card.class);
-                            if(c == null)return;
-                            player.moveTo(c, Destination.DISCARD);
+                            Collection<Card> aside = self.getCollection("Aside");
+                            aside.forEach(
+                                    c -> player.moveTo(c, Destination.ASIDE)
+                            );
                         })
                 );
     }
@@ -429,7 +420,7 @@ public class Cornucopia_GuildsFactory {
                             CardUtil.TriggerEffect(player, EFFECT, self, card_Action);
                             player.chooseCardFromHand("You may trash a Treasure for +1 coffers", card -> card.hasType(CardType.TREASURE), true)
                                     .ifPresent(card ->{
-                                        player.moveToTrash(card);
+                                        player.trash(card);
                                         player.increment(Item.COFFER, 1);
                                     });
                         })
@@ -440,15 +431,14 @@ public class Cornucopia_GuildsFactory {
     public static Card Remake(){
         return  Card.action("Remake", RegistryPrice.Cornucopia(4))
                 .setup(config -> config
-                        .onPlay((player, self) -> {
-                            for(int i = 0; i < 2; i++){
+                        .onPlay(run((player, self) ->
                                 player.chooseCardFromHand("Trash a card, gain after this an card costing exactly 1 more", false)
                                         .ifPresent(card ->{
-                                            player.moveToTrash(card);
+                                            player.trash(card);
                                             CardUtil.gainFromSupply(player, "Choose a card costing exactly " + (card.getCost()+1), c -> c.isEqualWithBonus(card, 1), Destination.DISCARD, false);
-                                        });
-                            }
-                        })
+                                        })
+                                ).repeat(2)
+                        )
                 );
     }
     @Dominion_Card(extension = CG)
@@ -459,9 +449,13 @@ public class Cornucopia_GuildsFactory {
                         .onPlay((player, self) -> {
                             CardUtil.TriggerEffect(player, EFFECT, self, card_Money);
                             List<Card> inPlay =  player.getCopyOf(Destination.INPLAY);
-                            player.chooseCardFromHand("Choose a card that you dont have in play", card -> card.hasType(CardType.ACTION) && inPlay.stream().noneMatch(check -> check.hasSameNameAs(card)), true)
-                                    .ifPresent(player::playCard);
+                            player.chooseCardFromHand("Play a card that you dont have in play", card -> card.hasType(CardType.ACTION) && inPlay.stream().noneMatch(check -> check.hasSameNameAs(card)), true)
+                                    .ifPresent(card -> {
+                                        player.playCard(card);
+                                        linkedCard(self, card );
+                                    });
                         })
+                        .stayInPlayCondition(checkLink)
                 );
     }
     @Dominion_Card(extension = CG)
@@ -486,7 +480,7 @@ public class Cornucopia_GuildsFactory {
                         .onPlay((player, self) -> {
                             Optional<Card> choice = player.chooseCardFromHand("Choose a card to trash", false);
                             if(choice.isPresent()){
-                                player.moveToTrash(choice.get());
+                                player.trash(choice.get());
                                 if(choice.get().getCost()==0)return;
                                 for(int i = 0; i < 2; i++){
                                     CardUtil.gainFromSupply(player, "Choose " + (2-i) + " card(s) to gain costing up" + (choice.get().getCost()-1), card -> card.isAtMostWithBonus(choice.get(), -1)  ,Destination.DISCARD, false);
@@ -522,19 +516,21 @@ public class Cornucopia_GuildsFactory {
                         })
                 );
     }
-    @Dominion_Card(extension = CG, pileType = PileType.REWARDS)
+    @Dominion_Card(extension = CG, pileType = PileType.MIXED)
     public static Card Coronet(){
         return new Card("Coronet", RegistryPrice.Cornucopia(0), CardType.ACTION, CardType.ATTACK, CardType.REWARDS)
                 .setup(config -> config
                         .onPlay((player, self) -> {
                             player.chooseCardFromHand("Choose an Action card to play it 2 times", card -> card.hasType(CardType.ACTION) && !card.hasType(CardType.REWARDS), true)
-                                    .ifPresent(card -> player.playCard(card, 2));
+                                    .ifPresent(card ->{ player.playCard(card, 2); linkedCard(self, card);});
                             player.chooseCardFromHand("Choose a Treasure to play it 2 times",card -> card.hasType(CardType.TREASURE) && !card.hasType(CardType.REWARDS), true )
-                                    .ifPresent(card -> player.playCard(card, 2));
+                                    .ifPresent(card ->{ player.playCard(card, 2); linkedCard(self, card);});
                         })
+                        .stayInPlayCondition(checkLink)
                 );
     }
-    @Dominion_Card(extension = CG, pileType = PileType.REWARDS)
+
+    @Dominion_Card(extension = CG, pileType = PileType.MIXED)
     public static Card Courser(){
         return new Card("Courser", RegistryPrice.Cornucopia(0), CardType.ACTION, CardType.REWARDS)
                 .setup(config -> config
@@ -573,7 +569,7 @@ public class Cornucopia_GuildsFactory {
                         })
                 );
     }
-    @Dominion_Card(extension = CG, pileType = PileType.REWARDS)
+    @Dominion_Card(extension = CG, pileType = PileType.MIXED)
     public static Card Demesne(){
         Bonus action_Buy = Bonus.empty().with(Item.ACTION, 2).with(Item.BUY, 2);
         return new Card("Demesne", RegistryPrice.Cornucopia(0), CardType.ACTION,CardType.VICTORY,  CardType.REWARDS)
@@ -585,7 +581,7 @@ public class Cornucopia_GuildsFactory {
                         .score(player -> player.getCopyOf(Destination.HAND).stream().filter(card -> card.hasName("Gold")).toList().size())
                 );
     }
-    @Dominion_Card(extension = CG, pileType = PileType.REWARDS)
+    @Dominion_Card(extension = CG, pileType = PileType.MIXED)
     public static Card Housecarl(){
         return new Card("Housecarl",RegistryPrice.Cornucopia(0), CardType.ACTION, CardType.REWARDS)
                 .setup(config -> config
@@ -595,7 +591,7 @@ public class Cornucopia_GuildsFactory {
                         })
                 );
     }
-    @Dominion_Card(extension = CG, pileType = PileType.REWARDS)
+    @Dominion_Card(extension = CG, pileType = PileType.MIXED)
     public static Card Huge_Turnip(){
         Bonus coffers = Bonus.empty().with(Item.COFFER, 2);
         return new Card("Huge Turnip", RegistryPrice.Cornucopia(0), CardType.TREASURE, CardType.REWARDS)
@@ -607,7 +603,7 @@ public class Cornucopia_GuildsFactory {
                         })
                 );
     }
-    @Dominion_Card(extension = CG, pileType = PileType.REWARDS)
+    @Dominion_Card(extension = CG, pileType = PileType.MIXED)
     public static Card Renown(){
         Bonus buy =  Bonus.empty().with(Item.BUY,1 );
         return new Card("Renown", RegistryPrice.Cornucopia(0), CardType.ACTION, CardType.REWARDS)

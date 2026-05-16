@@ -1,11 +1,27 @@
 package fr.umontpellier.iut.dominion.cards.Events;
 
-import fr.umontpellier.iut.dominion.Destination;
-import fr.umontpellier.iut.dominion.Player;
-import fr.umontpellier.iut.dominion.cards.Card;
-
+/**
+ * évenement classique de gain
+ */
 public class OnGainEvent extends Event {
-    public OnGainEvent(Card card, Destination destination, Player player) {
-        super(card, destination, player);
+    private final Event event;
+    public OnGainEvent(Event event) {
+        super(event.getCard(), event.getDest(), event.getPlayer());
+        this.event = event;
+    }
+
+    @Override
+    public boolean hasMoved() {
+        return event.hasMoved();
+    }
+
+    @Override
+    public boolean notMoved() {
+        return event.notMoved();
+    }
+
+    @Override
+    public boolean isSameCard() {
+        return event.isSameCard();
     }
 }

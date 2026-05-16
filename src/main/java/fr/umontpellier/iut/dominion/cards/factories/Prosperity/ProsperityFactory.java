@@ -3,6 +3,7 @@ package fr.umontpellier.iut.dominion.cards.factories.Prosperity;
 import fr.umontpellier.iut.dominion.*;
 import fr.umontpellier.iut.dominion.Annotation.Dominion_Card;
 import fr.umontpellier.iut.dominion.Annotation.InSet;
+import fr.umontpellier.iut.dominion.Player.Player;
 import fr.umontpellier.iut.dominion.cards.*;
 import fr.umontpellier.iut.dominion.cards.Events.Event;
 import fr.umontpellier.iut.dominion.cards.component.TriggerComponent;
@@ -10,7 +11,6 @@ import fr.umontpellier.iut.dominion.cards.component.TriggerComponent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
 
 import static fr.umontpellier.iut.dominion.Button.yesOrNo;
 import static fr.umontpellier.iut.dominion.cards.factories.FactoryUtil.*;
@@ -25,7 +25,7 @@ public class ProsperityFactory {
                             CardUtil.TriggerEffect(player, EFFECT, self, money);
                              player.chooseCardFromHand("Choose a treasure to trash (optional) ", card -> card.hasType(CardType.TREASURE), true)
                                      .ifPresent(card -> {
-                                        player.moveToTrash(card);
+                                        player.trash(card);
                                         CardUtil.gainFromSupply(player, "Choose a treasure costing up 4", c -> c.isAtMost(4), Destination.DISCARD, true);
                                     });
                         })
@@ -53,7 +53,7 @@ public class ProsperityFactory {
                             player.increment(Item.VICTORY_TOKEN, 1);
                              player.chooseCardFromHand("Choose a card to trash ( Victory Token )", false)
                                      .ifPresent(card -> {
-                                        player.moveToTrash(card);
+                                        player.trash(card);
                                         player.increment(Item.VICTORY_TOKEN, card.getCost()/2);
                                     }
                             );
@@ -61,7 +61,7 @@ public class ProsperityFactory {
                             player.getGame().processBenefit(
                                     player,
                                     vi -> vi.chooseCardFromHand("Choose a card from your hand (optional)", true)
-                                                 .ifPresent(vi::moveToTrash)
+                                                 .ifPresent(vi::trash)
                             );
 
                         })
@@ -128,8 +128,8 @@ public class ProsperityFactory {
                             CardUtil.TriggerEffect(player,EFFECT, self, moneyAndBuy);
                             player.addCardEffect(self);
                         })
-                        .onGain((owner, victim, event) -> owner.increment(Item.VICTORY_TOKEN, 1) )
-                        .onCondition((event, player) -> player == event.getPlayer() && event.getCard().hasType(CardType.ACTION))
+                        .afterGain((event, owner) -> owner.increment(Item.VICTORY_TOKEN, 1) )
+                        .afterGainCondition((event, player) -> player == event.getPlayer() && event.getCard().hasType(CardType.ACTION) && event.isSameCard())
 
                 );
     }
@@ -153,11 +153,15 @@ public class ProsperityFactory {
                             String choice = player.chooseWhatToDo("Choose : Trash, Discard" + canPlay, List.of(top) , buttons, true);
                             switch(choice){
                                 case "" -> {}
-                                case "t" -> player.moveToTrash(top);
+                                case "t" -> player.trash(top);
                                 case "d" -> player.moveTo(top, Destination.DISCARD);
-                                case "p" -> player.playCard(top);
+                                case "p" ->{
+                                    player.playCard(top);
+                                    linkedCard(self, top);
+                                }
                             }
                         })
+                        .stayInPlayCondition(checkLink)
                 );
     }
     @Dominion_Card(extension = "Prosperity")
@@ -169,7 +173,7 @@ public class ProsperityFactory {
                             if(player.getCopyOf(Destination.HAND).isEmpty())return;
                             player.chooseCardFromHand("Choose a card to trash", false)
                                     .ifPresent(card -> {
-                                        player.moveToTrash(card);
+                                        player.trash(card);
                                         CardUtil.gainFromSupply(player,
                                                 "Choose a card costing up " + (card.getCost()+3),
                                                 c -> c.isAtMostWithBonus(card, 3),
@@ -191,8 +195,8 @@ public class ProsperityFactory {
 
                                 player.chooseCardFromHand("Choose a card to trash ( you can pass)", true)
                                         .ifPresentOrElse(card ->{
-                                            player.moveToTrash(card);
-                                            self.set("money", self.get("money", Integer.class) + card.getCost());
+                                            player.trash(card);
+                                            self.set("money", self.getValue("money").intValue() + card.getCost());
                                         },
                                         () -> self.set("continu", false)
                                 );
@@ -202,7 +206,7 @@ public class ProsperityFactory {
                             CardUtil.gainFromSupply(
                                     player,
                                     "Choose a card costing exactly " + self.get("money", Integer.class),
-                                    card -> card.isEqual(self.get("money", Integer.class)),
+                                    card -> card.isEqual(self.getValue("money").intValue()),
                                     Destination.DISCARD,
                                     false);
                         })
@@ -237,17 +241,17 @@ public class ProsperityFactory {
                 .setup(config -> config
                         .onPlay((player, self) -> {
                              player.chooseCardFromHand("Choose a card to trash (Hand)", true)
-                                     .ifPresent(player::moveToTrash);
+                                     .ifPresent(player::trash);
 
                             CardUtil.executeOrOtherwise(
                                     () -> player.chooseWhatToDo("Choose: 1$ or trash this card for VT", List.of(self), List.of(new Button("1$", "m"), Button.Trash), false),
                                     "t"::equals,
                                     choice -> {
-                                        player.log("Reveals : " + player.getCopyOf(Destination.HAND));
-                                        player.moveToTrash(self);
-                                        Number treasure = player.getCopyOf(Destination.HAND).stream().filter(card -> card.hasType(CardType.TREASURE)).count();
-                                        player.increment(Item.VICTORY_TOKEN, treasure.intValue());
-                                    },
+                                        if(player.trash(self)){
+                                            player.log("Reveals : " + player.getCopyOf(Destination.HAND));
+                                            Number treasure = player.getCopyOf(Destination.HAND).stream().filter(card -> card.hasType(CardType.TREASURE)).count();
+                                            player.increment(Item.VICTORY_TOKEN, treasure.intValue());
+                                        }},
                                     () -> player.increment(Item.MONEY, 1)
                             );
                         })
@@ -261,14 +265,11 @@ public class ProsperityFactory {
                         .onPlay((player, self) ->
                                 player.chooseCardFromHand("Choose a card and play it three time", card -> card.hasType(CardType.ACTION), true)
                                         .ifPresent(card -> {
-                                            player.playCard(card);
-                                            for(int i = 0; i < 2; i++){
-                                                player.increment(Item.ACTION_PLAYED, 1);
-                                                player.triggerEvent(TriggerComponent.OnCardPlayed.class, new Event(card, null, player));
-                                                card.play(player);
-                                            }
+                                            player.playCard(card, 3);
+                                            linkedCard(self, card);
                                         })
                         )
+                        .stayInPlayCondition(checkLink)
                 );
     }
     @Dominion_Card(extension = "Prosperity")
@@ -298,7 +299,7 @@ public class ProsperityFactory {
                         .checkGain((event, self) -> {
                             Player player = event.getPlayer();
                             List<Card> nonDuration = player.getCopyOf(Destination.INPLAY).stream().filter(card -> !card.hasType(CardType.DURATION) && card.hasType(CardType.TREASURE)).toList();
-                            new ArrayList<>(nonDuration).forEach(player::moveToTrash);
+                            new ArrayList<>(nonDuration).forEach(player::trash);
                         })
                 );
     }
@@ -376,24 +377,22 @@ public class ProsperityFactory {
                 .setup(config -> config
                         .onPlay((player, self) -> {
                             CardUtil.TriggerEffect(player,  EFFECT, self, buy);
-                             player.chooseCardFromHand("Choose a treasure to play it two times", card -> card.hasType(CardType.TREASURE), true)
+                            player.addCardEffect(self);
+                            player.chooseCardFromHand("Play a treasure two times", card -> card.hasType(CardType.TREASURE), true)
                                      .ifPresent(card -> {
-                                        player.playCard(card);
-                                        player.triggerEvent(TriggerComponent.OnCardPlayed.class, new Event(card, null, player));
-                                        card.play(player);
-                                    }
+                                        player.playCard(card, 2);
+                                        linkedCard(self, card);
+                                     }
                             );
                         })
-                        .onGain((owner, victim, event) -> CardUtil.executeOrOtherwise(
+                        .onGain((event, owner) -> CardUtil.executeOrOtherwise(
                                 () -> owner.chooseWhatToDo("Do you want to put this card " + event.getCard().getName() + " in your draw ? ", List.of(event.getCard()) , yesOrNo, true ),
                                 "y"::equals,
                                 choice -> event.setDest(Destination.DRAW),
                                 () -> {}
                         ))
-                        .onCondition((event, player) -> player == event.getPlayer())
-
-
-
+                        .duringGainCondition((event, player) -> player == event.getPlayer())
+                        .stayInPlayCondition(checkLink)
                 );
 
     }
@@ -457,16 +456,16 @@ public class ProsperityFactory {
                                 player.draw(1);
                             }
                         })
-                        .onGain((owner, victim, event) -> CardUtil.executeOrOtherwise(
+                        .onGain((event, owner) -> CardUtil.executeOrOtherwise(
                                 () -> owner.chooseWhatToDo("Do you want to put " + event.getCard().getName() +" in trash or in deck ?", List.of(event.getCard()), Button.TrashOrDeck , false),
                                 "t"::equals,
                                 choice ->{
-                                    event.setDest(null);
-                                    owner.moveToTrash(event.getCard());
+                                    event.setDest(Destination.TRASH);
+                                    owner.trash(event.getCard());
                                 },
                                 () -> event.setDest(Destination.DRAW)
                         ))
-                        .onCondition((event, player) -> player == event.getPlayer())
+                        .duringGainCondition((event, player) -> player == event.getPlayer() && event.isSameCard())
                 );
     }
     @Dominion_Card(extension = "Prosperity")
@@ -518,7 +517,7 @@ public class ProsperityFactory {
                 .setup(config -> config
                         .onPlay((player, self) -> {
                             CardUtil.TriggerEffect(player, EFFECT, self, draw_Money);
-                            player.getGame().processMoveTo(
+                            player.getGame().processHandDown(
                                     player,
                                     self,
                                     Destination.DISCARD,
@@ -545,7 +544,7 @@ public class ProsperityFactory {
                                     CardUtil.executeOrOtherwise(
                                             () -> player.chooseWhatToDo("Do you want to trash this treasure", List.of(c), Button.DiscardOrTrash, true),
                                             "t"::equals,
-                                            choice -> player.moveToTrash(c),
+                                            choice -> player.trash(c),
                                             () -> player.discard(c)
 
                                     );
@@ -587,7 +586,7 @@ public class ProsperityFactory {
         return new Card("Royal Seal",  RegistryPrice.ProsperityPrice(5), CardType.TREASURE)
                 .setup(config -> config
                         .registerSimpleAction(money)
-                        .onGain((owner, victim, event) ->
+                        .onGain((event, owner) ->
                             CardUtil.executeOrOtherwise(
                                     () -> owner.chooseWhatToDo("Do you want to put this card onto your deck", List.of(event.getCard()) ,Button.DeckOrDiscard, true),
                                     "deck"::equals,
@@ -595,7 +594,7 @@ public class ProsperityFactory {
                                     () -> {}
                             )
                         )
-                        .onCondition((event, player) -> player == event.getPlayer())
+                        .duringGainCondition((event, player) -> player == event.getPlayer())
                 );
     }
     @Dominion_Card(extension = "Prosperity")
@@ -619,7 +618,7 @@ public class ProsperityFactory {
                             CardUtil.TriggerEffect(player, EFFECT, self, buy);
                              player.chooseCardFromHand("Trash a card", false)
                                      .ifPresent(card -> {
-                                        player.moveToTrash(card);
+                                        player.trash(card);
                                         player.increment(Item.MONEY, player.getValueOf(Item.COIN_TOKEN_ROUTE));
                                     }
                             );
@@ -647,9 +646,11 @@ public class ProsperityFactory {
                             }
                             if(treasure != null){
                                 player.playCard(treasure);
+                                linkedCard(self,  treasure);
                             }
                             new ArrayList<>(discard).forEach(player::discard);
                         })
+                        .stayInPlayCondition(checkLink)
                 );
     }
 }

@@ -2,7 +2,7 @@ package fr.umontpellier.iut.dominion.cards;
 
 import fr.umontpellier.iut.dominion.Destination;
 import fr.umontpellier.iut.dominion.Item;
-import fr.umontpellier.iut.dominion.Player;
+import fr.umontpellier.iut.dominion.Player.Player;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -82,10 +82,19 @@ public class CardUtil {
         return c;
     }
 
+    public static Card gainMultipleCardFromSupply(Player p, String instruction, Predicate<Card> filter,Destination dest,  int number){
+        Card c = null;
+        for(int index = 0; index < number; index++) {
+            c = gainFromSupply(p, instruction, filter, dest, false);
+            if(c == null)break;
+        }
+        return c;
+    }
 
-    public static Card gainFromSupply(Player p,String message, Predicate<Card> filter, Destination dest, boolean silent) {
-        Optional<Card> supplyCard = p.chooseCardFromSupply(message, filter, false);
-        return supplyCard.map(card -> gainIfPresent(p, card, dest, silent)).orElse(null);
+    public static Card gainFromSupply(Player p, String message, Predicate<Card> filter, Destination dest, boolean canPass) {
+        List<Card> available = p.getGame().getAvailableSupplyCards().stream().filter(filter).toList();
+        Optional<Card> supplyCard = p.chooseCardFromList(message, card -> true, available, canPass);
+        return supplyCard.map(card -> gainIfPresent(p, card, dest, false)).orElse(null);
     }
 
     public static Card gainFromSupply(Player p, String name, Destination dest, boolean silent) {

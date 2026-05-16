@@ -1,6 +1,5 @@
 package fr.umontpellier.iut.dominion.gui;
 
-import fr.umontpellier.iut.dominion.Player;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;

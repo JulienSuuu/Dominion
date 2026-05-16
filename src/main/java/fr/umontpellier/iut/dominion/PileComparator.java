@@ -1,5 +1,7 @@
 package fr.umontpellier.iut.dominion;
 
+import fr.umontpellier.iut.dominion.Supply.SupplyPile;
+
 import java.util.Comparator;
 
 class PileComparator implements Comparator<SupplyPile> {

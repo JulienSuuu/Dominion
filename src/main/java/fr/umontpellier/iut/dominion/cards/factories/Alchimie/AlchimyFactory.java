@@ -4,18 +4,19 @@ import fr.umontpellier.iut.dominion.*;
 import fr.umontpellier.iut.dominion.Annotation.Dominion_Card;
 import fr.umontpellier.iut.dominion.Annotation.InSet;
 import fr.umontpellier.iut.dominion.Annotation.PileType;
+import fr.umontpellier.iut.dominion.Player.Player;
 import fr.umontpellier.iut.dominion.cards.Bonus;
 import fr.umontpellier.iut.dominion.cards.Card;
 import fr.umontpellier.iut.dominion.cards.CardUtil;
 import fr.umontpellier.iut.dominion.cards.RegistryPrice;
+import fr.umontpellier.iut.dominion.cards.factories.FactoryUtil;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static fr.umontpellier.iut.dominion.cards.factories.FactoryUtil.ACTION;
-import static fr.umontpellier.iut.dominion.cards.factories.FactoryUtil.EFFECT;
+import static fr.umontpellier.iut.dominion.cards.factories.FactoryUtil.*;
 
 public class AlchimyFactory {
     @Dominion_Card(extension = "Alchemy")
@@ -103,7 +104,7 @@ public class AlchimyFactory {
                             CardUtil.TriggerEffect(player,EFFECT, self, play);
                              player.chooseCardFromHand("Choose a card to trash", false)
                                      .ifPresent(card -> {
-                                         player.moveToTrash(card);
+                                         player.trash(card);
                                          int cost =  card.getCost();
                                          int potion = card.getPotion();
                                          player.draw(cost + (potion > 0? 2:0));
@@ -149,6 +150,7 @@ public class AlchimyFactory {
                                  player.chooseCardFromList("Play those card in any order", card -> true, revealed, false)
                                          .ifPresent(card -> {
                                              player.playCard(card);
+                                             linkedCard(self, card);
                                              revealed.remove(card);
                                         }
                                 );
@@ -156,6 +158,7 @@ public class AlchimyFactory {
 
                             new ArrayList<>(discard).forEach(card -> player.moveTo(card, Destination.DISCARD));
                         })
+                        .stayInPlayCondition(checkLink)
                 );
     }
     @Dominion_Card(extension = "Alchemy")
@@ -264,7 +267,7 @@ public class AlchimyFactory {
                 .setup(config -> config
                         .onPlay((player, self) -> player.chooseCardFromHand("Choose a card to trash", false)
                                 .ifPresent(card -> {
-                                    player.moveToTrash(card);
+                                    player.trash(card);
                                     if(card.hasType(CardType.ACTION)) CardUtil.gainFromSupply(player, "Duchy", Destination.DISCARD, false);
                                     if(card.hasType(CardType.TREASURE))CardUtil.gainFromSupply(player, "Transmute", Destination.DISCARD, false);
                                     if(card.hasType(CardType.VICTORY))CardUtil.gainFromSupply(player, "Gold", Destination.DISCARD, false);
