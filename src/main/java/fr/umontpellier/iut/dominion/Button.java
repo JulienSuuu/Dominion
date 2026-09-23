@@ -10,6 +10,7 @@ public record Button(String label, String value) {
     public static Button Trash = new Button("Trash", "t");
     public static Button Yes = new Button("Yes", "y");
     public static Button No = new Button("No", "n");
+    public static Button Hand = new Button("Hand", "h");
     public static List<Button> TrashOrDeck = List.of(new Button("Trash", "t"), new Button("Deck", "d"));
     public static Button Money =  new Button("Money", "m");
     public static Button Action = new Button("Action", "a");

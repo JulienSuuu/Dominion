@@ -1,34 +1,40 @@
-package fr.umontpellier.iut.dominion.cards.component;
+package fr.umontpellier.iut.dominion.cards.component
 
-import java.util.Objects;
-import java.util.function.Consumer;
+import java.util.*
+import java.util.function.Consumer
 
-public interface Effect<T, U extends Effect<T, U> & CardComponent> extends Consumer<T> {
-    U create(Consumer<T> c);
+/**
+ * Interface fonctionnelle représentant un effet de jeu agissant sur une seule entité (T).
+ */
+fun interface Effect<in T> : CardComponent, suspend (T) -> Unit {
+    override suspend fun invoke(t: T)
+}
 
-    default U then(Consumer<? super T> effect) {
-        Objects.requireNonNull(effect);
-        return create(t -> {
-                this.accept(t);
-                effect.accept(t);}
-        );
+/**
+ * Enchaîne une action après l'effet actuel.
+ */
+fun <T, E : Effect<T>> E.then(after: suspend (T) -> Unit): Effect<T> {
+    return Effect { t ->
+        this(t)
+        after(t)
     }
+}
 
-    default U repeat(int times){
-        return create(t -> {
-            for(int i = 0; i < times; i++){
-                this.accept(t);
-            }
-        });
+/**
+ * Répète l'effet actuel un nombre fixe de fois.
+ */
+fun <T, E : Effect<T>> E.repeat(times: Int): Effect<T> {
+    return Effect { t ->
+        repeat(times) { this(t) }
     }
+}
 
-    default U compose(Consumer<? super T> before) {
-        Objects.requireNonNull(before);
-        return create(t -> {
-            before.accept(t);
-            this.accept(t);
-        });
+/**
+ * Insère une action avant l'effet actuel.
+ */
+fun <T, E : Effect<T>> E.compose(before: suspend (T) -> Unit): Effect<T> {
+    return Effect { t ->
+        before(t)
+        this(t)
     }
-
-
 }

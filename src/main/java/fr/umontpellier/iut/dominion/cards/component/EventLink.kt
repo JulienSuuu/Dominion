@@ -1,13 +1,10 @@
-package fr.umontpellier.iut.dominion.cards.component;
+package fr.umontpellier.iut.dominion.cards.component
 
-import fr.umontpellier.iut.dominion.cards.Events.Event;
+import fr.umontpellier.iut.dominion.cards.Events.Event
 
 /**
  * Event global du jeu
  */
-@FunctionalInterface
-public interface EventLink {
-    void execute(Event event);
+fun interface EventLink<T : Event> : suspend (T) -> Unit {
+    override suspend fun invoke(event : T)
 }
-
-

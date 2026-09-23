@@ -1,310 +1,314 @@
-package fr.umontpellier.iut.dominion.cards;
+package fr.umontpellier.iut.dominion.cards
 
-import fr.umontpellier.iut.dominion.Interface.Logger;
-import fr.umontpellier.iut.dominion.Player.Player;
-import fr.umontpellier.iut.dominion.cards.Events.Event;
-import fr.umontpellier.iut.dominion.cards.component.*;
-import fr.umontpellier.iut.dominion.cards.factories.FactoryUtil;
+import fr.umontpellier.iut.dominion.game.Game
+import fr.umontpellier.iut.dominion.Player.Player
+import fr.umontpellier.iut.dominion.cards.Bonus.Bonus
+import fr.umontpellier.iut.dominion.cards.Bonus.DominionBonus
+import fr.umontpellier.iut.dominion.cards.Events.Event
+import fr.umontpellier.iut.dominion.cards.Events.GainType
+import fr.umontpellier.iut.dominion.cards.component.*
+import fr.umontpellier.iut.dominion.cards.component.TriggerComponent.*
+import fr.umontpellier.iut.dominion.cards.factories.DURATION
+import fr.umontpellier.iut.dominion.cards.factories.EFFECT
+import fr.umontpellier.iut.dominion.cards.factories.reserveCondition
+import javafx.geometry.Side
+import java.lang.reflect.InvocationHandler
+import java.lang.reflect.Proxy
+import java.util.concurrent.atomic.AtomicBoolean
 
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Proxy;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
-import java.util.function.BiPredicate;
-import java.util.function.Predicate;
 
-public class CardConfigurator {
-    private final Card card;
-    public CardConfigurator(Card card) {
-        this.card = card;
+typealias Build<T> = CardConfigurator.Builder<T>.() -> Unit
+
+
+class CardConfigurator(val scope: Card) {
+
+
+    open class Builder<T : CardComponent>(val scope: Card) {
+        lateinit var effect : T
+        var condition : (Event, Player) -> Boolean = {_, _ -> true}
+
+
+        open fun onEffect(effect: T){ this.effect = effect }
+        fun onCondition(condition : (Event, Player) -> Boolean){ this.condition = condition }
+        fun reserveCondition(condition : (Event, Player) -> Boolean = {_, _ -> true}){ this.condition = scope.reserveCondition(condition)  }
     }
 
-    public CardConfigurator onDuration(DurationComponent.duration consumer) {
-        card.addComponent(new DurationComponent(consumer));
-        return this;
+    inline fun <reified T : CardComponent> build(build : Builder<T>.() -> Unit) {
+        val builder = Builder<T>(scope)
+        builder.build()
+        scope.register<T>(builder.effect, builder.condition)
     }
 
-    public CardConfigurator onDurationWithTrigger(DurationComponent.duration consumer, Predicate<Card> condition) {
-        DurationComponent durationComponent = new DurationComponent(consumer);
-        card.addComponent(durationComponent.setTrigger(condition));
-        return this;
+    private fun duration(build : Builder<DurationComponent.Duration>.() -> Unit) : DurationComponent {
+        val builder = Builder<DurationComponent.Duration>(scope)
+        builder.build()
+        val duration = DurationComponent(builder.effect, scope)
+        scope.register(duration, builder.condition)
+
+        return duration
     }
 
-    public CardConfigurator onDurationWithTime(DurationComponent.duration consumer, int time) {
-        card.addComponent(new DurationComponent(consumer).setNumberOfTurns(time));
-        return this;
+    class DurationBuilder(scope : Card) : Builder<DurationComponent.Duration>(scope) {
+        val duration = DurationComponent(scope = scope)
+
+        fun withTrigger(trigger : (Player, Card) -> Boolean) { duration.setTrigger(trigger) }
+
+        fun withTime(time : Int){ duration.setNumberOfTurns(time) }
+
+        fun infinite(){ duration.setInfinite(true) }
+
+        fun shouldBeDiscardWhen(condition: (Player, Card) -> Boolean) { duration.stayInPlayCondition(condition) }
+
+        override fun onEffect(effect: DurationComponent.Duration) {
+            duration.setEffect(effect)
+        }
+
     }
 
-    public CardConfigurator onInfiniteDuration(DurationComponent.duration consumer) {
-        DurationComponent durationComponent = new DurationComponent(consumer);
-        card.addComponent(durationComponent.setInfinite(true));
-        return this;
+    infix fun onDuration(build : DurationBuilder.() -> Unit): CardConfigurator {
+        val duration  = DurationBuilder(scope)
+        build(duration)
+        scope.register(duration.duration, duration.condition)
+        return this
     }
 
-    public CardConfigurator stayInPlayCondition(Predicate<Card> condition) {
-        DurationComponent duration = card.getComponent(DurationComponent.class)
-                .orElseGet(() -> {
-                    DurationComponent newComp = new DurationComponent((p, c) -> {});
-                    card.addComponent(newComp);
-                    return newComp;
-                });
-
-        duration.stayInPlayCondition(condition);
-        return this;
+    fun follower(mult : Int = 2): CardConfigurator {
+        scope.register(Follower(scope, mult))
+        return this
     }
 
-    public CardConfigurator durationCondition(Predicate<Card> condition) {
-        card.getComponent(DurationComponent.class).ifPresent(d -> d.thingToDo(condition));
-        return this;
+    fun onSetup(neededPlayer : Boolean = false, block : Game.() -> Unit) {
+        val setup = OnSetup(block)
+        setup.neededPlayer = neededPlayer
+        scope.register(setup)
     }
 
-    public CardConfigurator onPlay(OnPlayComponent consumer) {
-        card.addComponent(OnPlayComponent.class, consumer);
-        return this;
+    fun onEndSetup(block : Game.() -> Unit) {
+        val setup = OnSetup(block)
+        setup.neededPlayer = true
+        scope.register(setup)
     }
 
-    public CardConfigurator onPlayWithBonus(Bonus bonus, OnPlayComponent consumer) {
-        card.addComponent(OnPlayComponent.class, bonus(bonus).then(consumer));
-        return this;
+    fun onStartBuyPhase(builder : Build<OnStartBuyPhase>){ build(builder) }
+    fun onEndTurn(builder : Build<OnEndTurn>) { build(builder) }
+
+
+    infix fun onPlay(builder : Build<OnPlayComponent>): CardConfigurator {
+        build(builder)
+        return this
     }
 
-    public CardConfigurator onExtraTurn(AtomicBoolean consumer) {
-        card.addComponent(new ExtraTurnComponent(consumer));
-        return this;
+    infix fun onPlay(component : OnPlayComponent) {
+        scope.register(component)
     }
 
-    public CardConfigurator onGain(TriggerComponent.DuringPlayerGain effect) {
-        card.addComponent(TriggerComponent.DuringPlayerGain.class, effect);
-        return this;
+    infix fun onExtraTurn(consumer: AtomicBoolean): CardConfigurator {
+        scope.register(ExtraTurnComponent(consumer))
+        return this
     }
 
-    public CardConfigurator onCardPlayed(TriggerComponent.OnCardPlayed effect) {
-        card.addComponent(TriggerComponent.OnCardPlayed.class, effect);
-        return this;
+    infix fun onGain(builder : Build<DuringPlayerGain>): CardConfigurator {
+        build(builder)
+        return this
     }
 
-    public CardConfigurator beforeCardPlayed(TriggerComponent.beforeCardPlayed effect) {
-        card.addComponent(TriggerComponent.beforeCardPlayed.class, effect);
-        return this;
+    infix fun onCardPlayed(builder : Build<OnCardPlayed>): CardConfigurator {
+        build(builder)
+        return this
     }
 
-    public CardConfigurator afterCardPlayed(TriggerComponent.afterCardPlayed effect) {
-        card.addComponent(TriggerComponent.afterCardPlayed.class, effect);
-        return this;
+    infix fun beforeCardPlayed(builder: Build<BeforeCardPlayed>): CardConfigurator {
+        build(builder)
+        return this
     }
 
-    public CardConfigurator immunity(){
-        card.addComponent(TriggerComponent.Immunity.class, new TriggerComponent.Immunity() {});
-        return this;
+    infix fun afterCardPlayed(builder : Build<AfterCardPlayed>): CardConfigurator {
+        build(builder)
+        return this
     }
 
-    public CardConfigurator immunity(TriggerComponent.Immunity consumer) {
-        card.addComponent(TriggerComponent.Immunity.class, consumer);
-        return this;
+    fun immunity(): CardConfigurator {
+        scope.register(object : TriggerComponent.Immunity {})
+        return this
     }
 
-    public CardConfigurator score(ScoreComponent component){
-        card.addComponent(ScoreComponent.class, component);
-        return this;
+    infix fun immunity(builder: Build<Immunity>): CardConfigurator {
+        build(builder)
+        return this
     }
 
-    public CardConfigurator onEndBuy(TriggerComponent.onEndBuy effect) {
-        card.addComponent(TriggerComponent.onEndBuy.class, effect);
-        return this;
+    infix fun score(component: ScoreComponent): CardConfigurator {
+        scope.register(component)
+        return this
     }
 
-    public CardConfigurator onEndBuyCondition(BiPredicate<Event, Player> condition) {
-        card.addCondition(condition,TriggerComponent.onEndBuy.class);
-        return this;
+    infix fun onEndBuy(builder : Build<OnEndBuy>): CardConfigurator {
+        build(builder)
+        return this
     }
 
-    public CardConfigurator duringGainCondition(BiPredicate<Event, Player> condition) {
-        card.addCondition(condition, TriggerComponent.DuringPlayerGain.class);
-        return this;
+    fun registerSimplePlayAndDuration(playBonus: Bonus, durationBonus: Bonus = playBonus): CardConfigurator {
+        simpleAction(playBonus)
+        simpleDuration(durationBonus)
+        return this
     }
 
-    public CardConfigurator itselfGainCondition(BiPredicate<Event, Player> condition) {
-        card.addCondition(condition, TriggerComponent.checkItselfGain.class);
-        return this;
+    infix fun simpleAction(playBonus: DominionBonus): CardConfigurator {
+        scope.register(playBonus.onPlay())
+        return this
     }
 
-    public CardConfigurator afterGainCondition(BiPredicate<Event, Player> condition) {
-        card.addCondition(condition, TriggerComponent.AfterPlayerGain.class);
-        return this;
+    infix fun simpleDuration(durationBonus: Bonus): CardConfigurator {
+        scope.register(DurationComponent ({ p, c -> p.triggerEffect( DURATION, c, durationBonus) }, scope))
+        return this
     }
 
-    public CardConfigurator onTrashCondition(BiPredicate<Event, Player> condition) {
-        card.addCondition(condition, TriggerComponent.onCardTrashed.class);
-        return this;
+    infix fun checkItselfDiscard(builder : Build<CheckItselfDiscarded>): CardConfigurator {
+        build(builder)
+        return this
     }
 
-    public CardConfigurator itselfTrashCondition(BiPredicate<Event, Player> condition) {
-        card.addCondition(condition, TriggerComponent.checkItselfTrashed.class);
-        return this;
+    infix fun onStartTurn(builder : Build<OnStartTurn>): CardConfigurator {
+        build(builder)
+        return this
     }
 
-    public CardConfigurator afterDiscardCondition(BiPredicate<Event, Player> condition) {
-        return this;
+    infix fun onStartTurn(builder : OnStartTurn): CardConfigurator {
+        scope.register(builder)
+        return this
     }
 
-    public CardConfigurator itselfDiscardCondition(BiPredicate<Event, Player> condition) {
-        card.addCondition(condition, TriggerComponent.checkItselfDiscarded.class);
-        return this;
+    infix fun available(consumer: (Player) -> Boolean): CardConfigurator {
+        scope.available = consumer
+        return this
     }
 
-    public CardConfigurator cardPlayedCondition(BiPredicate<Event, Player> condition) {
-        card.addCondition(condition, TriggerComponent.OnCardPlayed.class);
-        return this;
+    infix fun onBuy(builder : Build<OnBuy>): CardConfigurator {
+        build(builder)
+        return this
     }
 
-    public CardConfigurator beforeCardPlayedCondition(BiPredicate<Event, Player> condition) {
-        card.addCondition(condition, TriggerComponent.beforeCardPlayed.class);
-        return this;
+    infix fun onBuy(builder : OnBuy): CardConfigurator {
+        scope.register(builder)
+        return this
     }
 
-    public CardConfigurator afterCardPlayedCondition(BiPredicate<Event, Player> condition) {
-        card.addCondition(condition, TriggerComponent.afterCardPlayed.class);
-        return this;
+    infix fun overpaid(builder : Build<OverPaidCard>): CardConfigurator {
+        build(builder)
+        return this
     }
 
-    public CardConfigurator ImmunityCondition(BiPredicate<Event, Player> condition) {
-        card.addCondition(condition, TriggerComponent.Immunity.class);
-        return this;
+    infix fun checkGain(builder : Build<CheckItselfGain>): CardConfigurator {
+        build(builder)
+        return this
     }
 
-    public CardConfigurator registerSimplePlayAndDuration(Bonus playBonus, Bonus durationBonus) {
-        registerSimpleAction( playBonus);
-        registerSimpleDuration(durationBonus);
-        return this;
-    }
-
-    public CardConfigurator registerSimpleAction(Bonus playBonus){
-        card.addComponent(OnPlayComponent.class, bonus(playBonus));
-        return this;
-    }
-
-    public CardConfigurator registerSimpleDuration(Bonus durationBonus) {
-        card.addComponent(new DurationComponent((p,c) -> CardUtil.TriggerEffect(p, FactoryUtil.DURATION, c, durationBonus)));
-        return this;
-    }
-
-    public CardConfigurator checkItselfDiscard(TriggerComponent.checkItselfDiscarded effect) {
-        card.addComponent(TriggerComponent.checkItselfDiscarded.class, effect);
-        return this;
-    }
-
-    public CardConfigurator onStartTurn(TriggerComponent.onStartTurn effect) {
-        card.addComponent(TriggerComponent.onStartTurn.class, effect);
-        return this;
-    }
-
-    public CardConfigurator onStartTurnCondition(BiPredicate<Event, Player> condition) {
-        card.addCondition(condition, TriggerComponent.onStartTurn.class);
-        return this;
-    }
-
-    public CardConfigurator available(Predicate<Player> consumer) {
-        card.setAvailable(consumer);
-        return this;
-    }
-
-    public CardConfigurator onBuy(TriggerComponent.onBuy effect) {
-        card.addComponent(TriggerComponent.onBuy.class, effect);
-        return this;
-    }
-
-    public CardConfigurator overpaid(TriggerComponent.overPaidCard effect) {
-        card.addComponent(TriggerComponent.overPaidCard.class, effect);
-        return this;
+    infix fun checkGain(builder : CheckItselfGain): CardConfigurator {
+        scope.register(builder)
+        return this
     }
 
 
-    public CardConfigurator checkGain(TriggerComponent.checkItselfGain effect) {
-        card.addComponent(TriggerComponent.checkItselfGain.class, effect);
-        return this;
+
+    infix fun afterGain(builder : Build<AfterPlayerGain>): CardConfigurator {
+        build(builder)
+        return this
     }
 
-    public CardConfigurator afterGain(TriggerComponent.AfterPlayerGain effect) {
-        card.addComponent(TriggerComponent.AfterPlayerGain.class, effect);
-        return this;
+    infix fun checkItselfTrash(builder : Build<CheckItselfTrashed>): CardConfigurator {
+        build(builder)
+        return this
     }
 
-    public CardConfigurator checkBuy(TriggerComponent.checkItSelfBuy effect) {
-        card.addComponent(TriggerComponent.checkItSelfBuy.class, effect);
-        return this;
+    infix fun checkItselfTrash(builder : CheckItselfTrashed): CardConfigurator {
+        scope.register(builder)
+        return this
     }
 
-    public CardConfigurator checkItselfTrash(TriggerComponent.checkItselfTrashed effect) {
-        card.addComponent(TriggerComponent.checkItselfTrashed.class, effect);
-        return this;
+    infix fun checkItselfDiscard(builder : CheckItselfDiscarded): CardConfigurator {
+        scope.register(builder)
+        return this
     }
 
-    public CardConfigurator checkItselfBuy(TriggerComponent.checkItSelfBuy effect) {
-        card.addComponent(TriggerComponent.checkItSelfBuy.class, effect);
-        return this;
+    infix fun onEndTurn(component : OnEndTurn) {
+        scope.register(component)
     }
 
-    public CardConfigurator checkItselfBuyCondition(BiPredicate<Event, Player> condition) {
-        card.addCondition(condition, TriggerComponent.checkItSelfBuy.class);
-        return this;
+    fun onSideEffectGain(type : GainType ,builder : Build<SideEffectGain>) {
+        val build = Builder<SideEffectGain>(scope)
+        build.builder()
+        scope.register(build.effect, {event, player -> event.hasGainType(type) && build.condition(event, player) })
     }
 
-    public CardConfigurator onCardTrash(TriggerComponent.onCardTrashed effect) {
-        card.addComponent(TriggerComponent.onCardTrashed.class, effect);
-        return this;
+    infix fun checkItselfBuy(builder : Build<CheckItSelfBuy>): CardConfigurator {
+        build(builder)
+        return this
+    }
+
+    infix fun checkItselfBuy(component : CheckItSelfBuy): CardConfigurator {
+        scope.register(component)
+        return this
     }
 
 
-    public static OnPlayComponent bonus(Bonus playBonus) {
-        return (player, c) ->{CardUtil.TriggerEffect(player, FactoryUtil.EFFECT, c, playBonus);};
+
+
+    infix fun onCardTrash(builder : Build<OnCardTrashed>): CardConfigurator {
+        build(builder)
+        return this
     }
 
-    public static TriggerComponent.checkItSelfBuy buyBonus(Bonus bonus) {
-        return (event, c) -> CardUtil.TriggerEffect(event.getPlayer(), FactoryUtil.EFFECT, c, bonus);
-    }
+    fun get(): Card = scope
 
-    public static <T extends CardComponent> T run(Class<T> clazz , T effect) {
-        return effect;
-    }
+    // --- Éléments Statiques (Companion Object) ---
+    companion object {
 
-    public static OnPlayComponent run(OnPlayComponent effect) {
-        return run(OnPlayComponent.class, effect);
-    }
+        @JvmStatic
+        fun bonus(playBonus: Bonus): OnPlayComponent {
+            return OnPlayComponent { player, c -> player.triggerEffect(EFFECT, c, playBonus) }
+        }
 
-    @SuppressWarnings("unchecked")
-    public static <U extends Logger, V, T extends BiEffect<U, V, T> & CardComponent> T empty(Class<T> clazz) {
-        return (T) Proxy.newProxyInstance(
-                clazz.getClassLoader(),
-                new Class<?>[]{clazz},
-                (proxy, method, args) -> {
-                    switch (method.getName()) {
-                        case "toString" -> { return "EmptyComponent[" + clazz.getSimpleName() + "]"; }
-                        case "hashCode" -> { return System.identityHashCode(proxy); }
-                        case "equals"   -> { return proxy == args[0]; }
+        @JvmStatic
+        fun buyBonus(bonus: Bonus): TriggerComponent.CheckItSelfBuy {
+            return TriggerComponent.CheckItSelfBuy { event, c -> event.player.triggerEffect(EFFECT, c, bonus) }
+        }
+
+        @JvmStatic
+        fun <T : CardComponent> run(clazz: Class<T>, effect: T): T = effect
+
+        @JvmStatic
+        fun run(effect: OnPlayComponent): OnPlayComponent = run(OnPlayComponent::class.java, effect)
+
+        @Suppress("UNCHECKED_CAST")
+        @JvmStatic
+        inline fun <reified T: CardComponent> empty(): T {
+            val clazz = T::class.java
+
+            return Proxy.newProxyInstance(
+                clazz.classLoader,
+                arrayOf(clazz),
+                InvocationHandler { proxy, method, args ->
+                    when (method.name) {
+                        "toString" -> return@InvocationHandler "EmptyComponent[${clazz.simpleName}]"
+                        "hashCode" -> return@InvocationHandler System.identityHashCode(proxy)
+                        "equals" -> return@InvocationHandler proxy === args[0]
                     }
 
-
-                    if (method.isDefault()) {
-                        return InvocationHandler.invokeDefault(proxy, method, args);
+                    if (method.isDefault) {
+                        return@InvocationHandler InvocationHandler.invokeDefault(proxy, method, args)
                     }
 
-
-                    if (method.getReturnType().isAssignableFrom(clazz)) {
-                        return proxy;
+                    if (method.returnType.isAssignableFrom(clazz)) {
+                        return@InvocationHandler proxy
                     }
 
-                    if (method.getReturnType().equals(Void.TYPE)) {
-                        return null;
+                    if (method.returnType == Void.TYPE) {
+                        return@InvocationHandler null
                     }
 
-                    return null;
+                    null
                 }
-        );
+            ) as T
+        }
     }
-
-    public Card get(){
-        return card;
-    }
-
 }

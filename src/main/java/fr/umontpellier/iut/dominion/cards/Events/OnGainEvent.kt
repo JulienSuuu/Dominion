@@ -1,27 +1,35 @@
-package fr.umontpellier.iut.dominion.cards.Events;
+package fr.umontpellier.iut.dominion.cards.Events
+
+import fr.umontpellier.iut.dominion.Enums.Locations.Destination
 
 /**
- * évenement classique de gain
+ * Événement classique de gain.
  */
-public class OnGainEvent extends Event {
-    private final Event event;
-    public OnGainEvent(Event event) {
-        super(event.getCard(), event.getDest(), event.getPlayer());
-        this.event = event;
+class OnGainEvent(private val event: Event) : Event(
+    card = event.card,
+    destination = event.destination,
+    player = event.player,
+    isBuy = event.isBuy,
+    discard = event.discard
+) {
+
+    override fun hasGainType(t: GainType): Boolean {
+        return event.hasGainType(t)
     }
 
-    @Override
-    public boolean hasMoved() {
-        return event.hasMoved();
+    override fun updateGainType(gainType: GainType) {
+        event.updateGainType(gainType)
     }
 
-    @Override
-    public boolean notMoved() {
-        return event.notMoved();
-    }
+    override val hasMoved: Boolean
+        get() = destination != event.origin
 
-    @Override
-    public boolean isSameCard() {
-        return event.isSameCard();
-    }
+    override val notMoved: Boolean
+        get() = destination == event.origin
+
+    override val isSameCard: Boolean
+        get() = card == event.originalCard
+
+    override fun cameFrom(destination: Destination): Boolean = event.cardOrigin == destination
+    override fun initialCameFrom(destination: Destination): Boolean = event.initialOrigin == destination
 }

@@ -1,41 +1,35 @@
-package fr.umontpellier.iut.dominion.Player.Tokens;
+package fr.umontpellier.iut.dominion.Player.Tokens
 
-import fr.umontpellier.iut.dominion.Item;
-import fr.umontpellier.iut.dominion.Player.Player;
-import fr.umontpellier.iut.dominion.cards.Events.Event;
+import fr.umontpellier.iut.dominion.Item
+import fr.umontpellier.iut.dominion.Player.Player
+import fr.umontpellier.iut.dominion.Player.Skills.draw
+import fr.umontpellier.iut.dominion.Player.Skills.trash
+import fr.umontpellier.iut.dominion.cards.Events.Event
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.BiConsumer;
+object TokenEffect {
 
-public class TokenEffect {
+    private val effects: Map<Token.OnPile, suspend (Event, Player) -> Unit> = mapOf(
+        Token.OnPile.OneMoneyToken to { _, player -> applyPlusOne(player, Item.MONEY) },
+        Token.OnPile.OneActionToken to { _, player -> applyPlusOne(player, Item.ACTION) },
+        Token.OnPile.OneBuyToken to { _, player -> applyPlusOne(player, Item.BUY) },
+        Token.OnPile.OneCardToken to { _, player -> player.draw() },
+        Token.OnPile.TrashingToken to ::applyTrashingEffect
+    )
 
-    private static final Map<Token, BiConsumer<Event, Player>> effects = Map.ofEntries(
-            Map.entry(Token.ONE_MONEY_TOKEN, (event, player) ->applyPlusOne(event, player, Item.MONEY)),
-            Map.entry(Token.ONE_ACTION_TOKEN, (event, player) ->applyPlusOne(event, player, Item.ACTION) ),
-            Map.entry(Token.ONE_BUY_TOKEN, (event, player) ->applyPlusOne(event, player, Item.BUY) ),
-            Map.entry(Token.ONE_CARD_TOKEN, (event, player) -> player.draw(1) ),
-            Map.entry(Token.TRASHING_TOKEN, TokenEffect::applyTrashingEffect)
-    );
-
-    private static void applyPlusOne(Event event, Player player, Item item) {
-        player.increment(item, 1);
+    private fun applyPlusOne(player: Player, item: Item) {
+        player.increment(item, 1)
     }
 
-    private static void applyTrashingEffect(Event event, Player player) {
-        player.chooseCardFromHand("Trashing Token", true).ifPresent(player::trash);
-    }
-
-    public static void execute(Token token, Event event, Player player) {
-        if (effects.containsKey(token)) {
-            effects.get(token).accept(event, player);
+    private suspend fun applyTrashingEffect(event: Event, player: Player) {
+        player.chooseCardFromHand("you may trash a card from your hand [trashing token]", true)?.let { card ->
+            player.trash(card)
         }
     }
 
-    public static Set<Token> getTokens() {
-        return effects.keySet();
+    suspend fun execute(token: Token.OnPile, event: Event, player: Player) {
+        effects[token]?.invoke(event, player)
     }
 
-
+    val tokens: Set<Token.OnPile>
+        get() = effects.keys
 }

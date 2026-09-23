@@ -1,11 +1,12 @@
-package fr.umontpellier.iut.dominion.cards.component;
+package fr.umontpellier.iut.dominion.cards.component
 
-import fr.umontpellier.iut.dominion.Player.Player;
+import fr.umontpellier.iut.dominion.Player.Player
+import fr.umontpellier.iut.dominion.cards.factories.Nocturne.StateComponent
 
 /**
  * Comportement basique d'une carte Victoire
  */
 @FunctionalInterface
-public interface ScoreComponent extends CardComponent {
-    int giveScore(Player player);
+fun interface ScoreComponent : CardComponent, (Player) -> Int?, StateComponent {
+    override fun invoke(player: Player): Int?
 }

@@ -1,354 +1,595 @@
-package fr.umontpellier.iut.dominion.cards;
+package fr.umontpellier.iut.dominion.cards
+import fr.umontpellier.iut.dominion.CardType
+import fr.umontpellier.iut.dominion.Enums.Locations.Destination
+import fr.umontpellier.iut.dominion.Interface.IDominionObject
+import fr.umontpellier.iut.dominion.Item
+import fr.umontpellier.iut.dominion.Player.Player
+import fr.umontpellier.iut.dominion.Player.Skills.draw
+import fr.umontpellier.iut.dominion.game.ShadowKey
+import fr.umontpellier.iut.dominion.Supply.SupplyPile
+import fr.umontpellier.iut.dominion.Supply.SupplyType
+import fr.umontpellier.iut.dominion.cards.Description.BonusDescription
+import fr.umontpellier.iut.dominion.cards.Description.CardCatalog
+import fr.umontpellier.iut.dominion.cards.Description.DominionDescription
+import fr.umontpellier.iut.dominion.cards.Description.InstructionDescription
+import fr.umontpellier.iut.dominion.cards.Description.ReactionDescription
+import fr.umontpellier.iut.dominion.cards.Description.Reward
+import fr.umontpellier.iut.dominion.cards.Events.Event
+import fr.umontpellier.iut.dominion.cards.component.CardComponent
+import fr.umontpellier.iut.dominion.cards.component.DurationComponent
+import fr.umontpellier.iut.dominion.cards.component.Follower
+import fr.umontpellier.iut.dominion.cards.component.OnPlayComponent
+import fr.umontpellier.iut.dominion.cards.component.Price
+import fr.umontpellier.iut.dominion.cards.component.ScoreComponent
+import fr.umontpellier.iut.dominion.cards.component.SingleCardComponent
+import fr.umontpellier.iut.dominion.cards.factories.Empires.EmpiresRules
+import fr.umontpellier.iut.dominion.game.rules.markPlayerAsAttacked
+import fr.umontpellier.iut.dominion.game.rules.shouldEnchant
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
+import java.util.*
+import kotlin.collections.getOrPut
+import kotlin.reflect.KClass
 
-import java.util.*;
-import java.util.function.BiPredicate;
-import java.util.function.Consumer;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
+@JvmInline
+value class Id(val id: String){
+    fun contains(other : Id) = id.startsWith(other.id)
+    fun cardId() = id.split("-", limit = 3).getOrNull(2) ?: ""
+    override fun toString(): String {
+        return id
+    }
+}
 
-import fr.umontpellier.iut.dominion.CardType;
-import fr.umontpellier.iut.dominion.Destination;
-import fr.umontpellier.iut.dominion.Player.Player;
-import fr.umontpellier.iut.dominion.cards.Events.Event;
-import fr.umontpellier.iut.dominion.cards.component.*;
-import javafx.beans.binding.Bindings;
-import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.SimpleIntegerProperty;
+class FaceDown(var value: Boolean) {
+    operator fun invoke(): Boolean = value
+    operator fun not(): Boolean = !value
+    fun hide() {
+        value = true
+    }
+    fun reveal() {
+        value = false
+    }
+    fun toggle() {
+        value = !value
+    }
 
-/**
- * Représentation des cartes du jeu Dominion
- */
-public class Card {
-    /**
-     * Le nom de la carte
-     */
-    private final String name;
-    /**
-     * Le coût de la carte à l'achat
-     */
-    private final Price cost;
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is FaceDown) return false
+        return value == other.value
+    }
 
-    private final Set<CardType> types;
-    private Destination loc;
+    override fun hashCode(): Int = value.hashCode()
+    override fun toString(): String = if (value) "Face Down (Hidden)" else "Face Up (Visible)"
+    fun toJson() : String = """
+        "faceDown": $value
+    """.trimIndent()
+}
 
-    private List<Card> location;
-    private final Map<Class<? extends TriggerComponent>, BiPredicate<Event, Player>> conditions = new HashMap<>();
-    private Predicate<Player> available = (player) -> true;
-    private final IntegerProperty price = new SimpleIntegerProperty(0);
-    private final Map<Class<? extends CardComponent>, CardComponent> components;
-    private final Map<String,Object > properties = new HashMap<>();
 
-    public Map<String,Object> getProperties() {
-        return properties;
+class ComponentRegistry {
+    val storage = mutableMapOf<KClass<out CardComponent>, ComponentsList<*>>()
+
+    @Suppress("UNCHECKED_CAST")
+    private fun <T : CardComponent> getOrCreateList(key: KClass<T>): ComponentsList<T> {
+        return storage.getOrPut(key) { ComponentsList<T>() } as ComponentsList<T>
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    fun <T : CardComponent> getList(key: KClass<T>): ComponentsList<T>? {
+        return storage[key] as? ComponentsList<T>
+    }
+
+    fun <T : CardComponent> register(
+        key: KClass<T>,
+        component: T,
+        condition: (Event, Player) -> Boolean
+    ) {
+        getOrCreateList(key).register(component, condition)
+    }
+
+    fun <T : CardComponent> getExecutableComponents(
+        key: KClass<T>,
+        event: Event,
+        player: Player
+    ): List<T> {
+        return getList(key)?.getExecutableComponents(event, player) ?: emptyList()
     }
 
     /**
-     * Constructeur simple
-     *
-     * @param name  le nom de la carte
-     * @param cost  le coût de la carte
-     * @param types les types de la carte
+     * Supprime tous les composants du type T spécifié.
      */
-    public Card(String name, Price cost, CardType ...types) {
-        this.name = name;
-        this.cost = cost;
-        this.types = new HashSet<>();
-        this.components = new HashMap<>();
-        Collections.addAll(this.types, types);
-        price.set(cost.price().get());
-        cost.price().bind(Bindings.createIntegerBinding(
-                () -> price.get() - GameStat.reduction.get(),
-                GameStat.reduction, price));
+    fun <T : CardComponent> remove(key: KClass<T>) {
+        storage.remove(key)
     }
 
-
-    public Card copy() {
-        Card copy = new Card(name, cost, types.toArray(new CardType[0]));
-
-        copy.components.putAll(components);
-
-        copy.set("unable", true);
-
-        copy.location = new ArrayList<>();
-        copy.loc = null;
-
-        copy.available = available;
-        copy.conditions.putAll(conditions);
-
-        return copy;
+    inline fun <reified T : CardComponent> remove() {
+        remove(T::class)
     }
 
-
-    public int basicPrice() {
-        return price.get();
+    /**
+     * Vérifie s'il existe au moins un composant enregistré pour le type T.
+     */
+    inline fun <reified T : CardComponent> hasComponent(): Boolean {
+        return getList(T::class)?.isNotEmpty() == true
     }
 
+    /**
+     * Raccourci pour isNotEmpty.
+     */
+    inline fun <reified T : CardComponent> isNotEmpty(): Boolean = hasComponent<T>()
 
-    public <T extends CardComponent> Card addComponent(Class <T> type, T component){
-        this.components.put(type, component);
-        return this;
+    /**
+     * Récupère le premier composant du type T (utile pour les SingleComponent).
+     */
+    inline fun <reified T : CardComponent> getComponent(): T? {
+        return getList(T::class)?.components?.firstOrNull()?.component
     }
 
-    public Card addComponent(CardComponent component){
-        this.components.put(component.getClass(), component);
-        return this;
-    }
+    inline fun <reified T : CardComponent> getEntry() = getList(T::class)?.getEntry()
 
-    public <T> T set(String property, T value) {
-        this.properties.put(property, value);
-        return value;
-    }
-
-    public <T> Optional<T> get(String property, Class<T> type){
-        return Optional.ofNullable(type.cast(this.properties.get(property)));
-    }
-
-    public Number getValue(String property){
-        Object value = this.properties.get(property);
-        if(value instanceof Number){
-            return (Number)value ;
+    /**
+     * Duplique le registre de manière isolée pour la méthode Card.copy().
+     */
+    fun copy(): ComponentRegistry = ComponentRegistry().apply {
+        this@ComponentRegistry.storage.forEach { (key, list) ->
+            this.storage[key] = list.copy()
         }
-        return 0;
     }
 
-    public String getString(String property){
-        Object value = this.properties.get(property);
-        if(value instanceof String){
-            return (String)value;
+
+}
+
+
+class ComponentsList<T: CardComponent>(
+    val components : MutableList<ComponentEntry<T>> = mutableListOf<ComponentEntry<T>>()
+){
+
+    fun register(
+        component: T,
+        condition: (Event, Player) -> Boolean = { _, _ -> true }
+    ) {
+        if (component is SingleCardComponent) {
+            components.clear()
         }
-        return "";
+
+        components.add(ComponentEntry(component, condition))
     }
 
-    @SuppressWarnings("unchecked")
-    public <K, V> Map<K, V> getMap(String key) {
-        Object val = properties.get(key);
-        if (val instanceof Map) {
-            return (Map<K, V>) val;
+    fun isNotEmpty(): Boolean = components.isNotEmpty()
+
+    fun copy(): ComponentsList<T> = ComponentsList(components.toMutableList())
+
+    fun getExecutableComponents(event: Event, player: Player): List<T> {
+        return components
+            .filter { it.canExecute(event, player) }
+            .map { it.component }
+    }
+
+    fun getEntry() = components.firstOrNull()
+
+
+    fun remove(component: T): Boolean {
+        components.removeAll{ it.component == component }
+        return components.isEmpty()
+    }
+
+}
+
+
+ class ComponentEntry<T : CardComponent>(
+    val component: T,
+    private val condition: (Event, Player) -> Boolean = { _, _ -> true }
+){
+     fun canExecute(event: Event, player: Player): Boolean {
+         return condition(event, player)
+     }
+ }
+
+class Card(
+    override val name: String,
+    override val price: Price,
+    vararg initialTypes: CardType,
+) : ReadableCard {
+
+    override var supply : SupplyPile? = null
+    override val id: Id = Id("${name}-${numberOfId++}")
+    override val shadowKey: ShadowKey = ShadowKey.get(id)
+    override val faceDown = FaceDown(false)
+
+    override val types: MutableSet<CardType> = HashSet(initialTypes.toList())
+
+    override var loc: MutableStateFlow<Destination?> = MutableStateFlow(null)
+        private set
+
+    private var location: MutableStateFlow<List<Card>>? = null
+
+    var available  : (Player) -> Boolean = { true }
+
+    private val internalPrice = MutableStateFlow(0)
+    private val internalDebt = MutableStateFlow(0)
+
+
+    @PublishedApi
+    internal var components = ComponentRegistry()
+
+    val properties = mutableMapOf<String, Any>()
+
+    init {
+        internalPrice.value = price.coins
+        internalDebt.value = price.debt
+    }
+
+    /**
+     * Enregistre un composant.
+     * @param replace Si true (ex: pour SingleComponent), écrase la liste au lieu d'empiler.
+     */
+    inline fun <reified T : CardComponent> register(
+        component: T,
+        noinline condition: (Event, Player) -> Boolean = { _, _ -> true }
+    ) {
+        components.register(T::class, component, condition)
+    }
+
+    /**
+     * Filtre et retourne uniquement les composants dont la condition est valide pour l'événement courant.
+     */
+    inline fun <reified T : CardComponent> getExecutableComponents(
+        event: Event,
+        player: Player
+    ): List<T> {
+        return components.getExecutableComponents(T::class, event, player)
+    }
+
+    inline fun <reified T : CardComponent> hasComponent(): Boolean {
+        return components.isNotEmpty<T>()
+    }
+
+    inline fun <reified T : CardComponent> removeComponent() {
+        components.remove(T::class)
+    }
+
+    inline fun <reified T : CardComponent> getComponent() : T? {
+        return components.getComponent<T>()
+    }
+
+    fun copy(): Card = Card(name, price, *types.toTypedArray()).apply {
+        components = this@Card.components.copy()
+        set("unable", true)
+        location = MutableStateFlow(emptyList())
+        loc.update { null }
+        available = this@Card.available
+    }
+
+    fun basicPrice(): Int = internalPrice.value
+    fun basicDebt(): Int = internalDebt.value
+
+    fun <T> set(property: String, value: T): T {
+        properties[property] = value as Any
+        return value
+    }
+
+    fun <T : Any> get(property: String, type: Class<T>): Optional<T> {
+        return Optional.ofNullable(type.cast(properties[property]))
+    }
+
+    fun getValue(property: String): Number = properties[property] as? Number ?: 0
+    fun getString(property: String): String = properties[property] as? String ?: "None"
+
+    @Suppress("UNCHECKED_CAST")
+    fun <K, V> getMap(key: String): Map<K, V> = properties[key] as? Map<K, V> ?: emptyMap<K, V>()
+
+    @Suppress("UNCHECKED_CAST")
+    fun <T> getCollection(key: String): Collection<T> {
+        return properties.computeIfAbsent(key) { ArrayList<T>() } as Collection<T>
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    fun <T> getMutableCollection(key: String): MutableCollection<T> {
+        return properties.computeIfAbsent(key) { ArrayList<T>() } as MutableCollection<T>
+    }
+
+    fun getFlag(key: String): Boolean = properties[key] as? Boolean ?: false
+
+    fun clear() {
+        properties.clear()
+        getComponent<Follower>()?.clear()
+    }
+
+    infix fun setup(settings: CardConfigurator.() -> Unit): Card {
+        CardConfigurator(this).settings()
+        return this
+    }
+
+
+    fun setPrice(money: Int): Card {
+        internalPrice.value = money
+        return this
+    }
+
+
+
+    inline fun <reified T : CardComponent> canExecute(event: Event, player : Player = event.player): Boolean {
+        return components.getEntry<T>()?.canExecute(event, player) == true
+    }
+
+    inline fun <reified T : DominionDescription> getDescription() = CardCatalog.getComponent<T>(name)
+
+    fun generatesCoins(): Boolean {
+        val hasDirectCoins = getDescription<BonusDescription>()?.getAttribute("money") ?: false
+        if (hasDirectCoins) return true
+        val instruction = getDescription<InstructionDescription>()
+        val hasReactionCoins = getDescription<InstructionDescription>()?.getTop<ReactionDescription>()
+            ?.let { it.reward is Reward.BonusCoins } ?: false
+
+        if (hasReactionCoins) return true
+        val coinGainRegex = Regex("""\+\s*\d*\s*🟡""")
+        return instruction?.text?.let { text -> coinGainRegex.containsMatchIn(text) } ?: false
+    }
+
+    fun toText() : String = CardCatalog.toText(name)
+
+    val costValue: Int get() = 0.coerceAtLeast(price.coins)
+    val potion: Int get() = price.potions
+    val debt: Int get() = price.debt
+
+    fun hasName(name: String): Boolean = this.name == name
+    fun hasSameNameAs(c: Card): Boolean = this.name == c.name
+
+    fun addType(type: CardType): Card = apply { types.add(type) }
+    fun addType(first: CardType, second : CardType) : Card = apply {types.add(first); types.add(second) }
+    fun addType(vararg types: CardType) : Card = apply {types.forEach { addType(it) } }
+    fun hasType(type: CardType): Boolean = types.contains(type)
+    fun removeType(type: CardType) { types.remove(type) }
+    fun numberType(): Int = types.size
+
+    fun moveTo(newLocation: MutableStateFlow<List<Card>>?, loc: Destination?) {
+        if(getFlag("unable")) return
+
+        this.loc.update { loc }
+
+        location?.let { ancienneZone ->
+            ancienneZone.update { it - this }
         }
-        return null;
+
+        location = newLocation
+
+        newLocation?.update { it + this }
     }
 
-    @SuppressWarnings("unchecked")
-    public <T> Collection<T> getCollection(String key) {
-        return (Collection<T>) properties.computeIfAbsent(key, k -> new ArrayList<T>());
+    fun moveToTemp(newLocation: MutableStateFlow<List<Card>>?) {
+        if(newLocation == null)return
+        if(getFlag("unable")) return
+
+        location?.value -= this
+        location = newLocation
+        newLocation.value += this
     }
 
-    public boolean getFlag(String key) {
-        Object val = properties.get(key);
-        if (val instanceof Boolean) {
-            return (Boolean) val;
+    fun moveToBottom(newLocation: MutableStateFlow<List<Card>>?, loc: Destination?) {
+        if (newLocation == null) return
+        if(getFlag("unable")) return
+
+        this.loc.update { loc }
+        location?.let { ancienneZone ->
+            ancienneZone.value -= this
         }
-        return false;
+        location = newLocation
+        newLocation.value = listOf(this) + newLocation.value
     }
 
-    public void clear(){
-        this.properties.clear();
-    }
+    fun hasForLocation(dest: Destination?): Boolean = loc.value == dest
 
-    public Card setup(Consumer<CardConfigurator> settings) {
-        settings.accept(new CardConfigurator(this));
-        return this;
-    }
+    override fun toString(): String = name
+    fun toLog(): String = name
 
-
-    public <T extends TriggerComponent> void addCondition(BiPredicate<Event, Player> condition, Class<T> clazz){conditions.put(clazz, condition);}
-
-    public Card setAvailable(Predicate<Player> available) {
-        this.available = available;
-        return this;
-    }
-
-    public<T extends CardComponent> boolean canExecute(Event event, Player player, Class<T> clazz) {
-        return conditions.getOrDefault(clazz, (event1, player1) -> true).test(event, player);}
-
-    public Predicate<Player> getAvailable() {return this.available;}
-
-    public IntegerProperty getCostProperty() {
-        return cost.price();
-    }
-
-    public int getCost() {
-        return Math.max(0, cost.price().get());
-    }
-
-    public int getPotion() {return cost.potion();}
-    public int getDebt() {return cost.debt().get();}
-
-    public String getName() {
-        return name;
-    }
-
-    public boolean hasName(String name) {
-        return this.name.equals(name);
-    }
-
-    public boolean hasSameNameAs(Card c) {
-        return this.name.equals(c.getName());
-    }
-
-    public Card addType(CardType type) {
-        this.types.add(type);
-        return this;
-    }
-
-    /**
-     * @return {@code true} si la carte est de type {@code type}, {@code false}
-     *         sinon
-     */
-    public boolean hasType(CardType type) {
-        return this.types.contains(type);
-    }
+    suspend fun play(p: Player) {
+        val empiresRules = p.game.getRule<EmpiresRules>()
+        when{
+            empiresRules?.shouldEnchant(p, this) == true -> {
+                empiresRules.markPlayerAsAttacked(p)
+                p.log("is Enchanted by Enchantress, +1 Card, +1 Action instead.")
+                p.draw(); p.increment(Item.ACTION)
+            }
 
 
-    public void moveTo(List<Card> newLocation, Destination loc) {
-        if (location != null) {
-            location.remove(this);
+            else -> {
+                executeOnPlayEffect(p)
+                getComponent<DurationComponent>()?.activeDuration(p, this)
+            }
+
         }
-        location = newLocation;
-        this.loc = loc;
-        newLocation.add(this);
     }
 
-    /**
-     * Renvoie une représentation de la carte sous forme de chaîne de caractères
-     * (ici la fonction renvoie le nom de la carte)
-     */
-    @Override
-    public String toString() {
-        return name;
+    suspend fun playNocturne(p: Player, number: Int = 1) {
+        repeat(number) {
+            executeOnPlayEffect(p)
+        }
     }
 
-    /**
-     * Renvoie une représentation de la carte sous forme de chaîne de caractères,
-     * pour être affichée dans le log du jeu dans l'interface graphique
-     */
-    public String toLog() {
-        return "<span class=\"card-name\">" + name + "</span>";
+    private suspend fun executeOnPlayEffect(p: Player) {
+        getComponent<OnPlayComponent>()?.let { it(p, this) }
     }
 
-    /**
-     * Exécute l'effet de la carte, jouée par le joueur {@code p}
-     * <p>
-     * L'action de cette méthode dépend de la classe de la carte. Vous devrez la
-     * redéfinir dans les classes des cartes en fonction de vos besoins...
-     * 
-     * @param p joueur qui exécute l'effet de la carte
-     */
-    public void play(Player p) {
-        getComponent(OnPlayComponent.class).ifPresent(o -> o.accept(p, this));
-        getComponent(DurationComponent.class).ifPresent(d -> d.activeDuration(this));
+    suspend fun play(p : Player, number : Int){
+        repeat(number){ play(p) }
     }
 
+    fun buyCondition(potionValue: Int, debtValue: Int): Boolean = potionValue <= price.potions && debtValue <= price.debt
 
-    public boolean buyCondition(int potion, int debt){
-        return potion <= cost.potion()  &&  debt <= cost.debt().get();
+    fun Player.getVictoryValue(): Int = getComponent<ScoreComponent>()?.let { it(self) } ?: 0
+    fun getVictoryValueCard(p : Player): Int = p.getVictoryValue()
+
+    fun isAtMost(cost: Int, potion : Int, debt: Int): Boolean = costValue <= cost && buyCondition(potion, debt)
+    infix fun isAtMost(cost: Int): Boolean = isAtMost(cost, 0, 0)
+
+    fun isLessThan(cost: Int, potion: Int, debt: Int): Boolean = costValue < cost && this.potion < potion && this.debt < debt
+    infix fun isLessThan(cost: Int): Boolean = isLessThan(cost, 0, 0)
+    fun isLessThanWithBonus(trashed: Card, bonusMoney: Int = 0) : Boolean = costValue < (trashed.costValue + bonusMoney) && potion <= trashed.potion && debt <= trashed.debt
+
+    fun isEqual(cost: Int, potion: Int, debt: Int): Boolean = costValue == cost && this.potion == potion && this.debt == debt
+    fun isEqual(cost: Int): Boolean = isEqual(cost, 0, 0)
+
+    fun isEqualWithBonus(trashed: Card, bonusMoney: Int = 0): Boolean =
+        costValue == (trashed.costValue + bonusMoney) && potion == trashed.potion && debt == trashed.debt
+
+    fun isAtLeast(cost :Int, potion : Int = 0, debt: Int = 0): Boolean = costValue >= cost && this.potion >= potion && this.debt >= debt
+
+
+    fun isAtLeastWithBonus(trashed: Card, bonusMoney: Int) : Boolean =
+        costValue >= (trashed.costValue + bonusMoney) && potion >= trashed.potion && debt >= trashed.debt
+
+    fun isAtMostWithBonus(trashed: Card, bonusMoney: Int = 0): Boolean =
+         costValue <= (trashed.costValue + bonusMoney) && potion <= trashed.potion && debt <= trashed.debt
+
+
+    fun isBetween(lower: Int, upper: Int): Boolean = costValue in lower..upper && buyCondition(0, 0)
+
+    fun getSpecialType(): CardType? {
+        val specialTypes = CardType.entries.filter { it.isSpecial }.toSet()
+        return types.firstOrNull { it in specialTypes }
     }
 
-    /**
-     * Renvoie la valeur de la carte en points de victoire (c'est cette méthode
-     * qui est appelée sur toutes les cartes du deck d'un joueur pour
-     * déterminer le score du joueur en fin de partie)
-     * <p>
-     * Toutes les cartes qui ne sont pas de type Victoire ont une valeur de
-     * 0 (la méthode devra donc être redéfinie pour les cartes Victoire)
-     */
-    public int getVictoryValue(Player player) {return getComponent(ScoreComponent.class).map(s -> s.giveScore(player)).orElse(0);}
+    fun costInstruction(bonusMoney: Int = 0): String {
+        val totalMoney = costValue + bonusMoney
+        val potionText = if (potion > 0) ", $potion ⚗\uFE0F" else ""
+        val debtText = if (debt > 0) ", $debt ⬡" else ""
 
-
-    /**
-     *
-     * @param clazz le composent à chercher dans {@link Card#components}
-     * @return un Optional
-     * @param <C> le type de la classe à renvoyé
-     */
-    public <C extends CardComponent> Optional<C> getComponent(Class<C> clazz) {
-        return Optional.ofNullable(components.get(clazz)).map(clazz::cast);
+        return "$totalMoney \uD83D\uDFE1$potionText$debtText"
     }
 
-    public <T extends CardComponent> boolean hasComponent(Class<T> type) {
-        return components.containsKey(type);
-    }
+    companion object {
+        @JvmStatic fun treasure(name: String, price: Price) = Card(name, price, CardType.TREASURE)
+        @JvmStatic fun action(name: String, price: Price) = Card(name, price, CardType.ACTION)
+        @JvmStatic fun victory(name: String, price: Price) = Card(name, price, CardType.VICTORY)
+        @JvmStatic fun duration(name: String, price: Price) = Card(name, price, CardType.DURATION)
+        fun attack(name: String, price:Price) = Card(name, price, CardType.ACTION, CardType.ATTACK)
+        @JvmStatic fun event(name: String, price: Price) = Card(name, price, CardType.EVENT)
+        fun landmark(name : String) = Card(name, Price.classic(0), CardType.LANDMARK).setup {
+            available { false }
+        }
+        fun night(name : String, price: Price) = Card(name, price, CardType.NIGHT)
 
-    public int  numberType(){
-        return  types.size();
-    }
-
-    public Price getPrice() {
-        return cost;
-    }
-    public Card setPrice(int cost) {
-        price.set(cost);
-        return this;
-    }
-
-    public void removeType(CardType type) {
-        types.remove(type);
+        private var numberOfId = 0
     }
 
 
-    public static Card treasure(String name, Price cost){
-        return new Card(name, cost, CardType.TREASURE );
-    }
-    public static Card action(String name, Price cost){
-        return new Card(name, cost, CardType.ACTION);
-    }
-    public static Card Victory(String name, Price cost){
-        return new Card(name, cost, CardType.VICTORY);
-    }
-    public static Card duration(String name, Price cost){
-        return new Card(name, cost, CardType.DURATION);
+    fun pickResource(nameFlow : String) = supply?.getResource(nameFlow)?.value ?: 0
+    fun flowOfSupply(nameFlow : String) = supply?.getResource(nameFlow)
+
+    fun useResource(resource: String, take: Int) {supply?.useResource(resource, take) }
+    fun updateResource(resource: String, value: Int) {supply?.updateResource(resource, value) }
+    fun clearResource(resource: String){supply?.clearResource(resource)}
+
+    fun takePointFrom(name : String, max : Int = pickResource(name)) : Int {
+        val flow = flowOfSupply(name)
+        if(flow?.value == 0) return 0
+
+        val toUsed = flow?.check(max) ?: return 0
+        supply?.useResource(name, toUsed)
+        return toUsed
     }
 
-    public boolean isAtMost(int cost, int potion, int debt){
-        return getCost() <= cost && buyCondition(potion, debt);
-    }
-    public boolean isAtMost(int cost){
-        return isAtMost(cost, 0, 0);
+    fun addPointToFrom(name : String, max : Int, card : Card) {
+        val toTake = card.takePointFrom(name, max)
+        addPointTo(name, toTake)
     }
 
-    public boolean isEqual(int cost, int potion, int debt){
-        return getCost() == cost
-                && getPotion() == potion
-                && getDebt() == debt;
+    fun addPointTo(name : String, incrementation : Int) {
+        supply?.updateResource(name, incrementation)
     }
 
-    public boolean isEqual(int cost){
-        return isEqual(cost, 0, 0);
+
+
+    private fun StateFlow<Int>.check(max : Int) : Int = if(this.value < max) this.value else max
+
+
+    fun replaceInSupply(revealed: Card): Boolean = this.hasSameNameAs(revealed) && replaceInSupply()
+    fun replaceInSupply(): Boolean {
+        if(getFlag("unable")) {
+            println("The card cant moved")
+            return false
+        }
+        val pile = supply ?: run {
+            println("The card do not have a pile")
+            return false
+        }
+        if(pile.supplyType == SupplyType.EMPTY) {
+            println("The pile is an empty pile")
+            return false
+        }
+        if(!pile.isFlagSet("inGame")) {
+            println("The flag was not flagset to true")
+            return false
+        }
+        if (pile.contains(this)) {
+            println("The pile contain the card")
+            return false
+        }
+
+        println("The card will be replaced to his pile")
+        pile.replace(this)
+        return true
     }
 
-    public boolean isEqualWithBonus(Card trashed, int bonusMoney){
-        return getCost() == (trashed.getCost() + bonusMoney)
-                && getPotion() == trashed.getPotion()
-                && getDebt() == trashed.getDebt();
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is Card) return false
+        return id == other.id
     }
 
-    public boolean isAtMostWithBonus( Card trashed, int bonusMoney) {
-        return getCost() <= (trashed.getCost() + bonusMoney)
-                && getPotion() <= trashed.getPotion()
-                && getDebt() <= trashed.getDebt();
+    override fun hashCode(): Int {
+        return name.hashCode() * 31 + id.hashCode()
     }
 
-    public boolean isBetween(int lower, int upper) {
-        return getCost() >= lower && getCost() <= upper && buyCondition(0,0);
+
+    fun toJsonPlayer() : String = """
+        {
+        "id": "$id",
+        "name": "$name",
+        ${faceDown.toJson()},
+        "type": "SUMMARY"
+        }
+    """.trimIndent()
+
+    fun toShadowZoneJson(): String {
+        return if(faceDown.value)
+            """{
+                ${faceDown.toJson()},
+                "id": "hidden",
+                "name": "none",
+                "type": "SHADOW"
+            }""".trimIndent()
+
+
+        else toJsonPlayer()
     }
 
-    public CardType getSpecialType(){
-        Set<CardType> available = Arrays.stream(CardType.values()).filter(CardType::isSpecial).collect(Collectors.toSet());
-        return types.stream().filter(available::contains).findFirst().orElse(null);
-    }
 
-    public static Card event(String name, Price price){
-        return new Card(name, price, CardType.EVENT);
-    }
 
-    public Destination getLocation() {
-        return loc;
+    fun toJson(): String = """
+    {
+    "type": "FULL",
+    ${faceDown.toJson()},
+    "id": "$id",
+    "name": "$name",
+    "price": ${price.toJson()},
+    "types": [${types.joinToString { "\"${it.name}\"" }}],
+    "description": "${toText().escapeJson()}",
+    "location": ${loc.value?.let { "\"${it.name}\"" } ?: "null"}
     }
-    public<T extends CardComponent> void removeComponent(Class<T> clazz) {
-        components.remove(clazz);
-    }
-    public boolean hasForLocation(Destination dest) {
-        return loc == dest;
-    }
-    public Set<CardType> getTypes() {return types;}
+""".trimIndent()
+
+    fun hide(){ faceDown.hide() }
+    fun reveal(){ faceDown.reveal() }
+}
+
+
+fun String.escapeJson(): String {
+    return this.replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+        .replace("\n", "\\n")
+        .replace("\r", "")
+        .replace("\t", "\\t")
 }

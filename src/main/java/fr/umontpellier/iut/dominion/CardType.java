@@ -49,6 +49,12 @@ public enum CardType {
             return true;
         }
     },
+    LANDMARK{
+        @Override
+        public boolean isSpecial() {
+            return true;
+        }
+    },
     RESERVE,
     ASIDE{
         @Override
@@ -56,12 +62,43 @@ public enum CardType {
             return true;
         }
     },
+    NIGHT,
+    GATHERING,
     CASTLE{
         @Override
         public boolean isSpecial() {
             return true;
         }
-    };
+    },
+    Split{
+        @Override
+        public boolean isSpecial() {
+            return true;
+        }
+    },
+    HEIRLOOM{
+        @Override
+        public boolean isSpecial() {
+            return true;
+        }
+    },
+    FATE,
+    ZOMBIE{
+        @Override
+        public boolean isSpecial() {
+            return true;
+        }
+    },
+    DOOM,
+    SPIRIT{
+        @Override
+        public boolean isSpecial() {
+            return true;
+        }
+    },
+    BOON,
+    HEX;
+
 
     public boolean isSpecial(){
         return false;

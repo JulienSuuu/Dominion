@@ -1,6 +1,6 @@
-package fr.umontpellier.iut.dominion;
+package fr.umontpellier.iut.dominion
 
-public enum Item {
+enum class Item {
     MONEY,
     DEBT,
     COFFER,

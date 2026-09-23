@@ -1,62 +1,51 @@
-package fr.umontpellier.iut.dominion.Supply;
+package fr.umontpellier.iut.dominion.Supply
 
-import fr.umontpellier.iut.dominion.CardType;
-import fr.umontpellier.iut.dominion.Destination;
-import fr.umontpellier.iut.dominion.cards.Card;
-import fr.umontpellier.iut.dominion.cards.component.Price;
-import javafx.beans.binding.Bindings;
-import javafx.collections.ListChangeListener;
+import fr.umontpellier.iut.dominion.cards.Card
+import fr.umontpellier.iut.dominion.cards.component.Price
+import kotlinx.coroutines.CoroutineScope
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.function.Supplier;
+class MixedSupplyPile(
+    pileName: String,
+    suppliersWithCount: List<Pair<() -> Card, Int>>,
+    scope: CoroutineScope? = null,
+    private val template: Card? = null
+) : AbstractSupplyPile(
+    pileName = pileName,
+    initialCards = suppliersWithCount.flatMap { (supplier, count) -> List(count) { supplier() } },
+    scope = scope
+) {
 
+    private val namesCard: Set<String> = cards.value.map { it.name }.toSet()
+    
+    init {
+        template?.supply = this
 
-public class MixedSupplyPile extends SupplyPile {
-    private enum checkName{
-        Knight,
-        Ruins;
+        updateNameProperty()
     }
 
-    private final Card template;
-    private final Set<String> namesCard = new HashSet<>();
-
-    public MixedSupplyPile(List<Supplier<Card>> cardSupplier, int numberOfCopy, Card template) {
-        super(cardSupplier.getLast(), 0);
-        cardSupplier.forEach((supplier)->{
-            for(int i=0;i<numberOfCopy;i++) supplier.get().moveTo(this, Destination.SUPPLY);
-            namesCard.add(supplier.get().getName());
-        });
-        this.template = template;
-
+    override fun setType() {
+        template?.let { types.addAll(it.types) } ?: super.setType()
     }
 
-    public void setType() {
-        types.addAll(template.getTypes());
+    override fun update(scope: CoroutineScope) {
+        super.update(scope)
+        updateNameProperty()
     }
 
-    @Override
-    public void update() {
-        super.update();
-        if (isEmpty()) {
-            name.set(template.getName());
-        } else {
-            name.set(getLast().getName());
-        }
+    private fun updateNameProperty() {
+        _nameProperty.value = if (isEmpty) (template?.name ?: pileName) else (topCard?.name ?: pileName)
     }
 
-    public int getCost(){
-        return isEmpty()? 0 : Math.max(getLast().getCost(), 0);
+    override val costValue: Int
+        get() = if (isEmpty) 0 else maxOf(topCard?.costValue ?: 0, 0)
+
+    override val cost: Price
+        get() = if (isEmpty) (template?.price ?: Price.classic(0)) else (topCard?.price ?: Price.classic(0))
+
+    override fun verifyName(name: String): Boolean {
+        return name == pileName || namesCard.contains(name) || template?.name == name
     }
-    public Price getPrice(){
-        return isEmpty()? template.getPrice() : getLast().getPrice();
-    }
-    public boolean verifyName(String name){
-        return namesCard.contains(name);
-    }
-    public String getName(){
-        return isEmpty()? template.getName() : getLast().getName();
-    }
+
+    override val supplyName: String
+        get() = if (isEmpty) (template?.name ?: pileName) else (topCard?.name ?: pileName)
 }

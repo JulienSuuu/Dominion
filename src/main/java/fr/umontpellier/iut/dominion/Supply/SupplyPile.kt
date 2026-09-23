@@ -1,140 +1,54 @@
-package fr.umontpellier.iut.dominion.Supply;
+package fr.umontpellier.iut.dominion.Supply
 
-import java.util.*;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
+import fr.umontpellier.iut.dominion.CardType
+import fr.umontpellier.iut.dominion.Interface.IDominionObject
+import fr.umontpellier.iut.dominion.Supply.Event.CardChangeEvent
+import fr.umontpellier.iut.dominion.cards.Card
+import fr.umontpellier.iut.dominion.cards.component.Price
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.StateFlow
 
-import fr.umontpellier.iut.dominion.CardType;
-import fr.umontpellier.iut.dominion.Destination;
-import fr.umontpellier.iut.dominion.Player.Player;
-import fr.umontpellier.iut.dominion.cards.Card;
-import fr.umontpellier.iut.dominion.cards.component.Price;
-import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
-import javafx.collections.ListChangeListener;
-import javafx.collections.ModifiableObservableListBase;
-import javafx.fxml.FXML;
-
-public class SupplyPile extends ModifiableObservableListBase<Card> {
-    protected final StringProperty name = new SimpleStringProperty(this, "Supply", "");
-    protected Price cost;
-    protected int Cursed;
-    protected ArrayList<Card> cards = new ArrayList<>();
-    protected Predicate<Player> available;
-    protected int token;
-    protected Set<CardType> types = new HashSet<>();
-    protected Map<String, Object> copy =  new HashMap<>();
-
-    public SupplyPile(Supplier<Card> cardSupplier, int numberOfCopies) {
-        Card card = cardSupplier.get();
-        name.setValue(card.getName());
-        cost = card.getPrice();
-
-        ListChangeListener<Card> listener = change -> {
-            boolean hasChanged = false;
-            while (change.next()) {
-                hasChanged = true;
-                if (change.wasRemoved()) {
-                    for (Card c : change.getRemoved()) {
-                        c.getPrice().price().unbind();
-                        c.getPrice().debt().unbind();
-                    }
-                }
-            }
-
-            if (hasChanged) {
-                update();
-            }
-        };
-
-        addListener(listener);
-        for (int i = 0; i < numberOfCopies; i++) {
-            cardSupplier.get().moveTo(this, Destination.SUPPLY);
-        }
+interface SupplyPile : ReadableSupplyPile {
+    companion object {
+        const val VICTORYTOKEN = "VICTORY_TOKEN"
+        const val DEBTTAX = "DEBT_TAX"
     }
 
-    protected void setType() {
-        if(isEmpty())return;
-        types.addAll(getLast().getTypes());
-    }
-    public IntegerProperty priceProperty() {
-        return cost.price();
-    }
-    public String getName() {
-        return name.getValue();
-    }
-    public void setCard(Card card) {
-        card.clear();
-        copy.forEach(card::set);
-        card.moveTo(this, Destination.SUPPLY);
-    }
-    public int getCost() {
-        return Math.max(cost.price().get(), 0);
-    }
-    public int getToken() {return token;}
-    public void setToken(int token) {this.token = token;}
-    public boolean hasToken(){return token!=0;}
+    val nameProperty : StateFlow<String>
+    val costValue: Int
 
-    public void update() {
-        var pileCost = priceProperty();
-        if(isEmpty()) return;
+    var cursed: Int
+    var token: Int
+    var supplyType: SupplyType
+    var onCardChange: ((CardChangeEvent) -> Unit)?
 
-        Card card = getLast();
-        if(card != null){
-            var cost = card.getPrice();
-            cost.price().unbind();
-            cost.debt().unbind();
-            cost.price().bind(pileCost);
-            copy = new HashMap<>(card.getProperties());
-        }
 
-    }
+    fun priceProperty() = cost.coinsProperty
+    fun debtProperty() = cost.debtProperty
 
-    public boolean hasType(CardType type) {
-        if(types.isEmpty()) setType();
-        if(types.isEmpty()) return false;
-        return types.contains(type);
-    }
+    fun update(scope: CoroutineScope)
 
-    public void setCursed(int cursed) {
-        Cursed += cursed;
-    }
-    public Price getPrice() {
-        return cost;
-    }
-    public int getCursed() {
-        return Cursed;
-    }
-    public boolean verifyName(String name){
-        return getName().equals(name);
-    }
-    public boolean isCursed() {
-        return Cursed > 0;
-    }
+    fun popCard(): Card?
 
-    @Override
-    public Card get(int i) {
-        return cards.get(i);
-    }
+    fun shuffle()
+    fun forEach(consumer: (Card) -> Unit) = cards.value.forEach(consumer)
+    fun take(numberOfCopies: Int): MutableList<Card>
+    fun sortWith(comparator: Comparator<Card>): SupplyPile
+    fun replace(card: Card)
 
-    @Override
-    public int size() {
-        return cards.size();
-    }
 
-    @Override
-    protected void doAdd(int i, Card card) {
-        cards.add(i, card);
-    }
+    fun last() =  cards.value.last()
 
-    @Override
-    protected Card doSet(int i, Card card) {
-        return cards.set(i, card);
-    }
+    fun getFlag(nameProperty: String): StateFlow<Boolean>
+    fun isFlagSet(nameProperty: String): Boolean
 
-    @Override
-    protected Card doRemove(int i) {
-        return cards.remove(i);
-    }
+    fun getResource(nameProperty: String): StateFlow<Int>
+
+    fun updateResource(resource: String, value: Int)
+    fun clearResource(resource : String)
+    fun useResource(resource: String, take : Int)
+
+
+    fun updateFlag(resource: String, value: Boolean)
+
 }

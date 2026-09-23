@@ -1,142 +1,147 @@
-package fr.umontpellier.iut.dominion.cards;
+package fr.umontpellier.iut.dominion.cards
 
-import fr.umontpellier.iut.dominion.*;
-import fr.umontpellier.iut.dominion.Player.Player;
-import fr.umontpellier.iut.dominion.Player.Tokens.Token;
-import fr.umontpellier.iut.dominion.Supply.SupplyPile;
-import fr.umontpellier.iut.dominion.cards.component.OnPlayComponent;
-import fr.umontpellier.iut.dominion.cards.factories.FactorySupplyPile;
-import fr.umontpellier.iut.dominion.cards.factories.FactoryUtil;
-import javafx.beans.Observable;
-import javafx.beans.binding.Bindings;
-import javafx.beans.binding.BooleanBinding;
-import javafx.beans.binding.LongBinding;
-import javafx.beans.property.*;
-import javafx.beans.value.ObservableValue;
+import fr.umontpellier.iut.dominion.CardType
+import fr.umontpellier.iut.dominion.Enums.Locations.Destination
+import fr.umontpellier.iut.dominion.game.Game
+import fr.umontpellier.iut.dominion.Player.Player
+import fr.umontpellier.iut.dominion.Player.Tokens.Token
+import fr.umontpellier.iut.dominion.Properties
+import fr.umontpellier.iut.dominion.Supply.SupplyPile
+import fr.umontpellier.iut.dominion.addListener
+import fr.umontpellier.iut.dominion.bind
+import fr.umontpellier.iut.dominion.bindCombined
+import fr.umontpellier.iut.dominion.cards.component.OnPlayComponent
+import fr.umontpellier.iut.dominion.Player.PlayerComponent.askReductionToken
+import fr.umontpellier.iut.dominion.Player.PlayerComponent.getToken
+import fr.umontpellier.iut.dominion.unbind
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlin.collections.toTypedArray
+import kotlin.math.max
 
-import java.util.AbstractCollection;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+class GameStat {
+    lateinit var  gameStatScope : CoroutineScope
+    val charlatanPower = MutableStateFlow(false)
+    val reduction = MutableStateFlow(0)
+    val emptyPiles = MutableStateFlow(0)
+    val isFinished = MutableStateFlow(false)
+    val firstProvinceGain = MutableStateFlow(false)
 
-public class GameStat {
-    public static final BooleanProperty charlatanPower = new SimpleBooleanProperty(false);
-    public static final IntegerProperty reduction = new SimpleIntegerProperty(0);
-    public static final LongProperty emptyPiles = new SimpleLongProperty(0);
-    public static final BooleanProperty isFinished = new SimpleBooleanProperty(false);
 
-    public static Map<String, SupplyPile> allCardsInSupply;
-    public static List<Player> players;
+    lateinit var allCardsInSupply: Map<String, SupplyPile>
+        private set
+    lateinit var players: List<Player>
+        private set
+    lateinit var currentPlayer: MutableStateFlow<Player?>
+    lateinit var Game : Game
 
-    public static void initialize(Map<String, SupplyPile> allCards, ObjectProperty<Player> currentTurnPlayer, List<Player> player) {
-        allCardsInSupply = allCards;
-        players = player;
-        charlatanPower.bind(Bindings.createBooleanBinding(
-                () -> allCardsInSupply.containsKey("Charlatan"),
-                allCardsInSupply.values().toArray(new Observable[0])
-        ));
+    fun initialize(
+        game : Game,
+        allCards: Map<String, SupplyPile>,
+        currentTurnPlayer: MutableStateFlow<Player?>,
+        playerList: List<Player>
+    ) {
+        allCardsInSupply = allCards
+        players = playerList
+        currentPlayer = currentTurnPlayer
+        Game = game
+        gameStatScope = game.gameScope
 
-        if(charlatanPower.get()) {
-            allCardsInSupply.get("Curse")
-                    .forEach(p -> p.addType(CardType.TREASURE));
+        val supplyFlows: Array<Flow<*>> = allCardsInSupply.values
+            .map { pile -> pile.cards }
+            .toTypedArray()
+
+
+        charlatanPower.bindCombined(gameStatScope, *supplyFlows){
+            allCardsInSupply.containsKey("Charlatan")
         }
 
-        LongBinding emptyPilesCount = Bindings.createLongBinding(
-                () -> allCards.values().stream()
-                                .filter(AbstractCollection::isEmpty)
-                                .count(),
-                allCards.values().toArray(new Observable[0])
-        );
+        if(charlatanPower.value){
+            allCardsInSupply["Curse"]?.forEach { it.addType(CardType.TREASURE) }
+        }
 
-        emptyPiles.bind(emptyPilesCount);
+        emptyPiles.bindCombined(gameStatScope, *supplyFlows){
+            allCardsInSupply.values.count{it.isEmpty}
+        }
 
-        BooleanBinding provinceEmpty = Bindings.createBooleanBinding(
-                () -> allCards.containsKey("Province") &&  allCards.get("Province").isEmpty(),
-                emptyPiles
-        );
-        BooleanBinding colonyEmpty = Bindings.createBooleanBinding(
-                () -> allCards.containsKey("Colony") && allCards.get("Colony").isEmpty(),
-                emptyPiles
-        );
+        val provinceEmpty = MutableStateFlow(false)
+        val colonyEmpty = MutableStateFlow(false)
 
-        isFinished.bind(provinceEmpty.or(colonyEmpty).or(emptyPiles.greaterThanOrEqualTo(3)));
-        updatePlayer(currentTurnPlayer);
+        provinceEmpty.bindCombined(gameStatScope, emptyPiles){
+            allCards.containsKey("Province") && allCards["Province"]?.isEmpty == true
+        }
 
+        colonyEmpty.bindCombined(gameStatScope, emptyPiles){
+            allCards.containsKey("Colony") && allCards["Colony"]?.isEmpty == true
+        }
+
+        isFinished.bind(gameStatScope, provinceEmpty or colonyEmpty or emptyPiles.greaterThanOrEqualTo(3))
+
+        updatePlayer(currentTurnPlayer)
     }
 
-    public static void updatePlayer(ObjectProperty<Player> current) {
-        allCardsInSupply.values().forEach(pile -> {
-            pile.priceProperty().unbind();
+    fun updatePlayer(current: MutableStateFlow<Player?>) {
+        allCardsInSupply.values.forEach { pile ->
+            pile.priceProperty().unbind()
 
-            pile.priceProperty().bind(Bindings.createIntegerBinding(() -> {
-                        Player player = current.get();
-                        Card topCard = pile.isEmpty() ? null : pile.getLast();
+            pile.priceProperty().bindCombined(gameStatScope, currentPlayer, reduction, pile.cards)
+            {
+                val player = currentPlayer.value
+                val topCard = if (pile.isEmpty) null else pile.popCard() ?: return@bindCombined 0
 
-                        if (topCard == null) return 0;
+                val baseCost = topCard?.basicPrice() ?: 0
+                val redGlobale = reduction.value
 
-                        int baseCost = topCard.basicPrice();
-                        int redGlobale = GameStat.reduction.get();
+                if (player == null) return@bindCombined max(0, baseCost - redGlobale)
 
-                        if (player == null) return Math.max(0, baseCost - redGlobale);
+                val pRedPeddler = player.getProperties(Properties.puddlerReduction)
+                val pRedQuarry = player.getProperties(Properties.quarryReduction)
 
-                        var pRedPeddler = player.getProperties(Properties.puddlerReduction);
-                        var pRedQuarry = player.getProperties(Properties.quarryReduction);
-                        int pRedToken = player.askReductionToken(topCard.getName())? 2 : 0;
-                        int quarryRed = topCard.hasType(CardType.ACTION) ? pRedQuarry.get() : 0;
-                        int peddlerRed = topCard.getName().equals("Peddler") ? pRedPeddler.get() : 0;
-                        return Math.max(0, baseCost - redGlobale - peddlerRed - quarryRed -  pRedToken);
+                val pRedToken = if (player.askReductionToken(topCard?.name)) 2 else 0
+                val quarryRed = if (topCard?.hasType(CardType.ACTION) == true) pRedQuarry.value else 0
+                val peddlerRed = if (topCard?.name == "Peddler") pRedPeddler.value else 0
 
-                    },
-                    current,
-                    pile,
-                    GameStat.reduction
-            ));
-
-            pile.update();
-        });
-
-
-        current.addListener((observable, oldValue, newValue) -> {
-            if(newValue == null) return;
-
-            List<Card> allEstates = new ArrayList<>(allCardsInSupply.get("Estate"));
-            for (Player p : players) {
-                allEstates.addAll(p.getAllOwnedCards().stream()
-                        .filter(c -> c.hasName("Estate")).toList());
+                max(0, baseCost - redGlobale - peddlerRed - quarryRed - pRedToken)
             }
 
-            String inheritedName = newValue.getToken(Token.ESTATE_TOKEN);
-            Card template = null;
-            if (!inheritedName.isEmpty()) {
-                template = newValue.getCopyOf(Destination.ASIDE).stream().filter(c -> c.hasName(inheritedName)).findFirst().orElse(null);
-            }
+            pile.update(gameStatScope)
+        }
 
-            List<Card> activePlayerCards = newValue.getAllOwnedCards().stream().filter(c -> c.hasName("Estate")).toList();
-            final Card finalTemplate = template;
-            allEstates.forEach(card -> {
-                card.removeType(CardType.ACTION);
-                card.removeType(CardType.COMMAND);
-                card.removeComponent(OnPlayComponent.class);
+        currentPlayer.addListener(gameStatScope) {oldPlayer, player ->
+            if (player == null) return@addListener
 
-                if (finalTemplate != null && activePlayerCards.contains(card)) {
-                    card.addType(CardType.ACTION);
-                    card.addType(CardType.COMMAND);
-                    card.setup(config -> config
-                            .onPlay((player, self) ->{
-                                Card ephemere = finalTemplate.copy();
-                                ephemere.play(player);
-                                FactoryUtil.linkedCard(self, ephemere);
-                            })
-                            .stayInPlayCondition(FactoryUtil.checkLink)
-                    );
+            val allEstates = mutableListOf<Card>()
+                .apply {
+                    allCardsInSupply["Estates"]?.let { addAll(it.cards.value) }
+                    players.forEach { addAll(it.allOwnedCards.filter { c -> c.hasName("Estate") }) }
                 }
-            });
-        });
+
+            val inheritedName = player.getToken(Token.OnPile.EstateToken)
+            val template = if (inheritedName.isNotEmpty()) {
+                player.getList(Destination.PlayerZone.Aside).firstOrNull { it.hasName(inheritedName) }
+            } else null
+
+            val activePlayersEstate = player.allOwnedCards.filter { c -> c.hasName("Estate") }
+
+            allEstates.forEach {
+                it.removeType(CardType.ACTION)
+                it.removeType(CardType.COMMAND)
+                it.removeComponent<OnPlayComponent>()
+
+                if (template != null && activePlayersEstate.contains(it)) {
+                    it.addType(CardType.ACTION)
+                    it.addType(CardType.COMMAND)
+                    it.setup {
+                            onPlay(
+                                template.copy().getComponent<OnPlayComponent>()
+                                ?: OnPlayComponent { _, _ -> })
+                    }
+                }
+            }
+        }
+
     }
-
-
-
-
-
-
 }

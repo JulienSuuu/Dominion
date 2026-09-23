@@ -1,26 +1,28 @@
-package fr.umontpellier.iut.dominion.gui;
+package fr.umontpellier.iut.dominion.gui
 
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import fr.umontpellier.iut.dominion.cards.Card
+import java.util.Map
+import java.util.stream.Collectors
 
-import fr.umontpellier.iut.dominion.cards.Card;
-
-public class Utils {
-    public static String toLog(List<Card> list) {
-        return list.stream()
-                .collect(Collectors.groupingBy(Card::getName, Collectors.counting()))
-                .entrySet().stream()
-                .sorted(Map.Entry.comparingByKey())
-                .map(e -> e.getValue() > 1 ? "%s x%d".formatted(e.getKey(), e.getValue()) : e.getKey())
-                .collect(Collectors.joining(", "));
+object Utils {
+    fun toLog(list: List<Card?>): String {
+        return list.filterNotNull()
+            .groupingBy { it.name }
+            .eachCount()
+            .toSortedMap()
+            .entries
+            .joinToString(", ") { (name, count) ->
+                if (count > 1) "$name x$count" else name
+            }
     }
 
-    public static String toString(List<Card> list) {
-        return list.stream().map(Card::toString).collect(Collectors.joining(", "));
+    fun toString(list: List<Card?>): String {
+        return list.filterNotNull()
+            .joinToString(", ")
     }
 
-    public static String toJSON(List<Card> list) {
-        return list.stream().map(c -> "\"" + c.getName() + "\"").collect(Collectors.joining(", ", "[", "]"));
+    fun toJSON(list: List<Card?>): String {
+        return list.filterNotNull()
+            .joinToString(prefix = "[", postfix = "]") { it.toJsonPlayer() }
     }
 }

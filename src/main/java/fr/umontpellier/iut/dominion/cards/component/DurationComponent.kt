@@ -1,114 +1,94 @@
-package fr.umontpellier.iut.dominion.cards.component;
+package fr.umontpellier.iut.dominion.cards.component
 
-import fr.umontpellier.iut.dominion.Player.Player;
-import fr.umontpellier.iut.dominion.cards.Card;
-import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.SimpleIntegerProperty;
+import fr.umontpellier.iut.dominion.Enums.Locations.Destination
+import fr.umontpellier.iut.dominion.Player.Player
+import fr.umontpellier.iut.dominion.cards.Card
+import fr.umontpellier.iut.dominion.cards.minusAssign
+import kotlinx.coroutines.flow.MutableStateFlow
 
-import java.util.function.BiConsumer;
-import java.util.function.Predicate;
+class DurationComponent(
+    /** Effet du prochain tour. */
+    private var nextTurnEffect: Duration? = null,
+    val scope : Card
+) : CardComponent {
 
-/**
- * Composant des cartes Durations
- */
-public class DurationComponent implements CardComponent {
+    private var trigger: (Player, Card) -> Boolean = {_, _ -> true }
+    private var thingToDo: (Card) -> Boolean = { false }
+    private var shouldBeDiscarded: (Player, Card) -> Boolean = { p, c -> checkDuration()(c) || !c.hasForLocation(Destination.PlayerZone.InPlay)}
+
+    private val duration: Int get() = durationFlow.value
+
+    private var numberOfTurns = 1
+    private var isInfinite = false
+    private val durationFlow = MutableStateFlow(1)
+
+    fun interface Duration : BiEffect<Player, Card>, CardComponent
+
+
+    fun setTrigger(trigger: (Player, Card) -> Boolean): DurationComponent {
+        this.trigger = trigger
+        return this
+    }
+
+    fun setInfinite(infinite: Boolean): DurationComponent {
+        this.isInfinite = infinite
+        return this
+    }
+
+    fun setEffect(effect : Duration){ this.nextTurnEffect = effect }
+
+    fun stayInPlayCondition(shouldBeDiscarded: (Player, Card) -> Boolean): DurationComponent {
+        this.shouldBeDiscarded = shouldBeDiscarded
+        return this
+    }
+
+    infix fun <X, Y> ((X, Y) -> Boolean).and(other : (X, Y) -> Boolean) : (X, Y) -> Boolean {
+        return { x, y -> this(x,y) && other(x,y) }
+    }
+
+    fun thingToDo(thingToDo: (Card) -> Boolean): DurationComponent {
+        this.thingToDo = thingToDo
+        return this
+    }
+
+    fun setNumberOfTurns(numberOfTurns: Int): DurationComponent {
+        this.numberOfTurns = numberOfTurns
+        return this
+    }
+
+    // --- Logique métier ---
+
     /**
-     * Durée de l'effet ( 0 ou 1 )
-     *
+     * Lance l'effet du composant.
+     * @param p Le joueur (le lanceur ou le receveur).
      */
-    private Predicate<Card> trigger = c -> true;
-    private Predicate<Card> thingToDo = t -> false;
-    private final IntegerProperty duration = new SimpleIntegerProperty() ;
-    private int numberOfTurns=1;
-    private boolean isInfinite = false;
-    private Predicate<Card> stayInPlayCondition = c -> checkDuration().test(c);
-
-    /**
-     * Méthode qui lance l'effet au prochain de la carte
-     */
-    private final BiEffect<Player, Card, duration> nextTurnEffect;
-
-    public interface duration extends TriggerBiEffect<Player, Card, duration> {
-        @Override
-        default duration self(){
-            return this;
-        };
-
-        @Override
-        default duration create(BiConsumer<Player, Card> effect) {
-            return effect::accept;
-        }
-    }
-
-    /**
-     *
-     * @param nextTurnEffect effet du prochain tour
-     */
-    public DurationComponent(duration nextTurnEffect) {
-        this.nextTurnEffect =  nextTurnEffect;
-    }
-
-    public DurationComponent setTrigger(Predicate<Card> trigger) {
-        this.trigger = trigger;
-        return this;
-    }
-
-    public DurationComponent setInfinite(boolean infinite) {
-        this.isInfinite = infinite;
-        return this;
-    }
-
-    public DurationComponent stayInPlayCondition(Predicate<Card> stayInPlayCondition) {
-        this.stayInPlayCondition = stayInPlayCondition;
-        return this;
-    }
-
-    public DurationComponent thingToDo(Predicate<Card> thingToDo) {
-        this.thingToDo = thingToDo;
-        return this;
-    }
-
-    public DurationComponent setNumberOfTurns(int numberOfTurns) {
-        this.numberOfTurns = numberOfTurns;
-        return this;
+    suspend fun execute(p: Player, c: Card) {
+        nextTurnEffect?.invoke(p, c)
     }
 
     /**
-     * Lance l'effet du composant
-     * @param p le joueur ( le lanceur ou le receveur )
+     * Décrémente la durée.
      */
-    public void execute(Player p, Card c) {
-        if(nextTurnEffect != null){
-            nextTurnEffect.accept(p, c);
-        }
+    fun consume() {
+        if (isInfinite) return
+        durationFlow -= 1
     }
 
     /**
-     * Décremente la durée
+     * @return si le joueur doit défausser la carte.
      */
-    public void consume(){
-        if(isInfinite)return;
-        duration.set(duration.get()-1);
+    fun isFinished(p : Player): Boolean {
+        if (isInfinite) return false
+        if (thingToDo(scope)) return false
+        return shouldBeDiscarded(p, scope)
     }
 
-    /**
-     *
-     * @return si le joueur doit défausser la carte
-     */
-    public boolean isFinished(Card c) {
-        if (isInfinite) return false;
-        if (thingToDo.test(c)) return false;
-        return stayInPlayCondition.test(c);
+    fun activeDuration(player : Player, c: Card) {
+        if (!trigger(player, c) || duration == numberOfTurns) return
+        durationFlow.value = numberOfTurns
     }
 
-    public void activeDuration(Card c){
-        if(!trigger.test(c)|| duration.get() == numberOfTurns )return;
-        duration.set(numberOfTurns);
+    fun checkDuration(): (Card) -> Boolean {
+        return { _ -> duration <= 0 }
     }
-
-
-    public Predicate<Card> checkDuration(){
-        return card -> duration.get() <= 0;
-    }
-
 }

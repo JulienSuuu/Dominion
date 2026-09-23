@@ -1,8 +1,8 @@
-package fr.umontpellier.iut.dominion.cards.component;
-
-import java.util.function.BiConsumer;
+package fr.umontpellier.iut.dominion.cards.component
 
 /**
  * Composant principal
  */
-public interface CardComponent {}
+interface CardComponent
+interface SingleCardComponent : CardComponent
+interface MultiCardComponent : CardComponent

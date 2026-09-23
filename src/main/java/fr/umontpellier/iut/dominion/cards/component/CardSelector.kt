@@ -1,14 +1,11 @@
-package fr.umontpellier.iut.dominion.cards.component;
+package fr.umontpellier.iut.dominion.cards.component
 
-import fr.umontpellier.iut.dominion.Player.Player;
-import fr.umontpellier.iut.dominion.cards.Card;
-
-import java.util.List;
+import fr.umontpellier.iut.dominion.Player.Player
+import fr.umontpellier.iut.dominion.cards.Card
 
 /**
- *Interface fonctionnelle de selection d'une carte
+ * Interface fonctionnelle de selection d'une carte
  */
-@FunctionalInterface
-public interface CardSelector {
-    Card select(Player attacker, Player victim, List<Card> options);
+fun interface CardSelector : suspend (Player, Player, MutableList<Card>) -> Card? {
+    override suspend fun invoke(chooser: Player, victim: Player, options: MutableList<Card>): Card?
 }

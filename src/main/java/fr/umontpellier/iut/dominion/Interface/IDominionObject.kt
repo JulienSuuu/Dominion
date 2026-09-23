@@ -1,17 +1,10 @@
-package fr.umontpellier.iut.dominion.Interface;
+package fr.umontpellier.iut.dominion.Interface
 
-import fr.umontpellier.iut.dominion.AppDominion;
-import fr.umontpellier.iut.dominion.Button;
-import fr.umontpellier.iut.dominion.Game;
-import fr.umontpellier.iut.dominion.cards.Card;
+import fr.umontpellier.iut.dominion.game.Game
 
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Predicate;
+interface IDominionObject {
+    val game : Game?
+        get() = null
 
-public interface IDominionObject {
-
-    default Game getGame(){
-        return AppDominion.getGame();
-    }
+    val name : String
 }
