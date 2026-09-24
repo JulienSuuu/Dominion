@@ -28,6 +28,7 @@ import fr.umontpellier.iut.dominion.Player.PlayerComponent.TurnHistoryComponent
 import fr.umontpellier.iut.dominion.Player.PlayerComponent.isAffectedBy
 import fr.umontpellier.iut.dominion.Player.PlayerComponent.updateTokenFlag
 import fr.umontpellier.iut.dominion.Player.Skills.choose
+import fr.umontpellier.iut.dominion.Player.Skills.chooseOrder
 import fr.umontpellier.iut.dominion.Player.Skills.computeChoices
 import fr.umontpellier.iut.dominion.Player.Skills.handleActionPhase
 import fr.umontpellier.iut.dominion.Player.Skills.handleStartBuyPhase
@@ -35,7 +36,10 @@ import fr.umontpellier.iut.dominion.Player.Skills.handleStartTurn
 import fr.umontpellier.iut.dominion.Player.Skills.moveCardsFromTemp
 import fr.umontpellier.iut.dominion.Player.Skills.privateChooseWhatToDo
 import fr.umontpellier.iut.dominion.Player.Skills.privateLog
+import fr.umontpellier.iut.dominion.cards.component.PokerHandReactionComponent
 import fr.umontpellier.iut.dominion.cards.factories.FactorySupplyPile
+import fr.umontpellier.iut.dominion.cards.factories.Futaba.EvaluatedPokerHand
+import fr.umontpellier.iut.dominion.cards.factories.Futaba.PokerHandEvaluator
 import fr.umontpellier.iut.dominion.cards.factories.Nocturne.underState
 import fr.umontpellier.iut.dominion.cards.plusAssign
 import fr.umontpellier.iut.dominion.client.Client
@@ -205,34 +209,37 @@ open class Player : Logger {
 
     final inline fun <reified T : PlayerComponent> getComponent() : T? = playerComponent[T::class] as? T
 
-    fun listener(){
+
+    fun inPlayListener(){
         val inPlayFlow = get(Destination.PlayerZone.InPlay) ?:return
 
         getFlag(Flags.COPPER_PLAYED).bindComputed(playerScope, inPlayFlow){
-            cards -> cards.any{it.hasName("Copper")}
+                cards -> cards.any{it.hasName("Copper")}
         }
 
         getFlag("Active").bindComputed(playerScope, game.currentTurnPlayerProperty){
-            _ -> isActive
+                _ -> isActive
         }
 
         if (game.hasCard("Peddler"))
             getProperties(Properties.puddlerReduction).bindComputed(playerScope, inPlayFlow) {
-                cards -> cards.count { it.hasType(CardType.ACTION) } * 2
+                    cards -> cards.count { it.hasType(CardType.ACTION) } * 2
             }
 
         if(game.hasCard("Crossroads")){
             getFlag(Flags.playedCrossroads).bindComputed(playerScope, inPlayFlow){
-                cards -> cards.any{it.hasName("Crossroads")}
+                    cards -> cards.any{it.hasName("Crossroads")}
             }
         }
 
         if(game.hasCard("Fool's Gold")){
             getFlag(Flags.playedFoolsGold).bindComputed(playerScope, inPlayFlow){
-                cards -> cards.count{it.hasName("Fool's Gold")} >= 2
+                    cards -> cards.count{it.hasName("Fool's Gold")} >= 2
             }
         }
+    }
 
+    fun stateListener(){
         state.map { it.turnPhase }
             .distinctUntilChanged()
             .onEach { phase ->
@@ -262,7 +269,20 @@ open class Player : Logger {
             .launchIn(playerScope)
 
         items.forEach { (item, flow) -> observeItemChanges(item, flow) }
+    }
 
+    private data class PokerCheckResult(
+        val evaluatedHand: EvaluatedPokerHand?,
+        val isActionPhase: Boolean
+    )
+
+    fun handListener(){}
+
+
+    fun listener(){
+        handListener()
+        inPlayListener()
+        stateListener()
     }
 
 

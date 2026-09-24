@@ -96,6 +96,8 @@ public enum CardType {
             return true;
         }
     },
+    FUTABA,
+    POKER,
     BOON,
     HEX;
 

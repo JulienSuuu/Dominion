@@ -10,7 +10,6 @@ sealed class Destination(val name: String) {
         object Boons : NocturneZone("Boons")
         object Druid : NocturneZone("Druid")
     }
-
     override fun toString(): String = name.lowercase()
 
     sealed class PlayerZone( name : String) : Destination(name) {

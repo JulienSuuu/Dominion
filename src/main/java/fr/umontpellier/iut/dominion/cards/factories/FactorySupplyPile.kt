@@ -13,7 +13,6 @@ import fr.umontpellier.iut.dominion.Supply.StandardSupplyPile
 import fr.umontpellier.iut.dominion.Supply.SupplyPile
 import fr.umontpellier.iut.dominion.cards.Card
 import fr.umontpellier.iut.dominion.cards.Description.CardCatalog
-import fr.umontpellier.iut.dominion.cards.component.ChangingName
 import fr.umontpellier.iut.dominion.cards.component.OnSetup
 import fr.umontpellier.iut.dominion.cards.factories.Nocturne.State
 import fr.umontpellier.iut.dominion.cards.testTypes
@@ -30,7 +29,7 @@ import java.util.function.Supplier
 
 private enum class Order {
     Dominion, Intrigue, Seaside, Alchemy, Prosperity,
-    Cornucopia_Guilds, Hinterlands, Dark_Ages, Adventures, Empires, Nocturne;
+    Cornucopia_Guilds, Hinterlands, Dark_Ages, Adventures, Empires, Nocturne, Futaba;
 
     companion object {
         fun getOrdinalOrMax(name: String): Int =

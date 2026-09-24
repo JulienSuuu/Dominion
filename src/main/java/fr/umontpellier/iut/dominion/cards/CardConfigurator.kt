@@ -6,10 +6,13 @@ import fr.umontpellier.iut.dominion.cards.Bonus.Bonus
 import fr.umontpellier.iut.dominion.cards.Bonus.DominionBonus
 import fr.umontpellier.iut.dominion.cards.Events.Event
 import fr.umontpellier.iut.dominion.cards.Events.GainType
+import fr.umontpellier.iut.dominion.cards.Events.PokerEvent
 import fr.umontpellier.iut.dominion.cards.component.*
 import fr.umontpellier.iut.dominion.cards.component.TriggerComponent.*
 import fr.umontpellier.iut.dominion.cards.factories.DURATION
 import fr.umontpellier.iut.dominion.cards.factories.EFFECT
+import fr.umontpellier.iut.dominion.cards.factories.Futaba.EvaluatedPokerHand
+import fr.umontpellier.iut.dominion.cards.factories.Futaba.PokerHand
 import fr.umontpellier.iut.dominion.cards.factories.reserveCondition
 import javafx.geometry.Side
 import java.lang.reflect.InvocationHandler
@@ -62,7 +65,6 @@ class CardConfigurator(val scope: Card) {
         override fun onEffect(effect: DurationComponent.Duration) {
             duration.setEffect(effect)
         }
-
     }
 
     infix fun onDuration(build : DurationBuilder.() -> Unit): CardConfigurator {
@@ -161,6 +163,10 @@ class CardConfigurator(val scope: Card) {
     infix fun simpleDuration(durationBonus: Bonus): CardConfigurator {
         scope.register(DurationComponent ({ p, c -> p.triggerEffect( DURATION, c, durationBonus) }, scope))
         return this
+    }
+
+    infix fun onPokerHand(builder : Build<PokerHandReactionComponent>){
+        build(builder)
     }
 
     infix fun checkItselfDiscard(builder : Build<CheckItselfDiscarded>): CardConfigurator {

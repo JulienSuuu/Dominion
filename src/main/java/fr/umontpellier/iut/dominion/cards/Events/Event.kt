@@ -7,6 +7,7 @@ import fr.umontpellier.iut.dominion.Interface.Logger
 import fr.umontpellier.iut.dominion.Player.Player
 import fr.umontpellier.iut.dominion.Player.PlayerMessage
 import fr.umontpellier.iut.dominion.cards.Card
+import fr.umontpellier.iut.dominion.cards.factories.Futaba.PokerHand
 
 
 open class Event (
@@ -37,6 +38,8 @@ open class Event (
         discard = Discard_Type.ACTION
     )
 
+    open fun isPokerHand(type : PokerHand) : Boolean = false
+    open fun getEvaluatedHand() : List<Card> = emptyList()
 
     open val hasMoved: Boolean
         get() = destination != origin

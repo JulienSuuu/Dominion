@@ -15,7 +15,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 @Configuration
 @EnableWebSecurity
 open class SecurityConfig(
-    @Value("\${cors.allowed-origins:http://localhost:5173,http://localhost:3232}")
+    @Value("\${cors.allowed-origins}")
     private val allowedOrigins: String,
     private val jwtCookieFilter: JwtCookieFilter
 ) {
