@@ -13,44 +13,47 @@ object PokerHandEvaluator {
 
         val costs = cards.map { it.costValue }.sorted()
 
-        // 3. Regrouper les cartes par coût (ex: { 3 -> [Carte1, Carte2, Carte3], 2 -> [Carte4] })
+        // 1. Groupement par coût global
         val costGroups = cards.groupBy { it.costValue }
-
-        // 4. Calculer la fréquence de chaque coût (ex: [3, 1, 1] pour un brelan)
         val costCounts = costGroups.mapValues { it.value.size }.values.sortedDescending()
 
-        val isFlush = isFlush(cards)       // Au moins un type partagé
-        val isStraight = isStraight(costs) // (ex: 2, 3, 4, 5, 6)
+        // 2. Groupement par coût de cartes DISTINCTES
+        val distinctCostGroups = cards.distinctBy { it.name }.groupBy { it.costValue }
+        val distinctCostCounts = distinctCostGroups.mapValues { it.value.size }.values.sortedDescending()
+
+        // 3. Groupement par nom exact
+        val nameGroups = cards.groupBy { it.name }
+        val nameCounts = nameGroups.mapValues { it.value.size }.values.sortedDescending()
+
+        val isFlush = isFlush(cards)
+        val isStraight = isStraight(costs)
 
         val (type, scoringCards) = when {
-
-            // les 5 cartes font partie du motif
             isStraight && isFlush -> PokerHand.STRAIGHT_FLUSH to cards
             costCounts == listOf(3, 2) -> PokerHand.FULL_HOUSE to cards
             isFlush -> PokerHand.FLUSH to cards
             isStraight -> PokerHand.STRAIGHT to cards
 
-            // --- uniquement les 4 cartes du même coût ---
-            costCounts == listOf(4, 1) -> {
-                PokerHand.FOUR_OF_A_KIND to costGroups.values.first { it.size == 4 }
+            // Carré : 4 cartes de même coût mais de noms différents
+            distinctCostCounts == listOf(4, 1) -> {
+                PokerHand.FOUR_OF_A_KIND to distinctCostGroups.values.first { it.size == 4 }
             }
 
-            // --- uniquement les 3 cartes du même coût ---
-            costCounts == listOf(3, 1, 1) -> {
-                PokerHand.THREE_OF_A_KIND to costGroups.values.first { it.size == 3 }
+            // Brelan : 3 cartes de même coût mais de noms différents
+            distinctCostCounts == listOf(3, 1, 1) -> {
+                PokerHand.THREE_OF_A_KIND to distinctCostGroups.values.first { it.size == 3 }
             }
 
-            // --- les 2 cartes de chaque paire ---
-            costCounts == listOf(2, 2, 1) -> {
-                PokerHand.TWO_PAIR to costGroups.values.filter { it.size == 2 }.flatten()
+            // Double Paire : 2 paires de cartes identiques (ex: 2x Cuivre + 2x Village)
+            nameCounts == listOf(2, 2, 1) -> {
+                PokerHand.TWO_PAIR to nameGroups.values.filter { it.size == 2 }.flatten()
             }
 
-            // --- les 2 cartes de la paire ---
-            costCounts.firstOrNull() == 2 -> {
-                PokerHand.PAIR to costGroups.values.first { it.size == 2 }
+            // Paire : 2 exemplaires de la même carte
+            nameCounts.firstOrNull() == 2 -> {
+                PokerHand.PAIR to nameGroups.values.first { it.size == 2 }
             }
 
-            // --- retient la carte la plus chère ---
             else -> PokerHand.HIGH_CARD to listOf(cards.maxBy { it.costValue })
         }
 
@@ -70,6 +73,9 @@ object PokerHandEvaluator {
     }
 
     private fun isFlush(cards: List<Card>): Boolean {
+        val has5DistinctCards = cards.distinctBy { it.name }.size == 5
+        if (!has5DistinctCards) return false
+
         return cards
             .map { it.types.toSet() }
             .reduce { acc, types -> acc.intersect(types) }

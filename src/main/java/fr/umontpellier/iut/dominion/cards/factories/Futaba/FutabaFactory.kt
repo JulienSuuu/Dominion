@@ -21,6 +21,7 @@ import fr.umontpellier.iut.dominion.cards.component.filter
 import fr.umontpellier.iut.dominion.cards.component.then
 import fr.umontpellier.iut.dominion.cards.gainFromSupply
 import fr.umontpellier.iut.dominion.cards.plusAssign
+import fr.umontpellier.iut.dominion.cards.triggerEffect
 
 object FutabaFactory {
 
@@ -32,11 +33,21 @@ object FutabaFactory {
                 onEffect(BiEffect.empty<Player, EvaluatedPokerHand>()
                     .then {player, hand ->
                         player.reveals(hand.fiveCardHand)
-                        player.incrementByAction(Item.MONEY){hand.scoringCards.size * 2}
+                        val bonus : Bonus? = when(val type = hand.type){
+                            PokerHand.PAIR -> Bonus.money(type.rank)
+                            PokerHand.TWO_PAIR -> Bonus.money(type.rank)
+                            PokerHand.THREE_OF_A_KIND -> Bonus.money(type.rank)
+                            PokerHand.STRAIGHT -> Bonus.money(type.rank)
+                            PokerHand.FLUSH -> Bonus.money(5).draw()
+                            PokerHand.FULL_HOUSE -> Bonus.money(5).draw(2)
+                            PokerHand.FOUR_OF_A_KIND -> Bonus.money(6).draw(1).with(Item.BUY)
+                            PokerHand.STRAIGHT_FLUSH -> Bonus.action().with(Item.MONEY, 7).draw(2).with(Item.BUY)
+                            else -> null
+                        }
+                        player.triggerEffect("Poker", scope, bonus)
                         player.discard(scope)
                     }
                 )
-                onCondition { event, _ ->  !event.isPokerHand(PokerHand.HIGH_CARD)}
             }
         }
 
