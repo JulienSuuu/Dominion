@@ -12,6 +12,7 @@ import fr.umontpellier.iut.dominion.cards.Card
 import fr.umontpellier.iut.dominion.cards.Events.Event
 import fr.umontpellier.iut.dominion.cards.component.TriggerComponent
 import fr.umontpellier.iut.dominion.Player.PlayerComponent.checkPlayToken
+import fr.umontpellier.iut.dominion.Player.PlayerComponent.checkPokerReaction
 import fr.umontpellier.iut.dominion.cards.Events.PokerEvent
 import fr.umontpellier.iut.dominion.cards.component.PokerHandReactionComponent
 import fr.umontpellier.iut.dominion.cards.factories.Futaba.PokerHandEvaluator
@@ -86,28 +87,6 @@ fun Player.handleActionPhase() {
     getFlag("StartBuyPhase").value = false
 }
 
-suspend fun Player.checkPokerReaction(){
-    if (state.value.turnPhase != PlayerTurnPhase.ActionPhase) return
-
-    val currentHand = getList(Destination.PlayerZone.Hand)
-    val hasReactionCard = currentHand.any { it.hasComponent<PokerHandReactionComponent>() }
-
-    if (!hasReactionCard || currentHand.size < 5) return
-
-    val evaluatedHand = PokerHandEvaluator.bestHand(currentHand) ?: return
-
-    chooseOrder<PokerHandReactionComponent>(
-        instruction = "Choisissez une réaction Poker à activer (${evaluatedHand.type.displayName})",
-        getter = { getList(Destination.PlayerZone.Hand) },
-        canPass = true,
-        event = PokerEvent(self, evaluatedHand)
-    ) { chosenCard ->
-        println("[POKER REACTION] Exécution de '${chosenCard.name}'")
-        chosenCard.getComponent<PokerHandReactionComponent>()?.invoke(self, evaluatedHand)
-    }
-}
-
-
 suspend fun Player.playTurn(){
     while (!turnWasEnded){
 
@@ -129,7 +108,7 @@ suspend fun Player.playTurn(){
 private val Player.canBuy get() = getValueOf(Item.BUY) > 0
 private val Player.canPlayAction get() = getFlag("Action").value
 private val Player.canPlayTreasure get() = getFlag("Treasure").value
-private val Player.turnWasEnded get() = !canPlayAction && !canPlayTreasure && !canBuy
+private val Player.turnWasEnded get() = (!canPlayAction && !canPlayTreasure && !canBuy ) || isFlagSet("EndTurn")
 
 private suspend fun Player.triggerEndBuyPhases(){
     triggerEvent<TriggerComponent.OnEndBuy>()

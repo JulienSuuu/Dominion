@@ -9,4 +9,5 @@ import fr.umontpellier.iut.dominion.cards.factories.Nocturne.StateComponent
 @FunctionalInterface
 fun interface ScoreComponent : CardComponent, (Player) -> Int?, StateComponent {
     override fun invoke(player: Player): Int?
+    fun incrementValue(default: Int = 1){}
 }

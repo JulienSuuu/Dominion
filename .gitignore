@@ -21,8 +21,10 @@
 *.tar.gz
 *.rar
 
+Dominion-Seaside.iml
 .env
 resources/
+target/
 appplication.properties
 vite-env.d.ts
 tsconfig.json

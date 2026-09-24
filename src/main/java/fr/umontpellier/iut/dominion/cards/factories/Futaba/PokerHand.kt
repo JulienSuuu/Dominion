@@ -8,7 +8,7 @@ enum class PokerHand(val rank: Int, val displayName: String) {
     TWO_PAIR(3, "Double Pair"),
     THREE_OF_A_KIND(4, "Brelan"),
     STRAIGHT(5, "Straight"),
-    FLUSH(6, "Color"),
+    FLUSH(6, "Flush"),
     FULL_HOUSE(7, "Full"),
     FOUR_OF_A_KIND(8, "Square"),
     STRAIGHT_FLUSH(9, "Quinte Flush")

@@ -256,6 +256,10 @@ class CardConfigurator(val scope: Card) {
         return this
     }
 
+    fun mutableScore(baseValue: Int = 0, function : (Player) -> Int = {0}) {
+        scope.register<ScoreComponent>(MutableScoreComponent(baseValue, function))
+    }
+
 
 
 
