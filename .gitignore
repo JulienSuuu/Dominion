@@ -25,7 +25,7 @@ Dominion-Seaside.iml
 .env
 resources/
 target/
-appplication.properties
+application.properties
 vite-env.d.ts
 tsconfig.json
 
