@@ -8,6 +8,9 @@ const cardImages: Record<string, ImageModule> = import.meta.glob<ImageModule>(
     { eager: true }
 );
 
+console.log('Total images détectées par Vite :', Object.keys(cardImages).length);
+console.log('Exemple de clés dans Vite :', Object.keys(cardImages).slice(0, 5));
+
 export const preloadAllCards = (): void => {
     Object.values(cardImages).forEach((module) => {
         const img = new Image();
