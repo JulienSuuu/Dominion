@@ -1,0 +1,46 @@
+.open-shop-btn {
+    position: fixed;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1002;
+    border-top: none;
+    border-radius: 0 0 10px 10px;
+}
+
+.open-shop-btn:hover {
+    transform: translateX(-50%) scale(1.05);
+}
+
+/* Organisation interne du parchemin #game */
+#game {
+    min-height: 85vh; /* Assure une hauteur minimale pour espacer haut et bas */
+}
+
+#players {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    flex-grow: 1;
+    height: 100%;
+}
+
+
+
+.opponents-row{
+    position: fixed !important;
+    top: 175px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: center !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+
+    width: max-content !important;
+    max-width: 98vw !important;
+    z-index: 900 !important;
+    pointer-events: auto !important;
+}

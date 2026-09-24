@@ -1,0 +1,23 @@
+.category-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    font-family: 'Crimson Text', serif;
+}
+
+.category-title {
+    margin: 0;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--accent-color);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.3rem;
+    font-weight: 700;
+}
+
+.stats-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}

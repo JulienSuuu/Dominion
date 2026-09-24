@@ -1,0 +1,189 @@
+.card-modal-overlay {
+    --card-width: calc(12 * var(--pt));
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    background: rgba(0, 0, 0, 0.65) !important;
+    backdrop-filter: blur(4px) !important;
+
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+
+    z-index: 4000 !important;
+}
+
+.opponent-modal {
+    position: relative !important;
+    max-width: 500px !important;
+    width: 90% !important;
+    text-align: left !important;
+
+    background: var(--card-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 10px !important;
+    padding: 20px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8) !important;
+    color: var(--text-primary) !important;
+
+    max-height: 85vh !important;
+    overflow-y: auto !important;
+}
+
+.opponent-modal h2 {
+    margin-top: 0 !important;
+    font-size: 1.2rem !important;
+    color: var(--text-primary) !important;
+}
+
+.opponent-modal-stats {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+    margin: 15px 0 !important;
+    background: var(--input-bg) !important;
+    padding: 12px !important;
+    border-radius: 8px !important;
+    border: 1px solid color-mix(in srgb, var(--border-color) 40%, transparent) !important;
+}
+
+.stat-box {
+    font-size: 0.95rem !important;
+    color: var(--text-secondary) !important;
+}
+
+.opponent-modal-section {
+    margin-top: 15px !important;
+}
+
+.opponent-modal-section h3 {
+    font-size: 1rem !important;
+    margin-bottom: 8px !important;
+    color: var(--text-primary) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    padding-bottom: 4px !important;
+}
+
+/* Bouton de fermeture (X) */
+.card-modal-close {
+    position: absolute !important;
+    top: 10px !important;
+    right: 15px !important;
+    background: transparent !important;
+    border: none !important;
+    color: var(--text-secondary) !important;
+    font-size: 1.8rem !important;
+    cursor: pointer !important;
+    line-height: 1 !important;
+}
+
+.card-modal-close:hover {
+    color: var(--accent-color) !important;
+}
+
+.opponent-hud {
+    width: 220px;
+    background: color-mix(in srgb, var(--topbar-bg) 90%, transparent);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px;
+    color: var(--topbar-text);
+    z-index: 1000;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    font-size: 0.85em;
+}
+
+.opponent-hud .hud-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+}
+
+.opponent-hud .stats-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+}
+
+.opponent-hud .hud-header .name {
+    font-weight: bold;
+    font-size: 1.05em;
+    margin-bottom: 2px;
+}
+
+.opponent-hud .stat-group.resources {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    color: var(--topbar-text);
+    font-size: 0.85em;
+}
+
+.opponent-hud .stat-group.deck {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    align-self: center;
+}
+
+.opponent-deck {
+    display: flex;
+    justify-content: space-between;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.opponent-inplay-preview {
+    z-index: 3000;
+    background: color-mix(in srgb, var(--topbar-bg) 60%, transparent);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    max-width: 300px;
+}
+
+.inplay-mini {
+    --card-width: 40px;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 2px;
+    max-width: 240px;
+    background: color-mix(in srgb, var(--topbar-bg) 20%, transparent);
+    border-radius: 4px;
+    min-height: 60px;
+    max-height: 120px;
+    overflow-y: auto;
+    padding: 4px;
+}
+
+.opponent-hud .deck-mini {
+    margin-top: 8px;
+    display: flex;
+    font-size: 0.8em;
+    opacity: 0.9;
+}
+
+.opponent-hud .token.mini {
+    width: 18px;
+    height: 18px;
+}
+
+.opponent-hud .coins.mini {
+    gap: 4px;
+    padding: 2px 6px;
+}
+
+.opponent-hud .icon.mini {
+    width: 12px;
+    height: 12px;
+}
