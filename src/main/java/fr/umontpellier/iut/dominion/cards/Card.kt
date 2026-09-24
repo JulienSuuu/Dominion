@@ -223,7 +223,6 @@ class Card(
 
     /**
      * Enregistre un composant.
-     * @param replace Si true (ex: pour SingleComponent), écrase la liste au lieu d'empiler.
      */
     inline fun <reified T : CardComponent> register(
         component: T,
@@ -508,27 +507,14 @@ class Card(
     fun replaceInSupply(revealed: Card): Boolean = this.hasSameNameAs(revealed) && replaceInSupply()
     fun replaceInSupply(): Boolean {
         if(getFlag("unable")) {
-            println("The card cant moved")
             return false
         }
-        val pile = supply ?: run {
-            println("The card do not have a pile")
-            return false
-        }
-        if(pile.supplyType == SupplyType.EMPTY) {
-            println("The pile is an empty pile")
-            return false
-        }
-        if(!pile.isFlagSet("inGame")) {
-            println("The flag was not flagset to true")
-            return false
-        }
-        if (pile.contains(this)) {
-            println("The pile contain the card")
-            return false
-        }
+        val pile = supply ?: return false
 
-        println("The card will be replaced to his pile")
+        if(pile.supplyType == SupplyType.EMPTY) return false
+        if(!pile.isFlagSet("inGame"))  return false
+        if (pile.contains(this))  return false
+
         pile.replace(this)
         return true
     }
@@ -558,15 +544,13 @@ class Card(
             """{
                 ${faceDown.toJson()},
                 "id": "hidden",
-                "name": "none",
+                "name": "hidden",
                 "type": "SHADOW"
             }""".trimIndent()
 
 
         else toJsonPlayer()
     }
-
-
 
     fun toJson(): String = """
     {

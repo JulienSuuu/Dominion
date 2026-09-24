@@ -15,6 +15,7 @@ import fr.umontpellier.iut.dominion.Player.PlayerComponent.PlayerInteractionStat
 import fr.umontpellier.iut.dominion.Player.PlayerComponent.PlayerInTurnState
 import fr.umontpellier.iut.dominion.Player.PlayerComponent.PlayerState
 import fr.umontpellier.iut.dominion.Player.PlayerComponent.PlayerTurnPhase
+import fr.umontpellier.iut.dominion.Player.PlayerComponent.PokerComponent
 import fr.umontpellier.iut.dominion.Player.PlayerComponent.PossessionComponent
 import fr.umontpellier.iut.dominion.Player.Tokens.Token
 import fr.umontpellier.iut.dominion.Properties
@@ -199,6 +200,7 @@ open class Player : Logger {
         if(game.hasType(CardType.NIGHT, 1)) addComponent(Night(self))
         if(game.hasCard("Possession")) addComponent(PossessionComponent(self))
         if(game.hasExpansion("Adventures", 1)) addComponent(TokenComponent(self))
+        if(game.hasType(CardType.POKER, 1)) addComponent(PokerComponent(self))
 
         listener()
     }

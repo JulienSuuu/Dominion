@@ -7,6 +7,7 @@ enum class Item {
     POTION,
     BUY,
     ACTION,
+    FISH,
     COIN_TOKEN_SHIP,
     VICTORY_TOKEN,
     ACTION_PLAYED,

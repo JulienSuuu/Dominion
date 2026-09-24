@@ -1,4 +1,3 @@
-**Date de rendu : 27 avril 2026 à 23h00**  
 
 ### Consignes pour le fork
 Les étapes à suivre par chaque équipe pour organiser correctement votre projet :

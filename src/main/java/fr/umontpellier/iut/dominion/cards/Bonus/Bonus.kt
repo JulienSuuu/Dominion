@@ -47,6 +47,7 @@ data class Bonus(
 
     fun <U : Logger> effect(): BiEffect<U, Card> = BiEffect{ logger, card -> logger.toPlayer().triggerEffect(EFFECT, card, this) }
 
+
     fun onDuration(): DurationComponent.Duration =
         DurationComponent.Duration{player, c -> player.triggerEffect(DURATION, c, this)}
 
@@ -84,6 +85,7 @@ data class Bonus(
         fun coffer(qty : Int = 1) = Bonus().with(Item.COFFER, qty)
         fun debt(qty: Int = 1) = Bonus().with(Item.DEBT, qty)
         fun victoryToken(qty: Int = 1) = Bonus().with(Item.VICTORY_TOKEN, qty)
+        fun fish(qty: Int = 1) = Bonus().with(Item.FISH, qty)
 
 
         val Money = money()
@@ -94,6 +96,7 @@ data class Bonus(
         val ActionAndDraw = action().draw()
         val enchantressEffect = ActionAndDraw
         val VictoryToken = victoryToken()
+        val FISH = fish()
 
 
     }
