@@ -85,7 +85,7 @@ object FutabaFactory {
         }
 
     @Dominion_Card(extension = "Futaba")
-    fun LukaMegurine() = Card.duration("Luka Megurine", Price.dominion(8)).addType(CardType.TREASURE)
+    fun LukaMegurine() = Card.duration("Luka Megurine", Price.dominion(8)).addType(CardType.TREASURE, CardType.FUTABA)
         .setup {
             onPlay(Bonus.FISH.onPlay().then { getFlag("EndTurn") += true })
             onDuration {
@@ -93,7 +93,7 @@ object FutabaFactory {
             }
         }
     @Dominion_Card(extension = "Futaba")
-    fun Maidtaba() = Card.action("Maidtaba", Price.dominion(5)).addType(CardType.REACTION)
+    fun Maidtaba() = Card.action("Maidtaba", Price.dominion(5)).addType(CardType.REACTION, CardType.FUTABA)
         .setup {
             simpleAction(Bonus.action(3))
             onCardPlayed {
