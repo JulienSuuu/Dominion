@@ -1,0 +1,238 @@
+/* ==========================================================================
+   EXTRA CARD SELECTION VIEW (JEUNE SORCIÈRE / PASSEUR)
+   ========================================================================== */
+
+.extra-card-overlay {
+    --overlay-bg: rgba(10, 8, 12, 0.85);
+    --modal-bg: var(--card-bg, #1a1625);
+    --modal-border-default: var(--border-color, #c5a059);
+    --modal-text-main: var(--text-primary, #ffffff);
+    --modal-text-muted: var(--text-secondary, #d1d5db);
+
+    --theme-accent: var(--accent-color, #c5a059);
+    --theme-border: var(--modal-border-default);
+    --theme-glow: rgba(197, 160, 89, 0.25);
+    --theme-title-color: var(--modal-text-main);
+    --theme-title-shadow: transparent;
+    --theme-subtitle-color: var(--modal-text-muted);
+
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    background: var(--overlay-bg);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    padding: clamp(0.5rem, 2vw, 1.5rem);
+    box-sizing: border-box;
+}
+
+/* --- Thème : Jeune Sorcière (Witch) --- */
+.extra-card-overlay .selection-modal.witch-theme {
+    --theme-accent: #8a2be2;
+    --theme-border: #8a2be2;
+    --theme-glow: rgba(138, 43, 226, 0.25);
+    --theme-title-color: #e0b0ff;
+    --theme-title-shadow: rgba(138, 43, 226, 0.5);
+    --theme-subtitle-color: #d8b4fe;
+}
+
+/* --- Thème : Passeur (Ferryman) --- */
+.extra-card-overlay .selection-modal.ferryman-theme {
+    --theme-accent: #20b2aa;
+    --theme-border: #20b2aa;
+    --theme-glow: rgba(32, 178, 170, 0.25);
+    --theme-title-color: #7fffd4;
+    --theme-title-shadow: rgba(32, 178, 170, 0.5);
+    --theme-subtitle-color: #a7f3d0;
+}
+
+/* ==========================================================================
+   CONTAINER & MODAL
+   ========================================================================== */
+
+.extra-card-overlay .selection-modal {
+    background: var(--modal-bg);
+    border: 3px solid var(--theme-border);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 88vw;
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6),
+    0 0 35px var(--theme-glow),
+    inset 0 0 15px var(--theme-glow);
+    overflow: hidden;
+    position: relative;
+    box-sizing: border-box;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* ==========================================================================
+   EN-TÊTE (HEADER)
+   ========================================================================== */
+
+.extra-card-overlay .modal-header {
+    padding: clamp(1rem, 2.5vw, 1.5rem) clamp(1rem, 3vw, 2rem) 1rem;
+    text-align: center;
+    background: rgba(0, 0, 0, 0.25);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+    flex-shrink: 0;
+}
+
+.extra-card-overlay .theme-icon-badge {
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.extra-card-overlay .modal-header h2 {
+    margin: 0;
+    font-size: clamp(1.4rem, 4vw, 2.2rem);
+    font-family: 'Crimson Text', serif;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--theme-title-color);
+    text-shadow: 0 0 10px var(--theme-title-shadow);
+    transition: color 0.3s ease, text-shadow 0.3s ease;
+}
+
+.extra-card-overlay .modal-header .subtitle {
+    margin: 0.4rem 0 0 0;
+    font-size: clamp(0.9rem, 2vw, 1.1rem);
+    color: var(--modal-text-muted);
+    font-style: italic;
+}
+
+/* ==========================================================================
+   ZONE DE SÉLECTION & GRILLE
+   ========================================================================== */
+
+.extra-card-overlay .selection-container.scrollable {
+    flex-grow: 1;
+    padding: clamp(1rem, 2.5vw, 1.5rem) clamp(1rem, 3vw, 2rem);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(1.2rem, 2.5vw, 2rem);
+}
+
+/* Scrollbar */
+.extra-card-overlay .selection-container.scrollable::-webkit-scrollbar {
+    width: 6px;
+}
+
+.extra-card-overlay .selection-container.scrollable::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+
+.extra-card-overlay .selection-container.scrollable::-webkit-scrollbar-thumb {
+    background: var(--theme-accent);
+    border-radius: 4px;
+}
+
+/* Groupes d'extensions */
+.extra-card-overlay .extension-group {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.extra-card-overlay .extension-title {
+    font-size: clamp(1.1rem, 2.5vw, 1.3rem);
+    font-family: 'Crimson Text', serif;
+    margin: 0;
+    padding-bottom: 0.4rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid var(--theme-accent);
+    color: var(--theme-subtitle-color);
+    transition: border-color 0.3s ease, color 0.3s ease;
+}
+
+.extra-card-overlay .count-tag {
+    font-size: 0.85rem;
+    opacity: 0.8;
+    font-family: sans-serif;
+    font-weight: normal;
+}
+
+/* Grille Responsive Fluide */
+.extra-card-overlay .selection-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(clamp(100px, 18vw, 130px), 1fr));
+    gap: clamp(0.75rem, 1.5vw, 1.25rem);
+    align-items: start;
+}
+
+.extra-card-overlay .card-item-wrapper {
+    cursor: pointer;
+    transition: transform 0.2s ease, filter 0.2s ease;
+    border-radius: 8px;
+}
+
+.extra-card-overlay .card-item-wrapper:hover {
+    transform: translateY(-5px) scale(1.03);
+    filter: drop-shadow(0 8px 15px rgba(0, 0, 0, 0.5));
+}
+
+.extra-card-overlay .card-item-wrapper:active {
+    transform: translateY(-1px) scale(0.98);
+}
+
+.extra-card-overlay .empty-options {
+    text-align: center;
+    color: var(--modal-text-muted);
+    font-style: italic;
+    padding: 3rem 0;
+}
+
+/* ==========================================================================
+   PIED DE PAGE (FOOTER)
+   ========================================================================== */
+
+.extra-card-overlay .modal-footer {
+    padding: 0.75rem 1.25rem;
+    text-align: center;
+    background: rgba(0, 0, 0, 0.35);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;
+}
+
+.extra-card-overlay .modal-footer small {
+    color: var(--modal-text-muted);
+    font-size: clamp(0.8rem, 1.8vw, 0.9rem);
+    font-style: italic;
+}
+
+/* ==========================================================================
+   MEDIA QUERIES (ADAPTATIONS SMARTPHONE & PETITS ÉCRANS)
+   ========================================================================== */
+
+@media (max-width: 600px) {
+    .extra-card-overlay .selection-modal {
+        border-width: 2px;
+        border-radius: 12px;
+    }
+
+    .extra-card-overlay .modal-header {
+        padding-top: 0.75rem;
+    }
+
+    .extra-card-overlay .selection-container.scrollable {
+        padding-inline: 0.75rem;
+    }
+
+    .extra-card-overlay .selection-grid {
+        grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
+        gap: 0.5rem;
+    }
+}

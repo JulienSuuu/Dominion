@@ -1,0 +1,91 @@
+.stat-item {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    font-family: 'Crimson Text', serif;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-item.clickable:hover {
+    border-color: var(--accent-color);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+}
+
+.stat-main-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.85rem 1rem;
+}
+
+.stat-item.clickable .stat-main-info {
+    cursor: pointer;
+}
+
+.stat-label-group {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.chevron {
+    font-size: 0.75rem;
+    color: var(--accent-color);
+    transition: transform 0.2s ease;
+    transform: rotate(90deg);
+}
+
+.chevron.open {
+    transform: rotate(180deg);
+}
+
+.stat-name {
+    font-size: 1rem;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.stat-count {
+    font-size: 1.15rem;
+    font-weight: bold;
+    color: var(--accent-color);
+}
+
+/* Liste de détails (Textuelle classique) */
+.stat-details-list {
+    list-style: none;
+    margin: 0;
+    padding: 0.6rem 1rem 0.8rem 2.2rem;
+    background: rgba(0, 0, 0, 0.12);
+    border-top: 1px solid var(--border-color);
+}
+
+.stat-detail-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.35rem 0;
+    font-size: 0.9rem;
+    border-bottom: 1px dashed var(--border-color);
+}
+
+.stat-detail-item:last-child {
+    border-bottom: none;
+}
+
+.item-name {
+    color: var(--text-secondary);
+}
+
+.item-count {
+    color: var(--accent-color);
+    font-weight: bold;
+}
+
+.stat-details-list.cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 0.6rem;
+    padding: 0.8rem;
+}

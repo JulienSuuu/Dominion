@@ -1,0 +1,219 @@
+/* Overlay & Centrage */
+.inventory-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(4px);
+    padding: 1rem;
+}
+
+/* Conteneur Global */
+.inventory-container {
+    position: relative;
+    width: 100%;
+    max-width: 36rem;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Barre d'onglets supérieurs (Directement fusionnée au modal) */
+.inventory-top-extension {
+    display: flex;
+    gap: 0.35rem;
+    padding-left: 0.75rem;
+    z-index: 3;
+    margin-bottom: -2px; /* Chevauchement exact avec la bordure du modal */
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+/* Style de base des onglets */
+.inventory-ext-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1.1rem;
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-radius: 0.6rem 0.6rem 0 0;
+    border: 2px solid var(--border-color);
+    background-color: var(--topbar-bg);
+    color: var(--topbar-text);
+    cursor: pointer;
+    opacity: 0.65;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+    user-select: none;
+}
+
+.inventory-ext-btn:hover {
+    opacity: 0.95;
+    background-color: var(--button-primary-hover);
+    color: var(--button-primary-text);
+}
+
+/* Onglet ACTIF : Fusion propre sans barre rapportée */
+.inventory-ext-btn.active {
+    opacity: 1;
+    background-color: var(--card-bg);
+    color: var(--accent-color);
+    border-color: var(--border-color);
+    border-bottom-color: var(--card-bg); /* Efface le trait supérieur du modal */
+    box-shadow: 0 -3px 8px rgba(0, 0, 0, 0.25);
+    z-index: 4;
+}
+
+/* Modale Principale */
+.inventory-modal {
+    position: relative;
+    width: 100%;
+    max-height: 80dvh;
+    padding: 1.25rem;
+    background: var(--card-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 0 0.75rem 0.75rem 0.75rem;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    color: var(--text-primary);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    overflow: hidden;
+    z-index: 2;
+}
+
+/* En-tête */
+.inventory-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.inventory-title {
+    font-size: 1.25rem;
+    font-weight: 900;
+    color: var(--accent-color);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.inventory-close-btn {
+    padding: 0.25rem 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    background-color: var(--button-primary);
+    color: var(--button-primary-text);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.inventory-close-btn:hover {
+    background-color: var(--button-primary-hover);
+}
+
+.inventory-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.75rem;
+    background-color: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+}
+
+.inventory-footer {
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.inventory-kbd {
+    padding: 0.125rem 0.375rem;
+    background-color: var(--topbar-bg);
+    color: var(--topbar-text);
+    border: 1px solid var(--border-color);
+    border-radius: 0.25rem;
+    font-family: monospace;
+}
+
+.inventory-ext-btn.active {
+    position: relative;
+    opacity: 1;
+    background-color: var(--card-bg);
+    color: var(--accent-color);
+    border-color: var(--border-color);
+    border-bottom-color: var(--card-bg);
+    box-shadow: 0 -3px 12px rgba(0, 0, 0, 0.25),
+    0 0 15px var(--accent-color, rgba(255, 255, 255, 0.15));
+    z-index: 4;
+    overflow: hidden;
+}
+
+.inventory-ext-btn.active::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -150%;
+    width: 100%;
+    height: 200%;
+    background: linear-gradient(
+            60deg,
+            transparent 30%,
+            rgba(255, 255, 255, 0.25) 50%,
+            transparent 70%
+    );
+    transform: rotate(25deg);
+    animation: tabShine 3.5s infinite ease-in-out;
+    pointer-events: none;
+}
+
+@keyframes tabShine {
+    0% {
+        left: -150%;
+    }
+    20% {
+        left: 150%;
+    }
+    100% {
+        left: 150%;
+    }
+}
+
+/* Adaptations Écrans Mobiles */
+@media (max-width: 640px) {
+    .inventory-top-extension {
+        padding-left: 0.5rem;
+    }
+
+    .inventory-ext-btn {
+        padding: 0.35rem 0.7rem;
+        font-size: 0.68rem;
+    }
+
+    .inventory-modal {
+        padding: 0.85rem;
+        max-height: 85dvh;
+        border-radius: 0 0.5rem 0.5rem 0.5rem;
+    }
+
+    .inventory-title {
+        font-size: 1rem;
+    }
+
+    .inventory-footer {
+        font-size: 0.65rem;
+    }
+}
