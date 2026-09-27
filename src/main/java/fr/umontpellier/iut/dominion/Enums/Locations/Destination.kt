@@ -6,9 +6,9 @@ sealed class Destination(val name: String) {
     object Supply : Destination("SUPPLY")
 
     sealed class NocturneZone(name : String) : Destination(name) {
-        object Hex : NocturneZone("Hex")
-        object Boons : NocturneZone("Boons")
-        object Druid : NocturneZone("Druid")
+        object Hex : NocturneZone("HEX")
+        object Boons : NocturneZone("BOONS")
+        object Druid : NocturneZone("DRUID")
     }
     override fun toString(): String = name.lowercase()
 
