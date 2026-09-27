@@ -154,6 +154,10 @@ class NocturneRules(val game : Game) : GameComponent {
         }
     }
 
+    override fun getAllSupply(): List<SupplyPile> {
+        return nocturnePile.values + othersPile.values.flatten()
+    }
+
     /** Récupère la liste de tous les États physiques possédés par un joueur */
     fun underStates(player: Player): List<State> {
         return stateOwners.filterValues { it == player }.keys.toList()

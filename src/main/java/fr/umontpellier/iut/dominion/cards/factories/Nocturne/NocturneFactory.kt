@@ -102,6 +102,7 @@ object NocturneFactory {
 
     fun Cemetery() = Card.victory("Cemetery", Price.night(4))
         .setup {
+            withHeirLoom("Haunted Mirror")
             score { 2 }
             checkGain{event, _ -> event.player.trash(4) }
         }
@@ -273,6 +274,7 @@ object NocturneFactory {
 
     fun fool() = Card.night("Fool", Price.night(3))
         .setup {
+            withHeirLoom("Lucky Coin")
             onPlay(BiEffect.empty<Player, Card>()
                 .filter { player, _ -> !player.underState("Lost In The Woods") }
                 .so { player -> player.game.receiveState(player, "Lost In The Woods") }
@@ -398,6 +400,7 @@ object NocturneFactory {
 
     fun Pixie() = Card.action("Pixie", Price.night(2)).addType(CardType.FATE)
         .setup {
+            withHeirLoom("Goat")
             onPlay(Bonus.ActionAndDraw.onPlay()
                 .lookingAt { player, _ -> player.game.receiveNextBoon() }
                 .filterNotNull()
@@ -420,6 +423,7 @@ object NocturneFactory {
 
     fun Pooka() = Card.action("Pooka", Price.night(5))
         .setup {
+            withHeirLoom("Cursed Gold")
             onPlay(BiEffect.empty<Player, Card>()
                 .trashCardFromHand(canPass = true, filter = {! it.hasType(CardType.TREASURE) && it.hasName("Cursed Gold")}, extraInstruction = "treasure (other than Cursed Gold)" )
                 .thenWith { player, _ -> player.draw(4) }
@@ -480,6 +484,7 @@ object NocturneFactory {
 
     fun SecretCave() = Card.action("Secret Cave", Price.night(3)).addType(CardType.DURATION)
         .setup {
+            withHeirLoom("Magic Lamp")
             onPlay(Bonus.ActionAndDraw.onPlay()
                 .then {player, card ->
                     player.discardAndDo(
@@ -499,6 +504,7 @@ object NocturneFactory {
 
     fun Shepherd() = Card.action("Shepherd", Price.night(4))
         .setup {
+            withHeirLoom("Pasture")
             onPlay(Bonus.Action.onPlay()
                 .then {player, _ ->
                     player.discardUntilYouStopAndDo(
@@ -549,6 +555,7 @@ object NocturneFactory {
 
     fun Tracker() = Card.action("Tracker", Price.night(2)).addType(CardType.FATE)
         .setup {
+            withHeirLoom("Pouch")
             onPlay(Bonus.Money.onPlay()
                     then {
                         player, card -> player.addCardEffect(card)

@@ -36,6 +36,7 @@ import fr.umontpellier.iut.dominion.cards.component.CardSelector
 import fr.umontpellier.iut.dominion.cards.component.EventLink
 import fr.umontpellier.iut.dominion.cards.component.OnSetup
 import fr.umontpellier.iut.dominion.cards.component.TriggerComponent
+import fr.umontpellier.iut.dominion.cards.component.createHeirloom
 import fr.umontpellier.iut.dominion.cards.factories.Cornucopia_Guilds.CornucopiaRules
 import fr.umontpellier.iut.dominion.cards.factories.DA
 import fr.umontpellier.iut.dominion.cards.factories.Empires.EmpiresRules
@@ -78,6 +79,7 @@ import kotlin.reflect.KClass
 
 import java.util.WeakHashMap
 import java.util.Collections
+import kotlin.collections.flatten
 
 class ShadowKey private constructor(
     val shadowId: Id,
@@ -385,6 +387,11 @@ open class Game(
         }
 
         return pile?.popCard()
+    }
+
+    fun getHeirloomsForGame(game: Game): List<Card> {
+        return game.supplyPiles.values
+            .mapNotNull { it.popCard()?.createHeirloom() }
     }
 
     val eventCards : List<Card>
@@ -695,7 +702,15 @@ open class Game(
         return pile?.verifyName(cardName) ?: false
     }
 
-    val allSupply get() = supplyPiles.values + asideSupplyPiles.values.flatten() + events
+    val allSupply: List<SupplyPile>
+        get() = sequence {
+            yieldAll(supplyPiles.values)
+            yieldAll(asideSupplyPiles.values.flatten())
+            yieldAll(events)
+            components.values.forEach { component ->
+                yieldAll(component.getAllSupply())
+            }
+        }.toList()
 
 
     fun getNamedCardsThisTurn(key : String) : ObservableList<String> = namedCards.computeIfAbsent(key, { FXCollections.observableArrayList() })

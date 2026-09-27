@@ -124,6 +124,10 @@ class CardConfigurator(val scope: Card) {
         return this
     }
 
+    fun withHeirLoom(nameCard : String){
+        scope.register(HeirloomComponent(nameCard))
+    }
+
     infix fun afterCardPlayed(builder : Build<AfterCardPlayed>): CardConfigurator {
         build(builder)
         return this

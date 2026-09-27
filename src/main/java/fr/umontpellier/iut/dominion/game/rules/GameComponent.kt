@@ -1,3 +1,7 @@
 package fr.umontpellier.iut.dominion.game.rules
 
-interface GameComponent {}
+import fr.umontpellier.iut.dominion.Supply.SupplyPile
+
+interface GameComponent {
+    fun getAllSupply() : List<SupplyPile> = emptyList()
+}

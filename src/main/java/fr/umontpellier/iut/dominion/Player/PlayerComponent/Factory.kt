@@ -3,6 +3,7 @@ package fr.umontpellier.iut.dominion.Player.PlayerComponent
 import fr.umontpellier.iut.dominion.CardType
 import fr.umontpellier.iut.dominion.Enums.Locations.Destination
 import fr.umontpellier.iut.dominion.Player.Player
+import fr.umontpellier.iut.dominion.Supply.EmptySupply.game
 import fr.umontpellier.iut.dominion.cards.factories.FactorySupplyPile
 import fr.umontpellier.iut.dominion.game.Game
 
@@ -89,7 +90,15 @@ object Factory {
             repeat(3) { player.getCardFromSupply("Estate")?.moveTo(discardZone, Destination.PlayerZone.Discard) }
         }
 
-        repeat(7){ player.getCardFromSupply("Copper")?.moveTo(discardZone, Destination.PlayerZone.Discard) }
+        val heirlooms = player.game.getHeirloomsForGame(player.game)
+        heirlooms.forEach { card ->
+            card.moveTo(discardZone, Destination.PlayerZone.Discard)
+        }
+
+        val nbCopper = 7 - heirlooms.size
+        repeat(nbCopper) {
+            player.getCardFromSupply("Copper")?.moveTo(discardZone, Destination.PlayerZone.Discard)
+        }
     }
 
 
