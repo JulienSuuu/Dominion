@@ -136,21 +136,28 @@ function Player({
             <div id="interaction-container">
                 {choices.mode === false && instruction && (
                     <div className="instruction">
-                        <div>{instruction}</div>
-                        <div className="buttons">
+                        <span>{instruction}</span>
+
+                        <div className="actions-group">
+                            {/* Boutons d'action contextuels (ex: POKER) */}
                             {buttons.map((button, index) => (
-                                <button key={index} onClick={() => sendMessage(JSON.stringify({gameAction: "BUTTON", message : `BUTTON:${button.value}`}))}>
+                                <button
+                                    key={index}
+                                    className="btn-custom-action"
+                                    onClick={() => sendMessage(JSON.stringify({ gameAction: "BUTTON", message: `BUTTON:${button.value}` }))}
+                                >
                                     {button.label}
                                 </button>
                             ))}
-                            <div className="buttons">
-                                <button
-                                    onClick={() => sendMessage(JSON.stringify({gameAction: "PASS", message : ""}))}
-                                    disabled={!playerChoice.includes("")}
-                                >
-                                    Pass
-                                </button>
-                            </div>
+
+                            {/* Bouton Pass toujours à la fin */}
+                            <button
+                                className="btn-pass"
+                                onClick={() => sendMessage(JSON.stringify({ gameAction: "PASS", message: "" }))}
+                                disabled={!playerChoice.includes("")}
+                            >
+                                Pass
+                            </button>
                         </div>
                     </div>
                 )}

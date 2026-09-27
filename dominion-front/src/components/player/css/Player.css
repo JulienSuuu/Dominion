@@ -30,6 +30,8 @@
     pointer-events: auto;
 }
 
+
+
 /* =========================================================
    2. HUD HAUT (Nom, Ressources & Draw/Discard)
    ========================================================= */
@@ -140,80 +142,142 @@ body:has(.shop-sliding-panel.open) #interaction-container {
     white-space: nowrap;
 }
 
-/* =========================================================
-   CONSIGNE & ACTIONS (ATTACHÉ SOUS LE BANDEAU HAUT)
-   ========================================================= */
-
-/* 1. Le conteneur parent positionné au centre sous la barre haut */
+/* ==========================================================================
+   1. CONTENEUR PRINCIPAL (FIXÉ ET CENTRÉ)
+   ========================================================================== */
 #interaction-container {
-    position: fixed !important;
-    top: 120px;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
-    z-index: 1200 !important;
-    pointer-events: auto !important;
-    width: max-content !important;
-    min-height: auto !important;
-    margin: 0 !important;
-    transition: top 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    position: fixed;
+    top: 17vh;
+    left: 50vw;
+    transform: translateX(-50%);
+    z-index: 1200;
+    pointer-events: auto;
+    width: auto;
+    max-width: 90vw;
+    min-height: auto;
+    margin: 0;
+    transition: top 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* 2. Le bloc d'instruction */
+/* ==========================================================================
+   2. BLOC D'INSTRUCTION (BARRE DE NAVIGATION/ACTION)
+   ========================================================================== */
 .instruction {
-    position: relative !important;
-    top: 0 !important;
-    left: 0 !important;
-    transform: none !important;
-    margin: 0 !important;
+    position: relative;
+    top: 0;
+    left: 0;
+    transform: none;
+    margin: 0;
 
-    display: flex !important;
-    align-items: center !important;
-    gap: 12px !important;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
 
-    background: color-mix(in srgb, var(--card-bg) 98%, transparent) !important;
-    backdrop-filter: blur(4px);
-    border: 2px solid var(--border-color) !important;
-    border-top: none !important;
-    border-radius: 0 0 10px 10px !important;
-    padding: 8px 20px !important;
-    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.5) !important;
-    color: var(--text-primary) !important;
-    font-weight: 700 !important;
-    white-space: nowrap !important;
+    background: color-mix(in srgb, var(--card-bg) 98%, transparent);
+    backdrop-filter: blur(8px);
+    border: 2px solid var(--border-color);
+    border-top: none;
+    border-radius: 0 0 12px 12px;
+    padding: 8px 18px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+    font-weight: 700;
 
-    transition: border-radius 0.35s ease, border-top 0.35s ease !important;
+    transition: all 0.35s ease;
+}
+
+.instruction > span {
+    white-space: nowrap;
+    letter-spacing: 0.3px;
+    font-size: 0.95rem;
 }
 
 body:has(.shop-sliding-panel.open) .instruction {
-    border-top: 2px solid var(--border-color) !important;
-    border-radius: 10px !important;
+    border-top: 2px solid var(--border-color);
+    border-radius: 12px;
 }
 
-/* 3. Style des boutons d'action */
-.instruction button,
-.instruction input[type="button"],
-button.pass-btn {
+/* ==========================================================================
+   3. GROUPE DE BOUTONS
+   ========================================================================== */
+.actions-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+/* ==========================================================================
+   4. STYLES DES BOUTONS (ACTIONS & PASS)
+   ========================================================================== */
+.instruction button {
     background: linear-gradient(
             180deg,
             var(--button-primary-hover) 0%,
             var(--button-primary) 100%
-    ) !important;
-    border: 1px solid color-mix(in srgb, var(--button-primary-hover) 70%, #ffffff) !important;
-    border-radius: 6px !important;
-    color: var(--button-primary-text) !important;
-    font-weight: 900 !important;
-    padding: 6px 16px !important;
-    text-transform: uppercase !important;
-    cursor: pointer !important;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.4) !important;
-    transition: all 0.15s ease !important;
+    );
+    border: 1px solid color-mix(in srgb, var(--button-primary-hover) 70%, #ffffff);
+    border-radius: 6px;
+    color: var(--button-primary-text);
+    font-weight: 800;
+    font-size: 0.85rem;
+    padding: 6px 14px;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
 }
 
-.instruction button:hover,
-.instruction input[type="button"]:hover,
-button.pass-btn:hover {
-    transform: translateY(-2px) scale(1.05) !important;
-    filter: brightness(1.2) !important;
+.instruction button:hover:not(:disabled) {
+    transform: translateY(-2px) scale(1.03);
+    filter: brightness(1.2);
+    box-shadow: 0 5px 12px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.instruction button:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+}
+
+.btn-pass {
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* État Désactivé (ex: Pass bloqué) */
+.instruction button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    filter: grayscale(0.8);
+    box-shadow: none;
+    transform: none;
+}
+
+/* ==========================================================================
+   5. RESPONSIVE DESIGN (MAINTIENT L'ALIGNEMENT HORIZONTAL)
+   ========================================================================== */
+@media (max-width: 780px) {
+    #interaction-container {
+        max-width: 96vw;
+    }
+
+    .instruction {
+        padding: 6px 12px;
+        gap: 8px;
+    }
+
+    .instruction > span {
+        font-size: 0.85rem;
+    }
+
+    .actions-group {
+        gap: 6px;
+    }
+
+    .instruction button {
+        padding: 5px 10px;
+        font-size: 0.80rem;
+    }
 }
 
 /* =========================================================
@@ -305,3 +369,5 @@ button.pass-btn:hover {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
 }
+
+
