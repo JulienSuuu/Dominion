@@ -3,6 +3,7 @@ package fr.umontpellier.iut.dominion.Player.PlayerComponent
 import fr.umontpellier.iut.dominion.CardType
 import fr.umontpellier.iut.dominion.Enums.Locations.Destination
 import fr.umontpellier.iut.dominion.Player.Player
+import fr.umontpellier.iut.dominion.cards.factories.FactorySupplyPile
 import fr.umontpellier.iut.dominion.game.Game
 
 object Factory {
@@ -76,6 +77,20 @@ object Factory {
             factory = {it.addSet(Destination.PlayerZone.NocturneZone.Hex) }
         ),
     )
+
+
+    fun createStartingDeck(player: Player, useShelters: Boolean) {
+        val discardZone = player.get(Destination.PlayerZone.Discard)
+        if (useShelters) {
+            listOf("Hovel", "Necropolis", "Overgrown Estate").forEach { cardName ->
+                FactorySupplyPile.createNewCard(cardName)?.moveTo(discardZone, Destination.PlayerZone.Discard)
+            }
+        } else {
+            repeat(3) { player.getCardFromSupply("Estate")?.moveTo(discardZone, Destination.PlayerZone.Discard) }
+        }
+
+        repeat(7){ player.getCardFromSupply("Copper")?.moveTo(discardZone, Destination.PlayerZone.Discard) }
+    }
 
 
     fun initializePlayer(player : Player) {

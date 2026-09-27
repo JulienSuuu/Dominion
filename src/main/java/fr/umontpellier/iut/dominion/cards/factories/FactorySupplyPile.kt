@@ -298,6 +298,10 @@ fun shouldEnableSpecialty(kingdom: List<String>, targetExtension: String, thresh
 }
 
 fun createCard(name: String): Card? = registry[name]
+
+    fun createNewCard(name : String) : Card? = pileConfigs[name]?.cardSupplier?.invoke()
+
+
 }
 
 fun <T> List<T>.countMax(threshold: Int, predicate: (T) -> Boolean): Boolean {

@@ -32,6 +32,7 @@ import fr.umontpellier.iut.dominion.Player.PlayerComponent.updateTokenFlag
 import fr.umontpellier.iut.dominion.Player.Skills.choose
 import fr.umontpellier.iut.dominion.Player.Skills.chooseOrder
 import fr.umontpellier.iut.dominion.Player.Skills.computeChoices
+import fr.umontpellier.iut.dominion.Player.Skills.draw
 import fr.umontpellier.iut.dominion.Player.Skills.handleActionPhase
 import fr.umontpellier.iut.dominion.Player.Skills.handleStartBuyPhase
 import fr.umontpellier.iut.dominion.Player.Skills.handleStartTurn
@@ -146,39 +147,21 @@ open class Player : Logger {
         this.playerScope = game.gameScope
         shadowKey = ShadowKey.get(Id("${name}-$id"))
 
-        Item.entries.forEach { item ->
-            items[item] = MutableStateFlow(0)
-        }
+        Item.entries.forEach { item -> items[item] = MutableStateFlow(0) }
 
         Factory.initializePlayer(self)
 
-        if (request) {
-            FactorySupplyPile.createCard("Hovel")?.moveTo(get(Destination.PlayerZone.Discard), Destination.PlayerZone.Discard)
-            FactorySupplyPile.createCard("Necropolis")?.moveTo(get(Destination.PlayerZone.Discard), Destination.PlayerZone.Discard)
-            FactorySupplyPile.createCard("Overgrown Estate")?.moveTo(get(Destination.PlayerZone.Discard), Destination.PlayerZone.Discard)
-        } else {
-            repeat(3) {
-                getCardFromSupply("Estate")?.moveTo(get(Destination.PlayerZone.Discard), Destination.PlayerZone.Discard)
-            }
-        }
+        Factory.createStartingDeck(self, request)
 
+        startingHand()
+        listener()
+    }
 
-        if(game.hasType(CardType.NIGHT, 1)) {
-
-        }
-        else {
-            repeat(7) {
-                getCardFromSupply("Copper")?.moveTo(get(Destination.PlayerZone.Discard), Destination.PlayerZone.Discard)
-            }
-        }
-
+    private fun startingHand(){
         shuffle()
-
         repeat(5){
             getList(Destination.PlayerZone.Draw).last().moveTo(get(Destination.PlayerZone.Hand), Destination.PlayerZone.Hand)
         }
-
-        listener()
     }
 
     fun addComponent(component: PlayerComponent) {
