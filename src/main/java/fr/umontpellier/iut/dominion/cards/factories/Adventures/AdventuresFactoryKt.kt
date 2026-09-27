@@ -10,6 +10,7 @@ import fr.umontpellier.iut.dominion.Player.PlayerComponent.cardGainedLastTurn
 import fr.umontpellier.iut.dominion.Player.PlayerComponent.flipJourneyToken
 import fr.umontpellier.iut.dominion.Player.PlayerComponent.getToken
 import fr.umontpellier.iut.dominion.Player.PlayerComponent.getTokenFlag
+import fr.umontpellier.iut.dominion.Player.PlayerComponent.prepareMission
 import fr.umontpellier.iut.dominion.Player.PlayerComponent.setToken
 import fr.umontpellier.iut.dominion.Player.PlayerComponent.updateTokenFlag
 import fr.umontpellier.iut.dominion.Player.Skills.chooseToken
@@ -735,11 +736,9 @@ object AdventuresFactoryKt {
         }
     @Dominion_Card(extension = "Adventures", pileType = PileType.EVENT)
     fun Mission() = Card.event("Mission", Price.adventure(4))
-        .setup {
-            checkItselfBuy{event, _ ->
-                event.player.getPersistentFlag(Flags.expedition) += true
-                event.player.addNextTurnEffect { getFlag(Flags.expedition) += true }}
-        }
+        .setup { checkItselfBuy{event, _ -> event.player.prepareMission() } }
+
+
     @Dominion_Card(extension = "Adventures", pileType = PileType.EVENT)
     fun Pathfinding() = Card.event("Pathfinding", Price.adventure(8))
         .setup {

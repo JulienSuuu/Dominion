@@ -2,10 +2,13 @@ package fr.umontpellier.iut.dominion.Player.Skills
 
 import fr.umontpellier.iut.dominion.CardType
 import fr.umontpellier.iut.dominion.Enums.Locations.Destination
-import fr.umontpellier.iut.dominion.Flags
 import fr.umontpellier.iut.dominion.Player.Player
 import fr.umontpellier.iut.dominion.Player.PlayerComponent.activeEffect
+import fr.umontpellier.iut.dominion.Player.PlayerComponent.goInMission
 import fr.umontpellier.iut.dominion.Player.PlayerComponent.mustConductPossessedTurn
+import fr.umontpellier.iut.dominion.Player.PlayerComponent.quitMission
+import fr.umontpellier.iut.dominion.Player.PlayerComponent.shouldPrepareMission
+import fr.umontpellier.iut.dominion.Player.PlayerComponent.updateMissionRestriction
 import fr.umontpellier.iut.dominion.Player.PlayerComponent.updatePossession
 import fr.umontpellier.iut.dominion.cards.Card
 import fr.umontpellier.iut.dominion.cards.Events.Event
@@ -16,7 +19,6 @@ import fr.umontpellier.iut.dominion.cards.component.DurationComponent
 import fr.umontpellier.iut.dominion.cards.component.ExtraTurnComponent
 import fr.umontpellier.iut.dominion.cards.component.Follower
 import fr.umontpellier.iut.dominion.cards.component.TriggerComponent
-import fr.umontpellier.iut.dominion.cards.moveTo
 
 suspend fun  Player.triggerDurationCards(){
     val listInPlay = getCopyOf(Destination.PlayerZone.InPlay) ?: emptyList()
@@ -56,7 +58,7 @@ suspend fun  Player.triggerDurationCards(){
     }
 }
 
-inline suspend fun <reified T> Player.triggerActiveEffect(event: Event) where T : TriggerComponent, T: suspend (Player, TriggerEvent) -> Unit {
+suspend inline fun <reified T> Player.triggerActiveEffect(event: Event) where T : TriggerComponent, T: suspend (Player, TriggerEvent) -> Unit {
     chooseOrder<T>("active effects in any order", {activeEffect}, event = event) {card ->
         card.getComponent<T>()?.let {
             val triggerEvent = TriggerEvent(event)
@@ -117,11 +119,9 @@ fun Player.triggerAnotherTurn() : Boolean {
 
     if (mustConductPossessedTurn) { return updatePossession() }
 
-    val prop = getPersistentFlag(Flags.expedition)
-
-    if (prop.value) {
+    if (shouldPrepareMission) {
         isSecondTurn = true
-        prop.value = false
+        goInMission()
         return true
     }
 

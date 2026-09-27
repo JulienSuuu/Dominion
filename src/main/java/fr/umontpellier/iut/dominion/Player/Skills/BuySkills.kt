@@ -40,11 +40,7 @@ fun Player.canBuy(card: Card): Boolean {
     if (!card.available(self)) return false
     if (!hasEnoughResourcesFor(card)) return false
 
-    val isContraband = card.name in game.getNamedCardsThisTurn("contraband")
-    val isDeludedAction = card.hasType(CardType.ACTION) && isFlagSet("Deluded")
-    val isExpeditionRestricted = !card.hasType(CardType.EVENT) && getFlag(Flags.expedition).value
-
-    return !isContraband && !isDeludedAction && !isExpeditionRestricted
+    return playerComponent.values.all { component -> component.canBuy(card) }
 }
 
 private data class OverPaidResources(val cofferUsed: Int, val potionUsed : Int)

@@ -76,9 +76,10 @@ suspend fun Player.gain(card: Card?, dest: Destination? = Destination.PlayerZone
         }
     }
 
-    triggerEvent<AfterPlayerGain>(triggerEvent)
     triggerPlayerTavern<AfterPlayerGain>(triggerEvent)
+    triggerEvent<AfterPlayerGain>(triggerEvent)
     triggerActiveEffect<SideEffectGain>(triggerEvent)
+
     game.fireEvent<OnGainEvent>(OnGainEvent(triggerEvent))
 
     updateNumberOfBought()

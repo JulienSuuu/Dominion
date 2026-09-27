@@ -9,7 +9,7 @@ class TurnHistoryComponent(private val self: Player) : PlayerComponent {
     internal val cardGainedCurrentTurn = mutableListOf<Card>()
     internal val activeEffect = mutableListOf<Card>()
 
-    override fun reset() {
+    override fun onCleanUp() {
         cardGainedLastTurn.clear()
         cardGainedLastTurn.addAll(cardGainedCurrentTurn)
         cardGainedCurrentTurn.clear()

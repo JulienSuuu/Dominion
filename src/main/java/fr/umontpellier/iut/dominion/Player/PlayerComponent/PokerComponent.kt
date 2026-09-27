@@ -13,10 +13,6 @@ class PokerComponent(val self : Player) : PlayerComponent {
         if (self.state.value.turnPhase != PlayerTurnPhase.ActionPhase) return
 
         val currentHand = self.getList(Destination.PlayerZone.Hand)
-        val hasReactionCard = currentHand.any { it.hasComponent<PokerHandReactionComponent>() }
-
-        if (!hasReactionCard || currentHand.size < 5) return
-
         val evaluatedHand = PokerHandEvaluator.bestHand(currentHand) ?: return
 
         self.chooseOrder<PokerHandReactionComponent>(
@@ -28,6 +24,14 @@ class PokerComponent(val self : Player) : PlayerComponent {
             chosenCard.getComponent<PokerHandReactionComponent>()?.invoke(self, evaluatedHand)
         }
     }
+
+    fun canEvaluatePokerHand() : Boolean {
+        if (self.state.value.turnPhase != PlayerTurnPhase.ActionPhase) return false
+        val currentHand = self.getList(Destination.PlayerZone.Hand)
+        val hasReactionCard = currentHand.any { it.hasComponent<PokerHandReactionComponent>() }
+        return hasReactionCard && currentHand.size >= 5
+    }
 }
 
-suspend fun Player.checkPokerReaction(){getComponent<PokerComponent>()?.checkPokerReaction()}
+suspend fun Player.doPoker(){getComponent<PokerComponent>()?.checkPokerReaction()}
+fun Player.canEvaluatePokerHand() = getComponent<PokerComponent>()?.canEvaluatePokerHand() ?: false

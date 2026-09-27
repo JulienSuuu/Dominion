@@ -8,11 +8,12 @@ import fr.umontpellier.iut.dominion.Player.Player
 import fr.umontpellier.iut.dominion.Player.PlayerComponent.PlayerComponent
 import fr.umontpellier.iut.dominion.Player.PlayerComponent.PlayerInTurnState
 import fr.umontpellier.iut.dominion.Player.PlayerComponent.PlayerTurnPhase
+import fr.umontpellier.iut.dominion.Player.PlayerComponent.canEvaluatePokerHand
 import fr.umontpellier.iut.dominion.cards.Card
 import fr.umontpellier.iut.dominion.cards.Events.Event
 import fr.umontpellier.iut.dominion.cards.component.TriggerComponent
 import fr.umontpellier.iut.dominion.Player.PlayerComponent.checkPlayToken
-import fr.umontpellier.iut.dominion.Player.PlayerComponent.checkPokerReaction
+import fr.umontpellier.iut.dominion.Player.PlayerComponent.doPoker
 import fr.umontpellier.iut.dominion.cards.Events.PokerEvent
 import fr.umontpellier.iut.dominion.cards.component.PokerHandReactionComponent
 import fr.umontpellier.iut.dominion.cards.factories.Futaba.PokerHandEvaluator
@@ -89,9 +90,6 @@ fun Player.handleActionPhase() {
 
 suspend fun Player.playTurn(){
     while (!turnWasEnded){
-
-        checkPokerReaction()
-
         val choice = chooseYourChoice().takeIf { it.isNotBlank() } ?: break
         val (type, value) = splitChoice(choice)
 
@@ -116,10 +114,11 @@ private suspend fun Player.triggerEndBuyPhases(){
     triggerPlayerAndCardTavern<TriggerComponent.OnEndBuy>(Event(self))
 }
 
-private fun Player.doButtonAction(action : String){
+private suspend fun Player.doButtonAction(action : String){
     when(action){
         "COFFER" -> useCoffer()
         "DEBT" -> repayDebt()
+        "POKER" -> doPoker()
     }
 }
 
@@ -161,6 +160,10 @@ private fun Player.computeButtons() : MutableList<Button>{
 
     if(getValueOf(Item.COFFER)>0){
         buttons.add(Button("Coffer (${getValueOf(Item.COFFER)})", "COFFER"))
+    }
+
+    if(canEvaluatePokerHand()){
+        buttons.add(Button("Poker", "POKER"))
     }
 
     return buttons

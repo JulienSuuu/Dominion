@@ -16,7 +16,7 @@ open class AppDominion: CommandLineRunner {
     override fun run(vararg args: String): Unit = runBlocking {
         FactorySupplyPile.loadAllCards()
 
-        println("--- Serveur Dominion (Engine + Spring Boot REST/WS) Démarré ---")
+        println("--- Serveur Dominion (Engine + Spring Boot WS) Démarré ---")
         awaitCancellation()
     }
 

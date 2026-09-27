@@ -5,6 +5,7 @@ import fr.umontpellier.iut.dominion.Annotation.Dominion_Card
 import fr.umontpellier.iut.dominion.Annotation.PileType
 import fr.umontpellier.iut.dominion.CardType
 import fr.umontpellier.iut.dominion.Item
+import fr.umontpellier.iut.dominion.Player.PlayerComponent.isEnvious
 import fr.umontpellier.iut.dominion.cards.Bonus.Bonus
 import fr.umontpellier.iut.dominion.cards.Bonus.MutableBonus
 import fr.umontpellier.iut.dominion.cards.Card
@@ -23,7 +24,7 @@ object CommonFactory {
 
     fun createTreasureEnvious(name : String, cost :Int, currentValue:Int) : Card {
         val bonus = MutableBonus().with(Item.MONEY){player, _ ->
-            if(player.isFlagSet("Envious")) 1 else currentValue
+            if(player.isEnvious) 1 else currentValue
         }
         return Card.treasure(name, Price.dominion(cost))
             .setup { simpleAction(bonus) }

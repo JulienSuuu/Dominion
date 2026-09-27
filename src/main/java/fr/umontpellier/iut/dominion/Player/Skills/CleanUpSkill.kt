@@ -38,6 +38,7 @@ suspend fun Player.cleanup(){
     triggerEndTurnEffect()
 
     drawBonusNextTurn = 0
+    resetComponents()
     clearList()
     resetItems()
     resetFlags()

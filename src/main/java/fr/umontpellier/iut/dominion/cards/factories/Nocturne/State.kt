@@ -2,6 +2,7 @@ package fr.umontpellier.iut.dominion.cards.factories.Nocturne
 
 import fr.umontpellier.iut.dominion.Interface.IDominionObject
 import fr.umontpellier.iut.dominion.Player.Player
+import fr.umontpellier.iut.dominion.Player.PlayerComponent.update
 import fr.umontpellier.iut.dominion.Player.Skills.discard
 import fr.umontpellier.iut.dominion.cards.Id
 import fr.umontpellier.iut.dominion.cards.component.BiEffect
@@ -77,16 +78,14 @@ class State(override val name: String) : IDominionObject {
 
             this["Twice Miserable"] = this["Miserable"]!!
 
-
             // 2. Carte Deluded / Envious
             this["Deluded"] = {
                 State("Deluded").setup {
                     flipsTo("Envious")
 
                     addComponent(StateComponent.OnStartBuyPhase { player, state ->
-                        val activeName = state.currentName
                         player.removeState(state)
-                        player.getFlag(activeName) += true
+                        player.update(state.currentName, true)
                     })
                 }
             }

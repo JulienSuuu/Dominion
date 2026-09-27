@@ -9,6 +9,7 @@ import fr.umontpellier.iut.dominion.Flags
 import fr.umontpellier.iut.dominion.game.Game
 import fr.umontpellier.iut.dominion.Interface.Logger
 import fr.umontpellier.iut.dominion.Item
+import fr.umontpellier.iut.dominion.Player.PlayerComponent.Factory
 import fr.umontpellier.iut.dominion.Player.PlayerComponent.Night
 import fr.umontpellier.iut.dominion.Player.PlayerComponent.PlayerComponent
 import fr.umontpellier.iut.dominion.Player.PlayerComponent.PlayerInteractionState
@@ -117,10 +118,12 @@ open class Player : Logger {
     lateinit var shadowKey : ShadowKey
 
     private val persistent: EnumSet<Item> = EnumSet.of(
+        Item.FISH,
         Item.DEBT,
         Item.COFFER,
         Item.VICTORY_TOKEN,
-        Item.COIN_TOKEN_SHIP
+        Item.COIN_TOKEN_SHIP,
+        Item.COIN_TOKEN_ROUTE
     )
 
     var drawBonusNextTurn: Int = 0
@@ -141,35 +144,13 @@ open class Player : Logger {
     fun init(game: Game, request: Boolean) {
         this.game = game
         this.playerScope = game.gameScope
-        addComponent(TurnHistoryComponent(self))
-
         shadowKey = ShadowKey.get(Id("${name}-$id"))
-
-        val basePlayerZones = listOf(
-            Destination.PlayerZone.Hand,
-            Destination.PlayerZone.InPlay,
-            Destination.PlayerZone.Discard,
-            Destination.PlayerZone.Draw,
-            Destination.PlayerZone.Aside,
-        )
-
-        basePlayerZones.forEach { destination ->
-            cardSet[destination] = MutableStateFlow(emptyList())
-        }
-
-        if(game.hasCard("Island")) cardSet[Destination.OtherZone.Island] = MutableStateFlow(emptyList())
-        if(game.hasCard("Native Village")) cardSet[Destination.OtherZone.Native] = MutableStateFlow(emptyList())
-        if(game.hasType(CardType.RESERVE, 1)) cardSet[Destination.OtherZone.Tavern] = MutableStateFlow(emptyList())
-
-        if(game.hasType(CardType.BOON, 1)) cardSet[Destination.PlayerZone.NocturneZone.Boons] = MutableStateFlow(emptyList())
-        if(game.hasType(CardType.HEX, 1)) cardSet[Destination.PlayerZone.NocturneZone.Hex] = MutableStateFlow(emptyList())
-
-        cardSet[Destination.TempZone.Temp] = MutableStateFlow(emptyList())
-
 
         Item.entries.forEach { item ->
             items[item] = MutableStateFlow(0)
         }
+
+        Factory.initializePlayer(self)
 
         if (request) {
             FactorySupplyPile.createCard("Hovel")?.moveTo(get(Destination.PlayerZone.Discard), Destination.PlayerZone.Discard)
@@ -197,16 +178,15 @@ open class Player : Logger {
             getList(Destination.PlayerZone.Draw).last().moveTo(get(Destination.PlayerZone.Hand), Destination.PlayerZone.Hand)
         }
 
-        if(game.hasType(CardType.NIGHT, 1)) addComponent(Night(self))
-        if(game.hasCard("Possession")) addComponent(PossessionComponent(self))
-        if(game.hasExpansion("Adventures", 1)) addComponent(TokenComponent(self))
-        if(game.hasType(CardType.POKER, 1)) addComponent(PokerComponent(self))
-
         listener()
     }
 
-    final inline fun <reified T : PlayerComponent> addComponent(component : T) {
-        playerComponent[T::class] = component
+    fun addComponent(component: PlayerComponent) {
+        playerComponent[component::class] = component
+    }
+
+    internal fun addSet(set : Destination.PlayerZone){
+        cardSet[set] = MutableStateFlow(emptyList())
     }
 
     final inline fun <reified T : PlayerComponent> getComponent() : T? = playerComponent[T::class] as? T
@@ -273,13 +253,8 @@ open class Player : Logger {
         items.forEach { (item, flow) -> observeItemChanges(item, flow) }
     }
 
-    private data class PokerCheckResult(
-        val evaluatedHand: EvaluatedPokerHand?,
-        val isActionPhase: Boolean
-    )
 
     fun handListener(){}
-
 
     fun listener(){
         handListener()
@@ -335,8 +310,11 @@ open class Player : Logger {
 
 
     internal fun clearList(){
-        getComponent<TurnHistoryComponent>()?.reset()
         discardHooks.clear()
+    }
+
+    internal fun resetComponents(){
+        playerComponent.values.forEach { it.onCleanUp() }
     }
 
 
