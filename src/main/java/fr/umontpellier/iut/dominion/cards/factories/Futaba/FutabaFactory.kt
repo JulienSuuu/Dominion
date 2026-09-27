@@ -34,7 +34,7 @@ object FutabaFactory {
                     .then {player, hand ->
                         player.reveals(hand.fiveCardHand)
                         val bonus : Bonus? = when(val type = hand.type){
-                            PokerHand.PAIR -> Bonus.money(type.rank)
+                            PokerHand.PAIR -> Bonus.money(1)
                             PokerHand.TWO_PAIR -> Bonus.money(type.rank)
                             PokerHand.THREE_OF_A_KIND -> Bonus.money(type.rank)
                             PokerHand.STRAIGHT -> Bonus.money(type.rank)
@@ -48,6 +48,7 @@ object FutabaFactory {
                         player.discard(scope)
                     }
                 )
+                onCondition { event, _ -> !event.isPokerHand(PokerHand.HIGH_CARD) }
             }
         }
 
@@ -59,7 +60,7 @@ object FutabaFactory {
                     .then {_, card -> card.getComponent<ScoreComponent>()?.incrementValue() }
                     .then { event, card -> event.player.discard(card) }
                 )
-                onCondition { event, player -> event.cameFrom(Destination.PlayerZone.Hand) }
+                onCondition { event, _ -> event.cameFrom(Destination.PlayerZone.Hand) }
             }
             mutableScore()
             onDuration { infinite() }
@@ -108,7 +109,7 @@ object FutabaFactory {
         .setup {
             simpleAction(Bonus.action(3))
             onCardPlayed {
-                onEffect{owner, event -> owner.draw(2)}
+                onEffect{owner, _ -> owner.draw(2)}
                 onCondition { event, player -> event.cardHasType(CardType.DURATION) && !event.isSamePlayer(player) }
             }
         }
