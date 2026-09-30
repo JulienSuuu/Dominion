@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode
 import fr.umontpellier.iut.dominion.Button
 import fr.umontpellier.iut.dominion.CardType
 import fr.umontpellier.iut.dominion.Enums.Locations.Destination
-import fr.umontpellier.iut.dominion.Item
 import fr.umontpellier.iut.dominion.Player.*
 import fr.umontpellier.iut.dominion.Player.PlayerComponent.PlayerTurnPhase
 import fr.umontpellier.iut.dominion.Player.Skills.chooseOrder
@@ -19,7 +18,6 @@ import fr.umontpellier.iut.dominion.Player.Skills.reveals
 import fr.umontpellier.iut.dominion.Player.Skills.trash
 import fr.umontpellier.iut.dominion.Player.Skills.triggerAnotherTurn
 import fr.umontpellier.iut.dominion.Supply.SupplyPile
-import fr.umontpellier.iut.dominion.bindCombined
 import fr.umontpellier.iut.dominion.cards.Card
 import fr.umontpellier.iut.dominion.cards.Description.InstructionDescription
 import fr.umontpellier.iut.dominion.cards.Description.InteractionDescription
@@ -33,6 +31,7 @@ import fr.umontpellier.iut.dominion.cards.component.EventLink
 import fr.umontpellier.iut.dominion.cards.component.OnSetup
 import fr.umontpellier.iut.dominion.cards.component.TriggerComponent
 import fr.umontpellier.iut.dominion.cards.component.createHeirloom
+import fr.umontpellier.iut.dominion.cards.component.specification.BaneCard
 import fr.umontpellier.iut.dominion.cards.factories.Empires.EmpiresRules
 import fr.umontpellier.iut.dominion.cards.factories.FactorySupplyPile
 import fr.umontpellier.iut.dominion.cards.factories.Nocturne.NocturneRules
@@ -56,7 +55,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import org.springframework.beans.factory.getBean
@@ -132,7 +130,11 @@ open class Game(
 
     var currentAlly: Card? = null
     val stat : GameStat = GameStat()
-    var banes: String = ""
+
+    val baneCardName: String?
+        get() = supplyPiles.values
+            .find { it.topCard?.components?.hasComponent<BaneCard>() == true }?.name
+
 
     lateinit var gameScope : CoroutineScope
 
@@ -157,13 +159,15 @@ open class Game(
     var turnNumber: Int = 1
         
 
-    private var sizeOfCommon: Int = 7
+    var sizeOfCommon: Int = 7
 
 
     lateinit var supplyPiles : MutableMap<String, SupplyPile>
     lateinit var asideSupplyPiles : MutableMap<String, MutableList<SupplyPile>>
+
     private val _trashedCards = MutableStateFlow<List<Card>>(emptyList())
     val trashedCards: List<Card> get() = _trashedCards.value
+
     var nbPlayers by Delegates.notNull<Int>()
 
 
@@ -233,10 +237,8 @@ open class Game(
         _events.add(createSupplyPile(eventName))
     }
 
-    internal fun setBanes(cardName : String){ banes = cardName }
-
     private fun specialEffectFromCard(allSupplyPiles : MutableList<SupplyPile>) {
-        allSupplyPiles.mapNotNull { it.popCard()?.getComponent<OnSetup>() }.filter { it.neededPlayer }.forEach { onSetup ->
+        allSupplyPiles.mapNotNull { it.peekCard()?.getComponent<OnSetup>() }.filter { it.neededPlayer }.forEach { onSetup ->
             onSetup.execute(this, allSupplyPiles)
         }
     }
@@ -273,10 +275,10 @@ open class Game(
     }
 
     val availableSupplyCard : List<Card>
-        get() = supplyPiles.values.filter(SupplyPile::isNotEmpty).mapNotNull(SupplyPile::popCard)
+        get() = supplyPiles.values.filter(SupplyPile::isNotEmpty).mapNotNull(SupplyPile::peekCard)
 
     val actionSupplyCard : List<Card>
-        get() = supplyPiles.values.filter { it.hasType(CardType.ACTION) &&  it.isNotEmpty }.mapNotNull(SupplyPile::popCard)
+        get() = supplyPiles.values.filter { it.hasType(CardType.ACTION) &&  it.isNotEmpty }.mapNotNull(SupplyPile::peekCard)
 
     fun getCardFromSupply(cardName : String) : Card? {
         var pile = supplyPiles[cardName]
@@ -284,22 +286,22 @@ open class Game(
             pile = supplyPiles.values.firstOrNull { it.verifyName(cardName) }
         }
 
-        return pile?.popCard()
+        return pile?.peekCard()
     }
 
     fun getHeirloomsForGame(game: Game): List<Card> {
         return game.supplyPiles.values
-            .mapNotNull { it.popCard()?.createHeirloom() }
+            .mapNotNull { it.peekCard()?.createHeirloom() }
     }
 
     val eventCards : List<Card>
-    get() = events.filter { it.hasType(CardType.EVENT) }.filter(SupplyPile::isNotEmpty).mapNotNull(SupplyPile::popCard)
+    get() = events.filter { it.hasType(CardType.EVENT) }.filter(SupplyPile::isNotEmpty).mapNotNull(SupplyPile::peekCard)
 
     fun getEvent(nameEvent : String) : Card? = eventCards.firstOrNull{ it.name == nameEvent }
-    val landMarks get() = events.filter { it.hasType(CardType.LANDMARK) }.filter { it.isNotEmpty }.mapNotNull { it.popCard() }
+    val landMarks get() = events.filter { it.hasType(CardType.LANDMARK) }.filter { it.isNotEmpty }.mapNotNull { it.peekCard() }
 
     fun getAvailableAsidePilesCard(nameCard: String) : List<Card> {
-        return asideSupplyPiles[nameCard]?.filter(SupplyPile::isNotEmpty)?.mapNotNull(SupplyPile::popCard)?: emptyList()
+        return asideSupplyPiles[nameCard]?.filter(SupplyPile::isNotEmpty)?.mapNotNull(SupplyPile::peekCard)?: emptyList()
     }
 
     fun compareCardToOther(player : Player, name : String, number : Int) : Boolean {
@@ -744,7 +746,7 @@ open class Game(
             if (pile.isEmpty) {
                 "[Empty pile]"
             } else {
-                val c = pile.popCard()
+                val c = pile.peekCard()
                 "${c?.name} x${pile.size}(${c?.costValue})"
             }
         }

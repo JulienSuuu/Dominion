@@ -80,7 +80,7 @@ abstract class AbstractSupplyPile(
     override val cost: Price get() = topCard?.price ?: Price.classic(0)
     override val costValue: Int get() = max(cost.coinsProperty.value, 0)
 
-    override fun popCard(): Card? {
+    override fun peekCard(): Card? {
         return _cards.value.lastOrNull()
     }
 
@@ -117,7 +117,7 @@ abstract class AbstractSupplyPile(
 
         if (isEmpty) return
 
-        popCard()?.let { card ->
+        peekCard()?.let { card ->
 
             val cardCost = card.price
 

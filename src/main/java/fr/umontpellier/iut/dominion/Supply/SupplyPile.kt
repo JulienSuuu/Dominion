@@ -1,10 +1,7 @@
 package fr.umontpellier.iut.dominion.Supply
 
-import fr.umontpellier.iut.dominion.CardType
-import fr.umontpellier.iut.dominion.Interface.IDominionObject
 import fr.umontpellier.iut.dominion.Supply.Event.CardChangeEvent
 import fr.umontpellier.iut.dominion.cards.Card
-import fr.umontpellier.iut.dominion.cards.component.Price
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 
@@ -28,7 +25,7 @@ interface SupplyPile : ReadableSupplyPile {
 
     fun update(scope: CoroutineScope)
 
-    fun popCard(): Card?
+    fun peekCard(): Card?
 
     fun shuffle()
     fun forEach(consumer: (Card) -> Unit) = cards.value.forEach(consumer)

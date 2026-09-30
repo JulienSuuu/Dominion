@@ -28,7 +28,7 @@ class CoffersRule(val game: Game) : ResourceRule {
         val actualGranted = minOf(qty, currentSupply)
 
         if (actualGranted > 0) {
-            player.increment(Item.COFFER, qty)
+            player.directIncrement(Item.COFFER, qty)
         }
 
         return actualGranted
