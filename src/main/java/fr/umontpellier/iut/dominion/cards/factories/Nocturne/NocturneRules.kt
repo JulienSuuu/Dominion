@@ -3,7 +3,6 @@ package fr.umontpellier.iut.dominion.cards.factories.Nocturne
 import fr.umontpellier.iut.dominion.CardType
 import fr.umontpellier.iut.dominion.Enums.Locations.Destination
 import fr.umontpellier.iut.dominion.game.Game
-import fr.umontpellier.iut.dominion.game.rules.GameComponent
 import fr.umontpellier.iut.dominion.Player.Player
 import fr.umontpellier.iut.dominion.Supply.SupplyPile
 import fr.umontpellier.iut.dominion.cards.Card
@@ -91,7 +90,7 @@ class NocturneRules(val game : Game) : SupplyContributor {
 
 
     fun getAvailableCard(namePile: String) : List<Card> {
-        return othersPile[namePile]?.filter(SupplyPile::isNotEmpty)?.mapNotNull(SupplyPile::popCard)?: Collections.emptyList()
+        return othersPile[namePile]?.filter(SupplyPile::isNotEmpty)?.mapNotNull(SupplyPile::peekCard)?: Collections.emptyList()
     }
 
     fun getSpecificAsideCard(namePile: String, key: String) : Card? {
@@ -101,7 +100,7 @@ class NocturneRules(val game : Game) : SupplyContributor {
     fun receiveNextBoon() : Card? {
         val list = nocturnePile["Boons"] ?: return null
         if(list.isEmpty){ shuffle(Destination.NocturneZone.Boons, "Boons") }
-        return list.popCard()
+        return list.peekCard()
     }
 
     fun receiveBoons(number : Int) : MutableList<Card> {
@@ -117,7 +116,7 @@ class NocturneRules(val game : Game) : SupplyContributor {
             shuffle(Destination.NocturneZone.Hex, "Hexes")
         }
 
-        return list.popCard()
+        return list.peekCard()
     }
 
     fun assignStateToPlayer(stateName: String, newOwner: Player) {

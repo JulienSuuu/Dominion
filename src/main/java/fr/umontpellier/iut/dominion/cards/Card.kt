@@ -1,7 +1,6 @@
 package fr.umontpellier.iut.dominion.cards
 import fr.umontpellier.iut.dominion.CardType
 import fr.umontpellier.iut.dominion.Enums.Locations.Destination
-import fr.umontpellier.iut.dominion.Interface.IDominionObject
 import fr.umontpellier.iut.dominion.Item
 import fr.umontpellier.iut.dominion.Player.Player
 import fr.umontpellier.iut.dominion.Player.Skills.draw
@@ -22,7 +21,6 @@ import fr.umontpellier.iut.dominion.cards.component.OnPlayComponent
 import fr.umontpellier.iut.dominion.cards.component.Price
 import fr.umontpellier.iut.dominion.cards.component.ScoreComponent
 import fr.umontpellier.iut.dominion.cards.component.SingleCardComponent
-import fr.umontpellier.iut.dominion.cards.component.Specification
 import fr.umontpellier.iut.dominion.cards.factories.Empires.EmpiresRules
 import fr.umontpellier.iut.dominion.game.rules.markPlayerAsAttacked
 import fr.umontpellier.iut.dominion.game.rules.shouldEnchant

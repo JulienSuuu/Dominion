@@ -15,8 +15,6 @@ import fr.umontpellier.iut.dominion.Player.PlayerComponent.askReductionToken
 import fr.umontpellier.iut.dominion.Player.PlayerComponent.getToken
 import fr.umontpellier.iut.dominion.unbind
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.collections.toTypedArray
@@ -90,7 +88,7 @@ class GameStat {
             pile.priceProperty().bindCombined(gameStatScope, currentPlayer, reduction, pile.cards)
             {
                 val player = currentPlayer.value
-                val topCard = if (pile.isEmpty) null else pile.popCard() ?: return@bindCombined 0
+                val topCard = if (pile.isEmpty) null else pile.peekCard() ?: return@bindCombined 0
 
                 val baseCost = topCard?.basicPrice() ?: 0
                 val redGlobale = reduction.value

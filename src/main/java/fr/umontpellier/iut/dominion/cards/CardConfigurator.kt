@@ -7,17 +7,12 @@ import fr.umontpellier.iut.dominion.cards.Bonus.Bonus
 import fr.umontpellier.iut.dominion.cards.Bonus.DominionBonus
 import fr.umontpellier.iut.dominion.cards.Events.Event
 import fr.umontpellier.iut.dominion.cards.Events.GainType
-import fr.umontpellier.iut.dominion.cards.Events.PokerEvent
 import fr.umontpellier.iut.dominion.cards.component.*
 import fr.umontpellier.iut.dominion.cards.component.TriggerComponent.*
+import fr.umontpellier.iut.dominion.cards.component.specification.Specification
 import fr.umontpellier.iut.dominion.cards.factories.DURATION
 import fr.umontpellier.iut.dominion.cards.factories.EFFECT
-import fr.umontpellier.iut.dominion.cards.factories.Futaba.EvaluatedPokerHand
-import fr.umontpellier.iut.dominion.cards.factories.Futaba.PokerHand
 import fr.umontpellier.iut.dominion.cards.factories.reserveCondition
-import javafx.geometry.Side
-import java.lang.reflect.InvocationHandler
-import java.lang.reflect.Proxy
 import java.util.concurrent.atomic.AtomicBoolean
 
 

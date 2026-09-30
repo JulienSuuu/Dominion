@@ -29,7 +29,7 @@ import fr.umontpellier.iut.dominion.cards.Events.Event
 import fr.umontpellier.iut.dominion.cards.Events.OnGainEvent
 import fr.umontpellier.iut.dominion.cards.builders.*
 import fr.umontpellier.iut.dominion.cards.component.BiEffect
-import fr.umontpellier.iut.dominion.cards.component.CofferCard
+import fr.umontpellier.iut.dominion.cards.component.specification.CofferCard
 import fr.umontpellier.iut.dominion.cards.component.InteractionRequest
 import fr.umontpellier.iut.dominion.cards.component.Price
 import fr.umontpellier.iut.dominion.cards.component.attack
@@ -37,6 +37,7 @@ import fr.umontpellier.iut.dominion.cards.component.chooseCardFromHand
 import fr.umontpellier.iut.dominion.cards.component.lookingAt
 import fr.umontpellier.iut.dominion.cards.component.processHandDown
 import fr.umontpellier.iut.dominion.cards.component.reveal
+import fr.umontpellier.iut.dominion.cards.component.specification.BaneCard
 import fr.umontpellier.iut.dominion.cards.component.then
 import fr.umontpellier.iut.dominion.cards.factories.CG
 import fr.umontpellier.iut.dominion.cards.factories.createSupplyPile
@@ -536,21 +537,21 @@ object Cornucopia_GuildsFactoryKt {
                     draw.onPlay()
                     .then { discardFromHand(2) }
                     .attack { attacker, opponent, _ ->
-                        val effect = BiEffect.empty<Player, String>()
-                            .chooseCardFromHand { player, string ->
+                        val effect = BiEffect.empty<Player, Unit>()
+                            .chooseCardFromHand { player, _ ->
                                 InteractionRequest(
-                                    instruction = "$player, reveal a bane card from your hand ($string) or gain a curse",
-                                    filter = { it.hasName(string) },
+                                    instruction = "$player, reveal a bane card from your hand (${player.game.baneCardName ?: ""}) or gain a curse",
+                                    filter = { it.hasComponent<BaneCard>() },
                                     canPass = true
                                 )
                             }
                             .branchDecision {
-                                on { choice.hasName(left) } then { player, _, _ -> player.reveals(this) }
+                                on { choice.hasComponent<BaneCard>() } then { player, _, _ -> player.reveals(this) }
                                 otherwise { player, _, _ -> player.gainFromSupply("Curse") }
                             }
                             .endParent()
 
-                        effect(opponent, attacker.game.banes)
+                        effect(opponent, Unit)
                     }
                     .end()
                 )
