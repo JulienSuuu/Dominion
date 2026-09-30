@@ -5,12 +5,9 @@ import fr.umontpellier.iut.dominion.Button
 import fr.umontpellier.iut.dominion.CardType
 import fr.umontpellier.iut.dominion.Enums.Locations.Destination
 import fr.umontpellier.iut.dominion.Item
-import fr.umontpellier.iut.dominion.PileComparator
 import fr.umontpellier.iut.dominion.Player.*
 import fr.umontpellier.iut.dominion.Player.PlayerComponent.PlayerTurnPhase
-import fr.umontpellier.iut.dominion.Player.PlayerComponent.startNightPhase
 import fr.umontpellier.iut.dominion.Player.Skills.chooseOrder
-import fr.umontpellier.iut.dominion.Player.Skills.cleanup
 import fr.umontpellier.iut.dominion.Player.Skills.discard
 import fr.umontpellier.iut.dominion.Player.Skills.discardFromDeck
 import fr.umontpellier.iut.dominion.Player.Skills.discardTo
@@ -18,7 +15,6 @@ import fr.umontpellier.iut.dominion.Player.Skills.generalCleanUp
 import fr.umontpellier.iut.dominion.Player.Skills.getValidReaction
 import fr.umontpellier.iut.dominion.Player.Skills.immunity
 import fr.umontpellier.iut.dominion.Player.Skills.moveTo
-import fr.umontpellier.iut.dominion.Player.Skills.playTurn
 import fr.umontpellier.iut.dominion.Player.Skills.reveals
 import fr.umontpellier.iut.dominion.Player.Skills.trash
 import fr.umontpellier.iut.dominion.Player.Skills.triggerAnotherTurn
@@ -37,22 +33,18 @@ import fr.umontpellier.iut.dominion.cards.component.EventLink
 import fr.umontpellier.iut.dominion.cards.component.OnSetup
 import fr.umontpellier.iut.dominion.cards.component.TriggerComponent
 import fr.umontpellier.iut.dominion.cards.component.createHeirloom
-import fr.umontpellier.iut.dominion.cards.factories.Cornucopia_Guilds.CornucopiaRules
-import fr.umontpellier.iut.dominion.cards.factories.DA
 import fr.umontpellier.iut.dominion.cards.factories.Empires.EmpiresRules
 import fr.umontpellier.iut.dominion.cards.factories.FactorySupplyPile
-import fr.umontpellier.iut.dominion.cards.factories.Hinterlands.HinterlandsRules
 import fr.umontpellier.iut.dominion.cards.factories.Nocturne.NocturneRules
 import fr.umontpellier.iut.dominion.cards.factories.countMax
-import fr.umontpellier.iut.dominion.cards.factories.createMixedSupplyPile
 import fr.umontpellier.iut.dominion.cards.factories.createSupplyPile
 import fr.umontpellier.iut.dominion.cards.forEachSuspend
 import fr.umontpellier.iut.dominion.cards.getTopCards
 import fr.umontpellier.iut.dominion.client.Client
 import fr.umontpellier.iut.dominion.game.rules.GameComponent
 import fr.umontpellier.iut.dominion.game.rules.GameTurn
-import fr.umontpellier.iut.dominion.game.rules.cleanupTurnCard
-import fr.umontpellier.iut.dominion.game.rules.resetTurnTracker
+import fr.umontpellier.iut.dominion.game.rules.SupplyContributor
+import fr.umontpellier.iut.dominion.game.rules.TurnEndListener
 import fr.umontpellier.iut.dominion.gui.game.UiStateService
 import fr.umontpellier.iut.dominion.gui.UserService
 import fr.umontpellier.iut.dominion.gui.Utils
@@ -66,7 +58,6 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import org.springframework.beans.factory.getBean
 import org.springframework.context.ApplicationContext
@@ -129,7 +120,6 @@ open class Game(
         override suspend fun invoke(event: T) {
             action(event)
         }
-
     }
 
     var lastPlayerIdChoice : Client? = null
@@ -156,7 +146,6 @@ open class Game(
 
     private val shadowZone = mutableMapOf<ShadowKey, MutableStateFlow<List<Card>>>()
 
-    private val _kingdomsList = mutableListOf<String>()
     private val expansionAvailable = mutableSetOf<String>()
     private val hasCards = mutableSetOf<String>()
 
@@ -170,120 +159,37 @@ open class Game(
 
     private var sizeOfCommon: Int = 7
 
-    val coffers = MutableStateFlow(100)
 
     lateinit var supplyPiles : MutableMap<String, SupplyPile>
     lateinit var asideSupplyPiles : MutableMap<String, MutableList<SupplyPile>>
     private val _trashedCards = MutableStateFlow<List<Card>>(emptyList())
     val trashedCards: List<Card> get() = _trashedCards.value
-    private val scanner = Scanner(System.`in`)
     var nbPlayers by Delegates.notNull<Int>()
-    var allPilesForSupply = mutableListOf<SupplyPile>()
 
 
-    open fun init(playerNames: List<Player>, kingdomPiles: List<Card>, events : List<Card>, extras: Map<String, Array<String>>?, instance : GameInstance) {
+    open fun init(players : List<Player>, kingdomPiles: List<Card>, events: List<Card>, extras:Map<String, Array<String>>?, instance : GameInstance){
         this.instance = instance
         gameScope = CoroutineScope(Job(instance.scope.coroutineContext[Job]) + Dispatchers.Default)
-        val cornucopia = CornucopiaRules(this)
-        val hinterland = HinterlandsRules(this)
-        addComponent(GameTurn(this))
-        nbPlayers = playerNames.size
+        nbPlayers = players.size
         this.asideSupplyPiles = hashMapOf()
-        banes = extras?.get("Banes")?.first() ?: ""
-        
-        events.forEach { _events.add(createSupplyPile(it.name)) }
 
-        val _kingdomsListCard = kingdomPiles +
-                (extras?.flatMap { (_, cardNames) -> cardNames.mapNotNull { factory.createCard(it) } }
-                    ?: emptyList()) + _events.mapNotNull { it.popCard() }
-
-
-        val ferrymanCards = extras?.get("Ferryman").orEmpty()
-
-        _kingdomsListCard
-            .filter { c ->
-                c.name !in ferrymanCards &&
-                        !c.hasType(CardType.TEMPLATE) &&
-                        !c.hasType(CardType.EVENT) &&
-                        !c.hasType(CardType.LANDMARK)
-            }
-            .forEach { c ->
-                allPilesForSupply.add(createSupplyPile(c.name))
-            }
-
-
-        _kingdomsList.addAll(_kingdomsListCard.map { it.name })
-
-
-        if (factory.isExpansionRequired(_kingdomsList, DA)) {
-            val ruins = createMixedSupplyPile("Ruins", factory.getMixedCards(CardType.RUINS)).apply { shuffle() }
-            allPilesForSupply.add(ruins)
-        }
-
-        _kingdomsListCard.mapNotNull { it.getComponent<OnSetup>() }.filter { !it.neededPlayer }.forEach { onSetup ->
-            onSetup.execute(this)
-        }
-
-        allPilesForSupply.sortWith(PileComparator())
-
-
-        val baseCardNames = listOf("Copper", "Silver", "Gold", "Estate", "Duchy", "Province", "Curse")
-        baseCardNames.forEach { name ->
-            allPilesForSupply.add(createSupplyPile(name))
-        }
-
-        if (factory.isExpansionRequired(_kingdomsList, "Alchemy")) {
-            allPilesForSupply.add(createSupplyPile("Potion"))
-            sizeOfCommon++
-        }
-
-        if (factory.isExpansionRequired(_kingdomsList, "Prosperity")) {
-            allPilesForSupply.add(createSupplyPile("Platinum"))
-            allPilesForSupply.add(createSupplyPile("Colony"))
-            sizeOfCommon+=2
-        }
+        val allPilesForSupply = GameFactory.setUpKingdomAndEvent(this, kingdomPiles, events, extras)
+        GameFactory.setUpBasePiles(this, allPilesForSupply)
 
         this.supplyPiles = allPilesForSupply.associateByTo(LinkedHashMap()) { it.supplyName }
 
-        extras?.filterKeys { it != "Banes" }?.forEach { (key, cardNames) ->
-            val list = asideSupplyPiles.getOrPut(key) { mutableListOf() }
-            cardNames.forEach { name ->
-                list.add(createSupplyPile(name))
-            }
+        GameFactory.setUpAsidePiles(this, extras){
+            allPilesForSupply.forEach { hasCards.add(it.supplyName) }
+            asideSupplyPiles.values.forEach { piles -> piles.forEach { hasCards.add(it.supplyName) } }
         }
 
-        val required = factory.shouldEnableSpecialty(_kingdomsList, DA, 5)
+        GameFactory.setUpRules(this)
 
-        allPilesForSupply.forEach { hasCards.add(it.supplyName) }
-        asideSupplyPiles.values.forEach { piles -> piles.forEach { hasCards.add(it.supplyName) } }
+        GameFactory.initializePlayers(this, players, _players)
 
-        if (hasCard("Bandit Camp") || hasCard("Marauder") || hasCard("Pillage")) {
-            asideSupplyPiles.getOrPut("Dark Ages") { mutableListOf() }.add(createSupplyPile("Spoils"))
-        }
-        if (hasCard("Urchin")) {
-            asideSupplyPiles.getOrPut("Dark Ages") { mutableListOf() }.add(createSupplyPile("Mercenary"))
-        }
-        if (hasCard("Hermit")) {
-            asideSupplyPiles.getOrPut("Dark Ages") { mutableListOf() }.add(createSupplyPile("Madman"))
-        }
-
-        if (hasCard("Footpad")) addListener( cornucopia::footpadPassive)
-        if (hasCard("Duchess")) addListener( hinterland::DuchessPassive)
-
-        if(hasExpansion("Nocturne", 1)) addComponent<NocturneRules>(NocturneRules(this))
-        if(hasExpansion("Empires", 1)) addComponent<EmpiresRules>(EmpiresRules(this))
-
-        playerNames.forEach { it.init(this, required) }
-        _players.addAll(playerNames)
-
-        val firstPlayer = _players.first()
-        currentTurnPlayer = firstPlayer
-        currentTurnPlayerProperty.value = firstPlayer
-
-        stat.initialize(this, supplyPiles, currentTurnPlayerProperty, players)
+        stat.initialize(this, supplyPiles, currentTurnPlayerProperty, _players)
         listener()
-        specialEffectFromCard(_kingdomsListCard)
-        allPilesForSupply = mutableListOf()
+        specialEffectFromCard(allPilesForSupply)
     }
 
     final inline fun < reified C : GameComponent> addComponent(component: C) {
@@ -293,14 +199,12 @@ open class Game(
         return components[C::class] as? C
     }
 
-    private fun listener() {
-        val cofferFlows: Array<Flow<Int>> = players.map {
-            it.getPropertyOf(Item.COFFER) ?: MutableStateFlow(0)
-        }.toTypedArray()
+    final inline fun <reified C : GameComponent> getRules(): List<C> {
+        return components.values.filterIsInstance<C>()
+    }
 
-        coffers.bindCombined(gameScope, *cofferFlows) {
-            250 - players.sumOf { it.getValueOf(Item.COFFER) }
-        }
+    private fun listener() {
+
 
         supplyPiles.values.forEach {
             it.onCardChange = {event ->
@@ -320,9 +224,20 @@ open class Game(
         getRule<NocturneRules>()?.initSupply()
     }
 
-    private fun specialEffectFromCard(list : List<Card>) {
-        list.mapNotNull { it.getComponent<OnSetup>() }.filter { it.neededPlayer }.forEach { onSetup ->
-            onSetup.execute(this)
+    internal fun addAsideSupplyPile(key  : String, cardName : String){
+        if(asideSupplyPiles[key]?.any{it.verifyName(cardName)}?: false){return}
+        asideSupplyPiles.getOrPut(key){mutableListOf()}.add(createSupplyPile(cardName))
+    }
+    internal fun addEvents(eventName : String){
+        if(_events.any { it.name == eventName }){return}
+        _events.add(createSupplyPile(eventName))
+    }
+
+    internal fun setBanes(cardName : String){ banes = cardName }
+
+    private fun specialEffectFromCard(allSupplyPiles : MutableList<SupplyPile>) {
+        allSupplyPiles.mapNotNull { it.popCard()?.getComponent<OnSetup>() }.filter { it.neededPlayer }.forEach { onSetup ->
+            onSetup.execute(this, allSupplyPiles)
         }
     }
 
@@ -331,30 +246,13 @@ open class Game(
     }
 
 
-    suspend fun Player.startHisTurn() {
-        state.update { it.changeTurnState(PlayerTurnPhase.StartTurn) }
-
-        state.first{it.turnPhase == PlayerTurnPhase.ActionPhase}
-
-        playTurn()
-
-        state.update { it.changeTurnState(PlayerTurnPhase.StartNightPhase) }
-        startNightPhase()
-
-        state.update { it.changeTurnState(PlayerTurnPhase.CleanupPhase) }
-        cleanup()
-
-        this@Game.generalCleanUp()
-
-        state.update { it.reset() }
-    }
+    suspend fun Player.startHisTurn() { getRule<GameTurn>()?.runTurn(this) }
 
     suspend fun run(){
         while(!stat.isFinished.value){
             log("${currentTurnPlayer.toLog} (turn $turnNumber)", "TURN-TITLE")
             currentTurnPlayer.startHisTurn()
-            getRule<EmpiresRules>()?.resetTurnTracker()
-            cleanupTurnCard()
+            getRules<TurnEndListener>().forEach { it.onTurnEnded(this) }
             moveToNextPlayer()
         }
 
@@ -707,9 +605,7 @@ open class Game(
             yieldAll(supplyPiles.values)
             yieldAll(asideSupplyPiles.values.flatten())
             yieldAll(events)
-            components.values.forEach { component ->
-                yieldAll(component.getAllSupply())
-            }
+            getRules<SupplyContributor>().forEach { yieldAll(it.getSupplyPiles()) }
         }.toList()
 
 

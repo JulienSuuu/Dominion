@@ -63,4 +63,3 @@ fun EmpiresRules.registerEnchantress(card : Card, attacker: Player) = enchantres
 fun EmpiresRules.unregisterEnchantress(card : Card) = enchantressRule?.unregisterEnchantress(card)
 fun EmpiresRules.shouldEnchant(currentPlayer: Player, cardPlayed: Card) = enchantressRule?.shouldEnchant(currentPlayer, cardPlayed) ?: false
 fun EmpiresRules.markPlayerAsAttacked(player: Player) = enchantressRule?.markPlayerAsAttacked(player)
-fun EmpiresRules.resetTurnTracker() = enchantressRule?.resetTurnTracker()
