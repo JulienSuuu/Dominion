@@ -99,7 +99,7 @@ object FutabaFactory {
     @Dominion_Card(extension = "Futaba")
     fun LukaMegurine() = Card.duration("Luka Megurine", Price.dominion(8)).addType(CardType.TREASURE, CardType.FUTABA)
         .setup {
-            onPlay(Bonus.FISH.onPlay().then { getFlag("EndTurn") += true })
+            onPlay(Bonus.FISH.onPlay() then { getFlag("EndTurn") += true })
             onDuration {
                 onEffect(BiEffect.empty<Player, Card>() then { incrementByAction(Item.MONEY){getValueOf(Item.FISH)} })
             }

@@ -47,6 +47,8 @@ import fr.umontpellier.iut.dominion.cards.factories.Nocturne.underState
 import fr.umontpellier.iut.dominion.cards.plusAssign
 import fr.umontpellier.iut.dominion.client.Client
 import fr.umontpellier.iut.dominion.client.StatKey
+import fr.umontpellier.iut.dominion.game.rules.ResourceInterceptor
+import fr.umontpellier.iut.dominion.game.rules.ResourceRule
 import fr.umontpellier.iut.dominion.gui.game.ItemChangeEvent
 import fr.umontpellier.iut.dominion.gui.Utils
 import fr.umontpellier.iut.dominion.isBound
@@ -364,17 +366,28 @@ open class Player : Logger {
         val currentAmount = items[item]?.value ?: 0
         if (value < 0 && currentAmount + value < 0) return
 
-        var finalValue = value
+        val finalValue = game.getRules<ResourceInterceptor>()
+            .fold(value) { acc, interceptor -> interceptor.modify(this, item, acc) }
 
-        if (isAffectedBy(Token.OnPlayer.TaxToken) && item == Item.MONEY && value > 0) {
-            finalValue--
-            updateTokenFlag(Token.OnPlayer.TaxToken, false)
+        if (finalValue <= 0) return
+
+        val rule = game.getRules<ResourceRule>().firstOrNull { it.targetItem == item }
+
+        if (rule != null) {
+            rule.grant(this, finalValue)
+        } else {
+            directIncrement(item, finalValue)
         }
-
-        items[item]?.value += finalValue
     }
 
-
+    /**
+     * Incrémentation brute dans la map du joueur (appelée directement ou par les ResourceRule).
+     */
+    internal fun directIncrement(item: Item, value: Int) {
+        items[item]?.let { stateFlow ->
+            stateFlow.value += value
+        }
+    }
 
     fun incrementByAction(item: Item, action : Player.() -> Int) { increment(item, self.action()) }
 

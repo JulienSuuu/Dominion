@@ -65,8 +65,6 @@ class InputManager(
         updateLobbyUser()
     }
 
-
-
     private fun GameInstance.handleClearCards(){
         currentSelected.clear()
         currentEventSelected.clear()

@@ -21,10 +21,11 @@ import fr.umontpellier.iut.dominion.cards.factories.Empires.EmpiresFactoryKt.tak
 import fr.umontpellier.iut.dominion.cards.gainFromSupply
 import fr.umontpellier.iut.dominion.game.rules.EnchantressRule
 import fr.umontpellier.iut.dominion.game.rules.IEmpireRules
+import fr.umontpellier.iut.dominion.game.rules.TurnEndListener
 import kotlinx.coroutines.flow.update
 import kotlin.reflect.KClass
 
-class EmpiresRules(val game: Game)  : GameComponent {
+class EmpiresRules(val game: Game)  : TurnEndListener {
     var obeliskTarget = ""
     val rules = mutableMapOf<KClass<out IEmpireRules>, IEmpireRules>()
     inline fun <reified T : IEmpireRules> getRule() = rules[T::class] as? T
@@ -54,6 +55,8 @@ class EmpiresRules(val game: Game)  : GameComponent {
         }
     """.trimIndent()
     }
+
+    override suspend fun onTurnEnded(game: Game) { getRule<EnchantressRule>()?.resetTurnTracker() }
 }
 
 var Game.obeliskTarget get() = getRule<EmpiresRules>()?.obeliskTarget ?: ""

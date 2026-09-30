@@ -26,8 +26,10 @@ import fr.umontpellier.iut.dominion.Properties
 import fr.umontpellier.iut.dominion.cards.*
 import fr.umontpellier.iut.dominion.cards.Bonus.Bonus
 import fr.umontpellier.iut.dominion.cards.Events.Event
+import fr.umontpellier.iut.dominion.cards.Events.OnGainEvent
 import fr.umontpellier.iut.dominion.cards.builders.*
 import fr.umontpellier.iut.dominion.cards.component.BiEffect
+import fr.umontpellier.iut.dominion.cards.component.CofferCard
 import fr.umontpellier.iut.dominion.cards.component.InteractionRequest
 import fr.umontpellier.iut.dominion.cards.component.Price
 import fr.umontpellier.iut.dominion.cards.component.attack
@@ -78,7 +80,7 @@ object Cornucopia_GuildsFactoryKt {
         val bonus = Bonus.action().with(Item.COFFER).draw()
         return Card.action("Baker", Price.cornucopia(5)).setup {
             simpleAction(bonus)
-
+            addSpecification(CofferCard)
             onSetup(true) {
                 players.forEach { it.increment(Item.COFFER) }
             }
@@ -92,6 +94,7 @@ object Cornucopia_GuildsFactoryKt {
         val coffers = Bonus.coffer(2)
         return Card.action("Butcher", Price.cornucopia(5))
             .setup {
+                addSpecification(CofferCard)
                 onPlay(
                     coffers.onPlay()
                     .chooseCardFromHand(
@@ -111,7 +114,11 @@ object Cornucopia_GuildsFactoryKt {
     @Dominion_Card(extension = CG)
     fun CandlestickMaker(): Card {
         val bonus = Bonus.action().with(Item.BUY).with(Item.COFFER)
-        return Card.action("Candlestick Maker", Price.cornucopia(2)) setup { simpleAction(bonus) }
+        return Card.action("Candlestick Maker", Price.cornucopia(2))
+            .setup {
+                addSpecification(CofferCard)
+                simpleAction(bonus)
+            }
     }
 
     @Dominion_Card(extension = CG)
@@ -183,7 +190,11 @@ object Cornucopia_GuildsFactoryKt {
     fun Footpad(): Card {
         val coffers = Bonus.coffer(2)
         return Card.attack("Footpad", Price.cornucopia(5))
-            .setup { onPlay(coffers.onPlay().processHandDown(toReach = 3, mayDiscard = true)) }
+            .setup {
+                addSpecification(CofferCard)
+                onSetup { addListener<OnGainEvent>{ footpadPassive(it) } }
+                onPlay(coffers.onPlay().processHandDown(toReach = 3, mayDiscard = true))
+            }
     }
     @Dominion_Card(extension = CG)
     fun Hamlet(): Card {
@@ -397,6 +408,7 @@ object Cornucopia_GuildsFactoryKt {
         val bonus = Bonus.buy().with(Item.MONEY)
         return Card.action("Merchant Guild", Price.cornucopia(5))
             .setup {
+                addSpecification(CofferCard)
                 onPlay(bonus.onPlay() then { _, self -> self.set("mult", self.getValue("mult").toInt() + 1) })
                 onEndBuy {
                     onEffect{ player, self ->
@@ -412,6 +424,7 @@ object Cornucopia_GuildsFactoryKt {
         val bonus = Bonus.action(2).draw()
         return Card.action("Plaza", Price.cornucopia(4))
             .setup {
+                addSpecification(CofferCard)
                 onPlay(
                     bonus.onPlay()
                     .chooseCardFromHand(
@@ -591,7 +604,10 @@ object Cornucopia_GuildsFactoryKt {
     fun HugeTurnip(): Card {
         val coffers = Bonus.coffer(2)
         return Card.treasure("Huge Turnip", Price.cornucopia(0)).addType(CardType.REWARDS)
-            .setup { onPlay(coffers.onPlay() then { increment(Item.MONEY, coffer) }) }
+            .setup {
+                addSpecification(CofferCard)
+                onPlay(coffers.onPlay() then { increment(Item.MONEY, coffer) })
+            }
     }
     @Dominion_Card(extension = CG, pileType = PileType.MIXED)
     fun Renown() = Card.action("Renown", Price.cornucopia(0)).addType(CardType.REWARDS)

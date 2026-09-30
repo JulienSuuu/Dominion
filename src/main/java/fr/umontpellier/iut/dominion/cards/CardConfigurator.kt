@@ -2,6 +2,7 @@ package fr.umontpellier.iut.dominion.cards
 
 import fr.umontpellier.iut.dominion.game.Game
 import fr.umontpellier.iut.dominion.Player.Player
+import fr.umontpellier.iut.dominion.Supply.SupplyPile
 import fr.umontpellier.iut.dominion.cards.Bonus.Bonus
 import fr.umontpellier.iut.dominion.cards.Bonus.DominionBonus
 import fr.umontpellier.iut.dominion.cards.Events.Event
@@ -42,15 +43,6 @@ class CardConfigurator(val scope: Card) {
         scope.register<T>(builder.effect, builder.condition)
     }
 
-    private fun duration(build : Builder<DurationComponent.Duration>.() -> Unit) : DurationComponent {
-        val builder = Builder<DurationComponent.Duration>(scope)
-        builder.build()
-        val duration = DurationComponent(builder.effect, scope)
-        scope.register(duration, builder.condition)
-
-        return duration
-    }
-
     class DurationBuilder(scope : Card) : Builder<DurationComponent.Duration>(scope) {
         val duration = DurationComponent(scope = scope)
 
@@ -79,17 +71,19 @@ class CardConfigurator(val scope: Card) {
         return this
     }
 
-    fun onSetup(neededPlayer : Boolean = false, block : Game.() -> Unit) {
+    fun onSetup(neededPlayer : Boolean = false, block : Game.(MutableList<SupplyPile>) -> Unit) {
         val setup = OnSetup(block)
         setup.neededPlayer = neededPlayer
         scope.register(setup)
     }
 
-    fun onEndSetup(block : Game.() -> Unit) {
+    fun onEndSetup(block : Game.(MutableList<SupplyPile>) -> Unit) {
         val setup = OnSetup(block)
         setup.neededPlayer = true
         scope.register(setup)
     }
+
+    inline fun <reified T : Specification> addSpecification(component : T){ scope.register(component) }
 
     fun onStartBuyPhase(builder : Build<OnStartBuyPhase>){ build(builder) }
     fun onEndTurn(builder : Build<OnEndTurn>) { build(builder) }
@@ -218,8 +212,6 @@ class CardConfigurator(val scope: Card) {
         return this
     }
 
-
-
     infix fun afterGain(builder : Build<AfterPlayerGain>): CardConfigurator {
         build(builder)
         return this
@@ -264,9 +256,6 @@ class CardConfigurator(val scope: Card) {
         scope.register<ScoreComponent>(MutableScoreComponent(baseValue, function))
     }
 
-
-
-
     infix fun onCardTrash(builder : Build<OnCardTrashed>): CardConfigurator {
         build(builder)
         return this
@@ -285,44 +274,6 @@ class CardConfigurator(val scope: Card) {
         @JvmStatic
         fun buyBonus(bonus: Bonus): TriggerComponent.CheckItSelfBuy {
             return TriggerComponent.CheckItSelfBuy { event, c -> event.player.triggerEffect(EFFECT, c, bonus) }
-        }
-
-        @JvmStatic
-        fun <T : CardComponent> run(clazz: Class<T>, effect: T): T = effect
-
-        @JvmStatic
-        fun run(effect: OnPlayComponent): OnPlayComponent = run(OnPlayComponent::class.java, effect)
-
-        @Suppress("UNCHECKED_CAST")
-        @JvmStatic
-        inline fun <reified T: CardComponent> empty(): T {
-            val clazz = T::class.java
-
-            return Proxy.newProxyInstance(
-                clazz.classLoader,
-                arrayOf(clazz),
-                InvocationHandler { proxy, method, args ->
-                    when (method.name) {
-                        "toString" -> return@InvocationHandler "EmptyComponent[${clazz.simpleName}]"
-                        "hashCode" -> return@InvocationHandler System.identityHashCode(proxy)
-                        "equals" -> return@InvocationHandler proxy === args[0]
-                    }
-
-                    if (method.isDefault) {
-                        return@InvocationHandler InvocationHandler.invokeDefault(proxy, method, args)
-                    }
-
-                    if (method.returnType.isAssignableFrom(clazz)) {
-                        return@InvocationHandler proxy
-                    }
-
-                    if (method.returnType == Void.TYPE) {
-                        return@InvocationHandler null
-                    }
-
-                    null
-                }
-            ) as T
         }
     }
 }

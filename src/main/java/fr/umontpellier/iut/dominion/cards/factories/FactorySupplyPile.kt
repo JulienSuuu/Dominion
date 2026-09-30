@@ -169,7 +169,7 @@ fun loadAllCards() {
                 tempSetExpansions.computeIfAbsent(setName) { TreeSet() }.add(card.extension)
             }
         } catch (e: Exception) {
-            println("❌ [ERROR] Échec lors du chargement de la méthode '${method.name}' (Classe: ${method.declaringClass.simpleName})")
+            println("[ERROR] Échec lors du chargement de la méthode '${method.name}' (Classe: ${method.declaringClass.simpleName})")
             e.printStackTrace()
             throw RuntimeException("Erreur lors de l'enregistrement de la méthode ${method.name}", e)
         }

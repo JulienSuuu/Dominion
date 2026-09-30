@@ -125,7 +125,9 @@ object Dark_AgesFactoryKt {
     fun BanditCamp() : Card{
         val bonus = Bonus.action(2).draw()
         return Card.action("Bandit Camp", Price.darkAges(5))
-            .setup { onPlay(bonus.onPlay() then { gainSpecificAsideCard("Spoils", this@Dark_AgesFactoryKt.NAME) }) }
+            .setup {
+                onSetup { addAsideSupplyPile(DA, "Spoils") }
+                onPlay(bonus.onPlay() then { gainSpecificAsideCard("Spoils", this@Dark_AgesFactoryKt.NAME) }) }
     }
     @Dominion_Card(extension = DA)
     fun Beggar() = Card.action("Beggar", Price.darkAges(2)).addType(CardType.REACTION)
@@ -334,6 +336,7 @@ object Dark_AgesFactoryKt {
     @Dominion_Card(extension = DA)
     fun Hermit() = Card.action("Hermit", Price.darkAges(3))
         .setup {
+            onSetup { addAsideSupplyPile(DA, "Madman") }
             onPlay(BiEffect.empty<Player, Card>()
                 .chooseCardFromList { player, _ -> InteractionRequest(
                     instruction = "$player, you may trash a non treasure card from your discard or from your hand",
@@ -412,6 +415,7 @@ object Dark_AgesFactoryKt {
     @Dominion_Card(extension = DA)
     fun Marauder() = Card.attack("Marauder", Price.darkAges(4)).addType(CardType.LOOTER)
         .setup {
+            onSetup { addAsideSupplyPile(DA, "Spoils") }
             onPlay(BiEffect.empty<Player, Card>()
                 .then { gainSpecificAsideCard("Spoils", this@Dark_AgesFactoryKt.NAME) }
                 .attackOthers { _, opponent, _ -> opponent.gainFromSupply("Ruins") }
@@ -457,6 +461,7 @@ object Dark_AgesFactoryKt {
     @Dominion_Card(extension = DA)
     fun Pillage() = Card.attack("Pillage", Price.darkAges(5))
         .setup {
+            onSetup { addAsideSupplyPile(DA, "Spoils") }
             onPlay(BiEffect.empty<Player, Card>()
                 .chooseWhatToDo { player, card -> InteractionRequest(
                     instruction = "$player, do you want to trash $card ?",
@@ -654,6 +659,7 @@ object Dark_AgesFactoryKt {
         val bonus = Bonus.action().draw()
         return Card.attack("Urchin", Price.darkAges(3))
             .setup {
+                onSetup { addAsideSupplyPile(DA, "Marauder") }
                 onPlay(bonus.onPlay().processHandDown(toReach = 4, mayDiscard = true))
                 beforeCardPlayed {
                     onEffect(BiEffect.empty<Player, Event>()
@@ -720,7 +726,7 @@ object Dark_AgesFactoryKt {
     fun Knights() = Knight("Knights").addType(CardType.TEMPLATE).setup {
         onSetup {
             val knights = createMixedSupplyPile(factory.getMixedCards(CardType.KNIGHT), scope).apply { shuffle() }
-            allPilesForSupply.add(knights)
+            it.add(knights)
         }
     }
 

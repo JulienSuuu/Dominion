@@ -26,6 +26,7 @@ import fr.umontpellier.iut.dominion.Properties
 import fr.umontpellier.iut.dominion.cards.Bonus.Bonus
 import fr.umontpellier.iut.dominion.cards.Card
 import fr.umontpellier.iut.dominion.cards.Events.Event
+import fr.umontpellier.iut.dominion.cards.Events.OnGainEvent
 import fr.umontpellier.iut.dominion.cards.builders.branchDecision
 import fr.umontpellier.iut.dominion.cards.builders.filterListAndNotEmpty
 import fr.umontpellier.iut.dominion.cards.builders.filterNotNull
@@ -536,6 +537,7 @@ object HinterlandsFactoryKt {
         val money = Bonus.money(2)
         return Card.action("Duchess", Price.hinterlands(2))
             .setup {
+                onSetup { addListener<OnGainEvent>{DuchessPassive(it)} }
                 onPlay(money.onPlay()
                     .globalEffect { _, _, player ->
                         val effect = BiEffect.empty<Player, Unit>()

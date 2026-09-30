@@ -22,6 +22,7 @@ import fr.umontpellier.iut.dominion.cards.component.OnPlayComponent
 import fr.umontpellier.iut.dominion.cards.component.Price
 import fr.umontpellier.iut.dominion.cards.component.ScoreComponent
 import fr.umontpellier.iut.dominion.cards.component.SingleCardComponent
+import fr.umontpellier.iut.dominion.cards.component.Specification
 import fr.umontpellier.iut.dominion.cards.factories.Empires.EmpiresRules
 import fr.umontpellier.iut.dominion.game.rules.markPlayerAsAttacked
 import fr.umontpellier.iut.dominion.game.rules.shouldEnchant
@@ -213,6 +214,7 @@ class Card(
 
     @PublishedApi
     internal var components = ComponentRegistry()
+
 
     val properties = mutableMapOf<String, Any>()
 

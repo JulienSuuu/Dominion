@@ -34,6 +34,7 @@ import fr.umontpellier.iut.dominion.cards.builders.filterNotNull
 import fr.umontpellier.iut.dominion.cards.builders.gainFromSupply
 import fr.umontpellier.iut.dominion.cards.builders.listIsNotEmpty
 import fr.umontpellier.iut.dominion.cards.component.BiEffect
+import fr.umontpellier.iut.dominion.cards.component.HeirloomComponent
 import fr.umontpellier.iut.dominion.cards.component.InteractionRequest
 import fr.umontpellier.iut.dominion.cards.component.OnPlayComponent
 import fr.umontpellier.iut.dominion.cards.component.Price

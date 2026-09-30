@@ -445,7 +445,7 @@ object EmpiresFactoryKt {
     val castleComparator = compareByDescending<Card> { it.costValue }
     @Dominion_Card(extension = "Empires", pileType = PileType.UNIQUE)
     fun Castles() = TCastles("Castles").addType(CardType.TEMPLATE)
-        .setup { onSetup { allPilesForSupply.add(createMixedSupplyPile(factory.getMixedCards(CardType.CASTLE), scope).sortWith(castleComparator)) } }
+        .setup { onSetup { it.add(createMixedSupplyPile(factory.getMixedCards(CardType.CASTLE), scope).sortWith(castleComparator)) } }
 
     @Dominion_Card(extension = "Empires", pileType = PileType.MIXED)
     fun HumbleCastle() = TCastles("Humble Castle").addType(CardType.TREASURE)
@@ -561,7 +561,7 @@ object EmpiresFactoryKt {
     @Dominion_Card(extension = "Empires", pileType = PileType.UNIQUE)
     fun CatapultRocks() = Card.attack("Catapult Rocks", Price.empires(3)).addType(CardType.TEMPLATE, CardType.Split)
         .setup {
-            onSetup { allPilesForSupply.add(createMixedSupplyPile(factory.getSpecificMixedSupply(CardType.Split, "Catapult", "Rocks").reversed(), scope)) }
+            onSetup { it.add(createMixedSupplyPile(factory.getSpecificMixedSupply(CardType.Split, "Catapult", "Rocks").reversed(), scope)) }
         }
     @Dominion_Card(extension = "Empires", pileType = PileType.CUSTOM, cardsNumber = 5)
     fun Catapult() = Card.attack("Catapult", Price.empires(3)).addType(CardType.Split)
@@ -588,7 +588,7 @@ object EmpiresFactoryKt {
     fun EncampmentPlunder() = Card.action("Encampment Plunder", Price.empires(2)).addType(CardType.TEMPLATE)
         .setup {
             onSetup {
-                allPilesForSupply.add(createMixedSupplyPile(factory.getSpecificMixedSupply(CardType.Split, "Encampment", "Plunder").reversed(), scope))
+                it.add(createMixedSupplyPile(factory.getSpecificMixedSupply(CardType.Split, "Encampment", "Plunder").reversed(), scope))
             }
         }
     @Dominion_Card(extension = "Empires", pileType = PileType.CUSTOM, cardsNumber = 5)
@@ -622,7 +622,7 @@ object EmpiresFactoryKt {
     fun GladiatorFortune() = Card.action("Gladiator Fortune", Price.empires(3)).addType(CardType.TEMPLATE)
         .setup {
             onSetup {
-                allPilesForSupply.add(createMixedSupplyPile(factory.getSpecificMixedSupply(CardType.Split, "Gladiator", "Fortune").reversed(), scope))
+                it.add(createMixedSupplyPile(factory.getSpecificMixedSupply(CardType.Split, "Gladiator", "Fortune").reversed(), scope))
             }
         }
     @Dominion_Card(extension = "Empires", pileType = PileType.CUSTOM, cardsNumber = 5)
@@ -678,7 +678,7 @@ object EmpiresFactoryKt {
     fun PatricianEmporium() = Card.action("Patrician Emporium", Price.empires(2)).addType(CardType.TEMPLATE)
         .setup {
             onSetup {
-                allPilesForSupply.add(createMixedSupplyPile(factory.getSpecificMixedSupply(CardType.Split, "Patrician", "Emporium").reversed(), scope))
+                it.add(createMixedSupplyPile(factory.getSpecificMixedSupply(CardType.Split, "Patrician", "Emporium").reversed(), scope))
             }
         }
     @Dominion_Card(extension = "Empires", pileType = PileType.CUSTOM, cardsNumber = 5)
@@ -705,7 +705,7 @@ object EmpiresFactoryKt {
     fun SettlerBustlingVillage() = Card.action("Settler Bustling Village", Price.empires(2)).addType(CardType.TEMPLATE)
         .setup {
             onSetup {
-                allPilesForSupply.add(createMixedSupplyPile(factory.getSpecificMixedSupply(CardType.Split, "Settler", "Bustling Village").reversed(), scope))
+                it.add(createMixedSupplyPile(factory.getSpecificMixedSupply(CardType.Split, "Settler", "Bustling Village").reversed(), scope))
             }
         }
     @Dominion_Card(extension = "Empires", pileType = PileType.CUSTOM, cardsNumber = 5)

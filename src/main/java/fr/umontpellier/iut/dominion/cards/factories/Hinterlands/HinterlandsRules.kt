@@ -12,17 +12,18 @@ import fr.umontpellier.iut.dominion.cards.Events.OnGainEvent
 import fr.umontpellier.iut.dominion.cards.component.BiEffect
 import fr.umontpellier.iut.dominion.cards.component.InteractionRequest
 import fr.umontpellier.iut.dominion.cards.component.chooseWhatToDo
+import fr.umontpellier.iut.dominion.game.rules.GameComponent
 
-class HinterlandsRules(private val game: Game?) {
-    suspend fun DuchessPassive(event: OnGainEvent) {
-        val player = event.player
-        if (event.card?.hasName("Duchy") == true) {
-            val duchess = player.getCardFromSupply("Duchess")
-            val choice =
-                player.chooseWhatToDo("Do you want to gain a Duchess ?", listOfNotNull(duchess), buttons =  Button.yesOrNo, canPass =  true)
-            if ("y" == choice) {
-                player.gain(duchess, Destination.PlayerZone.Discard )
-            }
+class HinterlandsRules() : GameComponent {}
+
+suspend fun DuchessPassive(event: OnGainEvent) {
+    val player = event.player
+    if (event.card?.hasName("Duchy") == true) {
+        val duchess = player.getCardFromSupply("Duchess")
+        val choice =
+            player.chooseWhatToDo("Do you want to gain a Duchess ?", listOfNotNull(duchess), buttons =  Button.yesOrNo, canPass =  true)
+        if ("y" == choice) {
+            player.gain(duchess, Destination.PlayerZone.Discard )
         }
     }
 }

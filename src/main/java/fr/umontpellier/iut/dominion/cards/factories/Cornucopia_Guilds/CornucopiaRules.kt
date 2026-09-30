@@ -16,13 +16,21 @@ import fr.umontpellier.iut.dominion.cards.component.chooseCardFromList
 import fr.umontpellier.iut.dominion.cards.component.chooseWhatToDo
 import fr.umontpellier.iut.dominion.cards.gainFromSupply
 import fr.umontpellier.iut.dominion.cards.gainMultiplyCardFromSupply
+import fr.umontpellier.iut.dominion.game.rules.GameComponent
 
-class CornucopiaRules(private val game: Game) {
+class CornucopiaRules(private val game: Game) : GameComponent {
     fun footpadPassive(event: OnGainEvent) {
         if (game.isActionPhase) {
             event.player.draw()
             game.log("Règle Footpad : +1 Carte piochée.")
         }
+    }
+}
+
+fun footpadPassive(event: OnGainEvent) {
+    if (event.player.game.isActionPhase) {
+        event.player.draw()
+        event.player.game.log("Règle Footpad : +1 Carte piochée.")
     }
 }
 

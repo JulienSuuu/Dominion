@@ -10,12 +10,13 @@ import fr.umontpellier.iut.dominion.cards.Card
 import fr.umontpellier.iut.dominion.cards.Id
 import fr.umontpellier.iut.dominion.cards.factories.createMixedSupplyPile
 import fr.umontpellier.iut.dominion.cards.factories.createSupplyPile
+import fr.umontpellier.iut.dominion.game.rules.SupplyContributor
 import fr.umontpellier.iut.dominion.game.toJsonString
 import kotlinx.coroutines.flow.MutableStateFlow
 import java.util.Collections
 import kotlin.collections.filter
 
-class NocturneRules(val game : Game) : GameComponent {
+class NocturneRules(val game : Game) : SupplyContributor {
     val discardMat = mutableMapOf<Destination.NocturneZone, MutableStateFlow<List<Card>>>().apply {
         if(game.hasType(CardType.FATE, 1)) put(Destination.NocturneZone.Boons, MutableStateFlow(emptyList()))
         if(game.hasType(CardType.DOOM, 1)) put(Destination.NocturneZone.Hex, MutableStateFlow(emptyList()))
@@ -154,7 +155,8 @@ class NocturneRules(val game : Game) : GameComponent {
         }
     }
 
-    override fun getAllSupply(): List<SupplyPile> {
+
+    override fun getSupplyPiles(): List<SupplyPile> {
         return nocturnePile.values + othersPile.values.flatten()
     }
 
