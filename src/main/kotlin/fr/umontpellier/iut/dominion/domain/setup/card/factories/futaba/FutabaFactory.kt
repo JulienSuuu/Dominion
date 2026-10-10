@@ -1,0 +1,115 @@
+package fr.umontpellier.iut.dominion.domain.setup.card.factories.futaba
+
+import fr.umontpellier.iut.dominion.domain.annotation.Dominion_Card
+
+
+import fr.umontpellier.iut.dominion.domain.model.card.*
+import fr.umontpellier.iut.dominion.domain.model.card.price.Price
+import fr.umontpellier.iut.dominion.domain.model.core.*
+import fr.umontpellier.iut.dominion.domain.model.event.*
+import fr.umontpellier.iut.dominion.domain.model.location.Destination
+import fr.umontpellier.iut.dominion.domain.model.player.Player
+import fr.umontpellier.iut.dominion.domain.model.supply.PileType
+
+import fr.umontpellier.iut.dominion.domain.components.card.bonus.Bonus
+import fr.umontpellier.iut.dominion.domain.components.card.effect.*
+import fr.umontpellier.iut.dominion.domain.components.card.score.ScoreComponent
+import fr.umontpellier.iut.dominion.domain.components.card.trigger.OnPlayComponent
+
+import fr.umontpellier.iut.dominion.domain.dsl.card.actions.*
+import fr.umontpellier.iut.dominion.domain.dsl.card.builders.*
+
+import fr.umontpellier.iut.dominion.domain.model.player.skills.*
+import fr.umontpellier.iut.dominion.domain.utils.*
+
+object FutabaFactory {
+
+    @Dominion_Card(extension = "Futaba")
+    fun DealerLuka() = Card.action("Dealer Luka", Price.dominion(5)).addType(CardType.REACTION, CardType.FUTABA, CardType.POKER)
+        .setup {
+            simpleAction(Bonus.ActionAndDraw)
+            onPokerHand {
+                onEffect(BiEffect.empty<Player, EvaluatedPokerHand>()
+                    .then {player, hand ->
+                        player.reveals(hand.fiveCardHand)
+                        val bonus : Bonus? = when(val type = hand.type){
+                            PokerHand.PAIR -> Bonus.money(1)
+                            PokerHand.TWO_PAIR -> Bonus.money(type.rank)
+                            PokerHand.THREE_OF_A_KIND -> Bonus.money(type.rank)
+                            PokerHand.STRAIGHT -> Bonus.money(type.rank)
+                            PokerHand.FLUSH -> Bonus.money(5).draw()
+                            PokerHand.FULL_HOUSE -> Bonus.money(5).draw(2)
+                            PokerHand.FOUR_OF_A_KIND -> Bonus.money(6).draw(1).with(Item.BUY)
+                            PokerHand.STRAIGHT_FLUSH -> Bonus.action().with(Item.MONEY, 7).draw(2).with(Item.BUY)
+                            else -> null
+                        }
+                        player.triggerEffect("Poker", scope, bonus)
+                        player.discard(scope)
+                    }
+                )
+                onCondition { event, _ -> !event.isPokerHand(PokerHand.HIGH_CARD) }
+            }
+        }
+
+    @Dominion_Card(extension = "Futaba", pileType = PileType.VICTORY)
+    fun FutabaRecycler() = Card.duration("Futaba Recycler", Price.dominion(5)).addType(CardType.ACTION, CardType.VICTORY, CardType.FUTABA)
+        .setup {
+            onCardTrash {
+                onEffect(BiEffect.empty<Event, Card>()
+                    .then { _, card -> card.getComponent<ScoreComponent>()?.incrementValue() }
+                    .then { event, card -> event.player.discard(card) }
+                )
+                onCondition { event, _ -> event.cameFrom(Destination.PlayerZone.Hand) }
+            }
+            mutableScore()
+            onDuration { infinite() }
+        }
+
+    @Dominion_Card(extension = "Futaba")
+    fun Futacar() = Card.attack("Futacar", Price.dominion(5)).addType(CardType.FUTABA)
+        .setup {
+            onPlay(Bonus.money(2).onPlay()
+                .attack { _, opponent, _ ->
+                    if(opponent.getList(Destination.PlayerZone.Draw).any{it.hasType(CardType.FUTABA)}) return@attack
+                    opponent.gainFromSupply("Curse")
+                }
+                .end()
+            )
+        }
+
+    @Dominion_Card(extension = "Futaba")
+    fun Hacker() = Card.action("Hacker", Price.dominion(5)).addType(CardType.FUTABA)
+        .setup {
+            onPlay(
+                Bonus.Action.onPlay()
+                    .filter { player, _ -> player.sizeOf(Destination.PlayerZone.InPlay) == 2 }
+                    .thenDo { player, card, _ ->
+                        val toCopy = player.getList(Destination.PlayerZone.InPlay).first().copy()
+                        val onPlay = toCopy.getComponent<OnPlayComponent>() ?: return@thenDo
+
+                        card.removeComponent<OnPlayComponent>()
+                        card.setup { onPlay(Bonus.Action.onPlay().then { player, card -> onPlay(player, card) }) }
+
+                    }
+                    .end()
+            )
+        }
+
+    @Dominion_Card(extension = "Futaba")
+    fun LukaMegurine() = Card.duration("Luka Megurine", Price.dominion(8)).addType(CardType.TREASURE, CardType.FUTABA)
+        .setup {
+            onPlay(Bonus.FISH.onPlay() then { getFlag("EndTurn") += true })
+            onDuration {
+                onEffect(BiEffect.empty<Player, Card>() then { incrementByAction(Item.MONEY){getValueOf(Item.FISH)} })
+            }
+        }
+    @Dominion_Card(extension = "Futaba")
+    fun Maidtaba() = Card.action("Maidtaba", Price.dominion(5)).addType(CardType.REACTION, CardType.FUTABA)
+        .setup {
+            simpleAction(Bonus.action(3))
+            onCardPlayed {
+                onEffect{owner, _ -> owner.draw(2)}
+                onCondition { event, player -> event.cardHasType(CardType.DURATION) && !event.isSamePlayer(player) }
+            }
+        }
+}
